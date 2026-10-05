@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "allowJs": true, "checkJs": false },
+  "include": ["tests/workers/worker.ts", "tests/workers/fixtures.mjs"]
+}

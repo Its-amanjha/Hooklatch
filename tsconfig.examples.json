@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.check.json",
+  "compilerOptions": { "esModuleInterop": true },
+  "include": ["examples/**/*.ts"]
+}
