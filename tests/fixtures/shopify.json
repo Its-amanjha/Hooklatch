@@ -1,0 +1,87 @@
+{
+  "cases": [
+    {
+      "id": "happy-path",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over raw body with the literal UTF-8 synthetic client secret, documented in notes/glm-implementation.md; not a published provider vector" },
+      "request": {
+        "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
+        "headers": {
+          "x-shopify-hmac-sha256": "c0nZLr7SVcnPWDn67OBzJ3kvvq6YLN76VGfCWnjus+U=",
+          "x-shopify-webhook-id": "4c1f3a24-6dcf-4f77-8f21-6f56de3f40a1",
+          "x-shopify-event-id": "9eb92a1a-4fda-4df1-a131-4b40f0f8b3d7",
+          "x-shopify-topic": "orders/updated",
+          "x-shopify-shop-domain": "fixture-store.myshopify.com"
+        }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": "unsigned-or-null", "eventId": "unsigned-or-null", "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "unpadded-signature-accepted",
+      "provenance": { "class": "local", "source": "happy-path source with the single trailing '=' removed; contract v1 accepts canonical padded or unpadded Base64" },
+      "request": {
+        "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
+        "headers": { "x-shopify-hmac-sha256": "c0nZLr7SVcnPWDn67OBzJ3kvvq6YLN76VGfCWnjus+U" }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "signature-over-other-body",
+      "provenance": { "class": "local", "source": "valid signature computed over a different body replayed here; mismatch must fail" },
+      "request": {
+        "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
+        "headers": { "x-shopify-hmac-sha256": "7l6lAMqvb3MEORgSuzNMPrC8PKKGjQpjN6lq8BD2Rb8=" }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "empty-body-verified",
+      "provenance": { "class": "local", "source": "HMAC over the empty byte string; contract v1 accepts correctly signed empty bodies" },
+      "request": {
+        "bodyBase64": "",
+        "headers": { "x-shopify-hmac-sha256": "W7dzYOc43sRI/jSVeWPcpq+CckVHYjbdkt6dnl8aimU=" }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "non-json-body-verified",
+      "provenance": { "class": "local", "source": "plain-body verification is byte-based" },
+      "request": {
+        "bodyBase64": "cGxhaW4gdGV4dCBmaXh0dXJlIGJvZHk=",
+        "headers": {
+          "x-shopify-hmac-sha256": "7l6lAMqvb3MEORgSuzNMPrC8PKKGjQpjN6lq8BD2Rb8=",
+          "content-type": "text/plain"
+        }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "unsigned-identity-header-tamper",
+      "provenance": { "class": "local", "source": "happy-path with a different X-Shopify-Webhook-Id; unsigned metadata must follow the request without becoming authenticated identity" },
+      "request": {
+        "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
+        "headers": {
+          "x-shopify-hmac-sha256": "c0nZLr7SVcnPWDn67OBzJ3kvvq6YLN76VGfCWnjus+U=",
+          "x-shopify-webhook-id": "attacker-chosen-webhook-id",
+          "x-shopify-event-id": "9eb92a1a-4fda-4df1-a131-4b40f0f8b3d7"
+        }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": "unsigned-or-null", "eventId": "unsigned-or-null", "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": { "class": "local", "source": "HTTPS-only HMAC absence (Pub/Sub and EventBridge deliveries carry no signature)" },
+      "request": {
+        "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
+        "headers": { "x-shopify-webhook-id": "4c1f3a24-6dcf-4f77-8f21-6f56de3f40a1" }
+      },
+      "options": { "secrets": ["shpss_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    }
+  ]
+}
