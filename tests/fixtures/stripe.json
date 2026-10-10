@@ -1,0 +1,194 @@
+{
+  "cases": [
+    {
+      "id": "happy-path",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 generator documented in notes/glm-implementation.md; synthetic inputs; not a published provider vector" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "stale-300-inclusive",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; boundary per contract v1" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102445100 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "stale-301-rejected",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; boundary per contract v1" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102445101 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "future-300-inclusive",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; contract v1 uses a symmetric window" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444500 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "future-301-rejected",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; contract v1 rejects future beyond tolerance (stricter than stripe-node)" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444499 },
+      "expected": { "ok": false, "reason": "timestamp-future" }
+    },
+    {
+      "id": "zero-width-accept",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; tolerance 0 is a zero-width window, never a bypass" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 0, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "zero-width-reject",
+      "provenance": { "class": "local", "source": "same inputs as happy-path; tolerance 0 is a zero-width window, never a bypass" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 0, "now": 4102444801 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "uppercase-hex-accepted",
+      "provenance": { "class": "local", "source": "happy-path signature rendered uppercase; contract v1 decodes hex case-insensitively" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=E0EF3B87066217E639EE6FDBD7EFD27E0381E794370CB0BEE4FB663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "rotation-old-secret-still-active",
+      "provenance": { "class": "local", "source": "two signatures from two synthetic secrets; one matching v1 must suffice" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705,v1=1fed229cab436cc8624e4452f07efcabb9b2fd0a91ee29a664bdcbbfd30d36d8" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00", "whsec_tern_fixture_old_0"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "rotation-old-removed",
+      "provenance": { "class": "local", "source": "old signature replayed after the old secret left the active set" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=1fed229cab436cc8624e4452f07efcabb9b2fd0a91ee29a664bdcbbfd30d36d8" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "tamper-stale-wrong-sig-wins",
+      "provenance": { "class": "local", "source": "body differs from the signed body AND delivery is stale; contract v1 orders signature before freshness" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIiB9",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102445200 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "tamper-body-fresh",
+      "provenance": { "class": "local", "source": "body differs from the signed body; freshness alone must not rescue it" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIiB9",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "duplicate-t-in-value",
+      "provenance": { "class": "local", "source": "single Stripe-Signature value containing two t elements; contract v1 rejects duplicate Stripe t fields" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705,t=4102444801,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "duplicate-t-combined-separate-values",
+      "provenance": { "class": "local", "source": "two repeated Stripe-Signature values; normalization merges them with ', ' and the grammar must still reject two t fields" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": ["t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705", "t=4102444801,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705"] }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": { "class": "local", "source": "no Stripe-Signature header at all" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "content-type": "application/json" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "empty-signature-value",
+      "provenance": { "class": "local", "source": "Stripe-Signature present but empty; primary aligned with the current descriptor mapping observed 2026-10-18 (probe in notes/glm-implementation.md); coordinator to ratify" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "t-only-no-scheme",
+      "provenance": { "class": "local", "source": "timestamp present but no v1 signature element; missing-signature reason ratified during integration" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "v0-fake-scheme-only",
+      "provenance": { "class": "local", "source": "Stripe's fake v0 test-event scheme alone must not verify; only v1 is a supported live scheme" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
+        "headers": { "stripe-signature": "t=4102444800,v0=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "unsupported-scheme" }
+    },
+    {
+      "id": "non-json-body-verified",
+      "provenance": { "class": "local", "source": "plain ASCII body 'TERN' signed as text/plain shows verification is byte-based, not JSON-based" },
+      "request": {
+        "bodyBase64": "VEVSTg==",
+        "headers": { "stripe-signature": "t=4102444800,v1=8a871f1de0ab81905b33f6f91ec2e4b79d96f822dee4424afd36cd5eee4186f9", "content-type": "text/plain" }
+      },
+      "options": { "secrets": ["whsec_tern_fixture_synthetic_00"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 4102444800, "authenticatedFields": ["timestamp"] } }
+    }
+  ]
+}
