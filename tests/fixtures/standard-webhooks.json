@@ -1,0 +1,241 @@
+{
+  "cases": [
+    {
+      "id": "reference-vector-sign-works",
+      "provenance": { "class": "reference", "source": "https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts: 'sign function works' fixed inputs and expected signature", "commit": "7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b", "fetched": "2026-10-18" },
+      "request": {
+        "bodyBase64": "eyJ0ZXN0IjogMjQzMjIzMjMxNH0=",
+        "headers": {
+          "webhook-id": "msg_p5jXN8AQM9LWM0D4loKWxJek",
+          "webhook-timestamp": "1614265330",
+          "webhook-signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
+        }
+      },
+      "options": { "secrets": ["whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"], "toleranceSeconds": 300, "now": 1614265330 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_p5jXN8AQM9LWM0D4loKWxJek", "timestamp": 1614265330, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "reference-vector-without-prefix",
+      "provenance": { "class": "reference", "source": "same pinned vector; the official suite verifies with and without the whsec_ prefix" },
+      "request": {
+        "bodyBase64": "eyJ0ZXN0IjogMjQzMjIzMjMxNH0=",
+        "headers": {
+          "webhook-id": "msg_p5jXN8AQM9LWM0D4loKWxJek",
+          "webhook-timestamp": "1614265330",
+          "webhook-signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
+        }
+      },
+      "options": { "secrets": ["MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"], "toleranceSeconds": 300, "now": 1614265330 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_p5jXN8AQM9LWM0D4loKWxJek", "timestamp": 1614265330, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "local-anchor",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_id.timestamp.payload with the Base64-decoded synthetic secret, documented in notes/glm-implementation.md" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_2TernLocalFixture", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "local-anchor-unpadded",
+      "provenance": { "class": "local", "source": "local anchor with the single trailing '=' removed; canonical unpadded Base64 accepted" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ"
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_2TernLocalFixture", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "rotation-both-signatures",
+      "provenance": { "class": "local", "source": "space-delimited list signed by the new and the rotated old secret; one match suffices" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ= v1,G7RE4JxpdLqU2ZUOf5nWztuIE4iDkmmmiLuYOFYiBwE="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=", "whsec_ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_2TernLocalFixture", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "rotation-old-removed",
+      "provenance": { "class": "local", "source": "old-secret signature replayed after the old secret left the configured set" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,G7RE4JxpdLqU2ZUOf5nWztuIE4iDkmmmiLuYOFYiBwE="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "wrong-key",
+      "provenance": { "class": "local", "source": "valid signature checked under a synthetic wrong secret; must fail cleanly" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "noncanonical-base64-rejected",
+      "provenance": { "class": "local", "source": "noncanonical Base64 with impossible trailing bits (same value the internal decoder rejects); decode must fail without weakening to a verify attempt" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,Zm9="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "tampered-webhook-id",
+      "provenance": { "class": "local", "source": "webhook-id is part of the signed content; changing it invalidates the signature" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_attackerChosenId",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "tampered-body",
+      "provenance": { "class": "local", "source": "signature replayed over modified bytes" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIiB9",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "tampered-body-plus-stale-wrong-sig-wins",
+      "provenance": { "class": "local", "source": "body tampered AND delivered beyond tolerance; contract v1 orders signature before freshness so the reason is invalid-signature" },
+      "request": {
+        "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIiB9",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102445200 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "stale-301-rejected",
+      "provenance": { "class": "local", "source": "valid signature; now one second past the tolerance boundary" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102445101 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "future-301-rejected",
+      "provenance": { "class": "local", "source": "valid signature; now one second before the future tolerance boundary; contract v1 rejects future beyond tolerance" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444499 },
+      "expected": { "ok": false, "reason": "timestamp-future" }
+    },
+    {
+      "id": "zero-width-tolerance-expired",
+      "provenance": { "class": "local", "source": "tolerance 0 never disables freshness; age 1 leaves the zero-width window" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 0, "now": 4102444801 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "empty-payload-verified",
+      "provenance": { "class": "local", "source": "HMAC over msg_id.timestamp. + empty payload, matching the official suite's 'empty payload' behavior; contract v1 has no content-type requirement" },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,eQSNIuSEAtkiq0ayJmMZ8vmLQ6eCF54UTwu2bhXDkWA="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_2TernLocalFixture", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": { "class": "local", "source": "webhook-signature header absent entirely" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": "msg_2TernLocalFixture",
+          "webhook-timestamp": "4102444800"
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "singleton-webhook-id-combined",
+      "provenance": { "class": "local", "source": "two webhook-id values; header combination joins them with ', ' and the singleton must reject the combined value; malformed-signature reason ratified during integration" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
+        "headers": {
+          "webhook-id": ["msg_2TernLocalFixture", "msg_second"],
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,ESSRisfszY36ZyKy2bl1Vkk7uI32zD45fuOPeieKcxQ="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    }
+  ]
+}
