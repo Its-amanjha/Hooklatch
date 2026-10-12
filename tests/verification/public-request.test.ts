@@ -1,0 +1,106 @@
+import { verifyRequest } from '../../src/index.js';
+import { TernError } from '../../src/errors.js';
+import type { Provider, VerifyOptions } from '../../src/types.js';
+import { fixtureBytes, fixtureOptions, loadFixture } from './helpers.js';
+import type { FixtureCase } from './helpers.js';
+
+function caseById(provider: Provider, id: string): FixtureCase {
+  const found = loadFixture(provider).find((entry) => entry.id === id);
+  if (!found) throw new Error(`Fixture missing: ${provider}/${id}`);
+  return found;
+}
+
+function headersOf(case_: FixtureCase): Headers {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(case_.request.headers)) {
+    if (typeof value === 'object' && value !== null) {
+      for (const item of value) headers.append(name, item);
+    } else {
+      headers.append(name, value);
+    }
+  }
+  return headers;
+}
+
+function toRequest(case_: FixtureCase, bodyOverride?: Uint8Array): Request {
+  return new Request('https://fixture.internal/hook', {
+    method: 'POST',
+    headers: headersOf(case_),
+    body: new Uint8Array(bodyOverride ?? fixtureBytes(case_)),
+  });
+}
+
+function toStreamRequest(chunks: readonly Uint8Array[], case_: FixtureCase): Request {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  const init: RequestInit & { duplex: 'half' } = { method: 'POST', headers: headersOf(case_), body: stream, duplex: 'half' };
+  return new Request('https://fixture.internal/hook', init);
+}
+
+const stripeTern = caseById('stripe', 'non-json-body-verified'); // body 'TERN', signed
+const stripeHappy = caseById('stripe', 'happy-path');
+const githubVector = caseById('github', 'reference-vector-2026-10-18');
+
+describe('verifyRequest() — bounded Request reading on the public root', () => {
+  test('verifies a fully consumed-once Request and returns the verified snapshot', async () => {
+    const request = toRequest(githubVector);
+    const result = await verifyRequest(request, fixtureOptions('github', githubVector));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.provider).toBe('github');
+    expect(result.rawBody).toEqual(fixtureBytes(githubVector));
+    expect(new TextDecoder().decode(result.rawBody)).toBe('Hello, World!');
+  });
+
+  test('setup error: options are validated before any body is read', async () => {
+    const request = toRequest(stripeTern);
+    await request.text(); // consume first so a body error would otherwise win
+    const invalid = { provider: 'nope', secrets: ['whsec_tern_fixture_synthetic_00'], now: () => 4102444800 };
+    await expect(verifyRequest(request, invalid as unknown as VerifyOptions))
+      .rejects.toMatchObject({ name: 'TernError', code: 'unknown-provider' });
+  });
+
+  test('setup error: missing secrets win over an already consumed body', async () => {
+    const request = toRequest(stripeTern);
+    await request.text();
+    const options: VerifyOptions = { provider: 'stripe', secrets: [], now: () => 4102444800 };
+    await expect(verifyRequest(request, options))
+      .rejects.toMatchObject({ name: 'TernError', code: 'missing-secrets' });
+  });
+
+  test('already consumed bodies throw TernError body-consumed', async () => {
+    const request = toRequest(stripeTern);
+    await request.text();
+    await expect(verifyRequest(request, fixtureOptions('stripe', stripeTern)))
+      .rejects.toMatchObject({ name: 'TernError', code: 'body-consumed' });
+  });
+
+  test('locked-but-unread bodies are also setup errors', async () => {
+    const request = toRequest(stripeHappy);
+    request.body?.getReader(); // lock the stream without reading
+    await expect(verifyRequest(request, fixtureOptions('stripe', stripeHappy)))
+      .rejects.toBeInstanceOf(TernError);
+  });
+
+  test('overflow through a stream without Content-Length fails as body-too-large', async () => {
+    // The signature header is irrelevant here: size enforcement precedes signature checks.
+    const request = toStreamRequest(
+      [new TextEncoder().encode('TERN'), new TextEncoder().encode('X')],
+      stripeTern,
+    );
+    const result = await verifyRequest(request, { ...fixtureOptions('stripe', stripeTern), maxBodyBytes: 4 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('body-too-large');
+  });
+
+  test('bodies exactly at maxBodyBytes still verify', async () => {
+    const request = toRequest(stripeTern);
+    const options = { ...fixtureOptions('stripe', stripeTern), maxBodyBytes: 4 };
+    const result = await verifyRequest(request, options);
+    expect(result.ok).toBe(true);
+  });
+});
