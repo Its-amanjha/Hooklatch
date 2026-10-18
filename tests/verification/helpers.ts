@@ -40,7 +40,8 @@ export interface FixtureCase {
   readonly notes?: string;
 }
 
-const PROVIDER_FILES: Record<Provider, string> = {
+/** Legacy fixture files only. New provider presets must map explicitly or not at all. */
+const PROVIDER_FILES: Partial<Record<Provider, string>> = {
   stripe: '../fixtures/stripe.json',
   github: '../fixtures/github.json',
   shopify: '../fixtures/shopify.json',
@@ -116,7 +117,13 @@ function isFixtureFile(value: unknown): value is FixtureFile {
 }
 
 export function loadFixture(provider: Provider): readonly FixtureCase[] {
-  const raw = readFileSync(new URL(PROVIDER_FILES[provider], import.meta.url), 'utf8');
+  const fixtureFile = PROVIDER_FILES[provider];
+
+  if (fixtureFile === undefined) {
+    throw new Error(`No fixture file is assigned to provider ${provider}`);
+  }
+
+  const raw = readFileSync(new URL(fixtureFile, import.meta.url), 'utf8');
   const parsed: unknown = JSON.parse(raw);
 
   if (!isFixtureFile(parsed)) throw new Error(`Fixture file for ${provider} is malformed`);
