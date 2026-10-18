@@ -70,13 +70,13 @@ const PROJECT_ROOT = path.resolve(import.meta.dirname, '..');
 const WORKER_ENTRY = path.join(PROJECT_ROOT, 'tests', 'workers', 'worker.ts');
 
 /**
- * Files this harness needs that other partners own. Listed explicitly so a
- * blocked run reports the exact dependency instead of an opaque bundler error.
+ * Source modules required by the harness. List them explicitly so missing
+ * dependencies produce a useful message instead of an opaque bundler error.
  */
 const REQUIRED_SOURCES = [
-  { relative: 'src/index.ts', owner: 'Codex', purpose: 'root exports: verify, verifyRequest, createVerifier, HooklatchError' },
-  { relative: 'src/adapters/cloudflare.ts', owner: 'Beam', purpose: 'Workers adapter: createWebhookHandler' },
-  { relative: 'src/providers/index.ts', owner: 'DeepSeek', purpose: 'provider descriptors: getProviderDescriptor' },
+  { relative: 'src/index.ts', purpose: 'root exports: verify, verifyRequest, createVerifier, HooklatchError' },
+  { relative: 'src/adapters/cloudflare.ts', purpose: 'Workers adapter: createWebhookHandler' },
+  { relative: 'src/providers/index.ts', purpose: 'provider descriptors: getProviderDescriptor' },
 ];
 
 const EXIT = { PASS: 0, FAIL: 1, USAGE: 2, BLOCKED: 3 };
@@ -124,12 +124,11 @@ async function preflightSources() {
   if (missing.length === 0) return;
 
   console.error('');
-  console.error('RESULT: BLOCKED — required partner-owned source files are absent.');
+  console.error('RESULT: BLOCKED — required source modules are absent.');
   console.error('This harness will not substitute its own implementations.');
   console.error('');
   for (const entry of missing) {
     console.error(`  missing: ${entry.relative}`);
-    console.error(`    owner:  ${entry.owner}`);
     console.error(`    needed: ${entry.purpose}`);
   }
   console.error('');

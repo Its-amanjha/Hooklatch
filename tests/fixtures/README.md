@@ -46,4 +46,4 @@ for source links and the unresolved Standard Webhooks license-metadata discrepan
   strings, not credentials.
 - No network, no timers: clocks come from `options.now` alone.
 - Never edit a fixture to make a failing implementation pass; failing fixtures
-  must be reported as integration findings back to the coordinator.
+  must be reported to the maintainers with the observed failure.
