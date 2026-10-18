@@ -83,7 +83,7 @@ for (const provider of ORIGINAL_PROVIDERS) {
   assert(fixture, `Missing positive runtime fixture for ${provider}.`);
 
   pushCase({
-    id: `${provider}: published positive vector`,
+    id: `${provider}: positive fixture`,
     provider,
     headers: fixture.request.headers,
     bodyBase64: fixture.request.bodyBase64,
@@ -316,7 +316,7 @@ const bundled = await build({
 
 const bundleText = bundled.outputFiles[0].text;
 
-const nodeImports = [...bundleText.matchAll(/(?:from|import|require\()\s*["'](node:[a-z_/]+)["']/gi)]
+const nodeImports = [...bundleText.matchAll(/(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'](node:[a-z0-9_./-]+)["']/gi)]
   .map((match) => match[1]);
 
 assert.equal(nodeImports.length, 0,
@@ -327,17 +327,16 @@ assert.deepEqual(COMPATIBILITY_FLAGS, [], 'Workerd qualification must not enable
 const tempDir = await mkdtemp(join(tmpdir(), 'hooklatch-workers-providers-'));
 const bundlePath = join(tempDir, 'worker.mjs');
 
-await writeFile(bundlePath, bundleText);
-
-const relativeBundle = relative(tempDir, bundlePath);
-
-assert(!relativeBundle.startsWith('..') && !relativeBundle.includes('..'),
-  'Bundled Worker must stay within the temporary module root.');
-
 let runtime;
 let failure = null;
 
 try {
+  await writeFile(bundlePath, bundleText);
+  const relativeBundle = relative(tempDir, bundlePath);
+
+  assert(!relativeBundle.startsWith('..') && !relativeBundle.includes('..'),
+    'Bundled Worker must stay within the temporary module root.');
+
   runtime = new Miniflare({
     modules: true,
     modulesRoot: tempDir,
@@ -410,4 +409,4 @@ if (failure !== null) process.exit(1);
 
 console.log('');
 
-console.log(`PASS: ${cases.length} workerd provider assertions across ${REQUIRED_PROVIDERS.length} providers.`);
+console.log(`PASS: ${cases.length} workerd provider cases across ${REQUIRED_PROVIDERS.length} providers.`);

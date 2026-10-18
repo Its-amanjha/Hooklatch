@@ -107,6 +107,8 @@ try {
 
       const verifier = await createVerifier(options)(input);
       assert.equal(verifier.ok, true);
+      assert.equal(verifier.provider, provider);
+      assert.deepEqual([...verifier.rawBody], [...publishedBody]);
       assert.deepEqual(verifier.identity, identity);
 
       const tampered = await verify({ ...input, rawBody: encoder.encode('tampered') }, options);
