@@ -8,5 +8,6 @@
     "noEmitOnError": true,
     "outDir": "dist", "rootDir": "src", "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/cli/**"]
 }
