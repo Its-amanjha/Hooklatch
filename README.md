@@ -9,9 +9,8 @@ you expect — before your code parses or trusts the payload. It supports
 Stripe, GitHub, Shopify, and Standard Webhooks with one consistent
 asynchronous API, and offers optional framework adapters.
 
-The initial brief referenced Hookflo's Tern SDK. Hooklatch is a separate project
-and is not affiliated with Hookflo. See the [source and reference review](docs/PROVENANCE.md)
-for the comparison scope, findings, and reference-vector attribution.
+See the [source and reference review](docs/PROVENANCE.md) for the comparison
+scope, findings, and reference-vector attribution.
 
 ## Requirements
 

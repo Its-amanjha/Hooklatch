@@ -18,12 +18,18 @@ not a certification that every line is original or a determination of rights.
 
 ## Findings
 
-The initial generated brief used Tern's product identity, package namespace,
-service-class API names and proposed directory structure. Hooklatch therefore
-has an acknowledged reference/inspiration; it should not be presented as an
-unprecedented product idea or an affiliation with Hookflo. The initial identity
-was replaced before publication. No claim of an isolated clean-room process is
-made.
+The user describes the idea's origin as a general discussion on X about building
+a tool in this category, followed by their own refinements and an LLM-generated
+implementation brief. They did not identify Tern as the product they saw or as
+their inspiration.
+
+The generated brief nevertheless contained Tern's product identity, package
+namespace, service-class API names and a similar proposed directory structure.
+That is evidence about the prompt's contents, not evidence that the user copied
+or drew inspiration from Tern. Why the prompt generator included those details
+has not been established. The inherited identity was replaced before
+publication. Tern was selected for this comparison because of that naming and
+API overlap; the comparison does not make it the origin of the user's idea.
 
 The implementation currently has materially different organization:
 
@@ -76,8 +82,8 @@ reference material. They must not be presented as newly invented by Hooklatch.
 
 These vectors appear in provider tests, shared fixtures and offline Worker
 fixtures. Original source links in fixture metadata and comments must remain.
-The Tern repository's MIT notice does not establish authorship of those vectors
-and is not a substitute for their own source attribution.
+Hooklatch's package license is not a substitute for attribution to the original
+vector sources.
 
 ### Unresolved reference metadata
 
@@ -99,8 +105,9 @@ paraphrased copying, reconstruct pre-Git edits or establish trademark clearance.
 The reconstructed dates in the initial Git history are not authorship evidence;
 see [history provenance](GIT_HISTORY.md).
 
-Accurate public positioning is: Hooklatch is a separately named TypeScript
-webhook verification project, inspired by an existing product category, with
-the implementation choices documented above. It is not affiliated with Hookflo
-or Tern. Preserve source attribution and investigate any specific future match
-before reusing it or claiming exclusive authorship.
+Accurate public positioning is: Hooklatch is a TypeScript webhook verification
+project with the implementation choices documented above. Its user's stated
+idea origin and the generated prompt's inherited identifiers are separate facts.
+It is not affiliated with Hookflo or Tern. Preserve actual source attribution
+and investigate any specific future match before reusing it or claiming
+exclusive authorship.
