@@ -85,17 +85,23 @@ fixtures. Original source links in fixture metadata and comments must remain.
 Hooklatch's package license is not a substitute for attribution to the original
 vector sources.
 
-### Unresolved reference metadata
+### Reference license metadata
 
 At the pinned Standard Webhooks commit, the repository's [root
 license](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/LICENSE)
-is Apache-2.0, while the [JavaScript package
+is Apache-2.0. The parent-directory [libraries license](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE)
+contains an MIT notice attributed to Svix, copyright 2023, and the [JavaScript package
 manifest](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/package.json)
-declares MIT. No JavaScript-local LICENSE or root NOTICE was found at the
-checked paths. Clarify the applicable source terms before describing all
-third-party fixture material as Hooklatch-authored MIT content. This review
-does not decide whether particular signature test values require permission
-or which declaration governs. No third-party implementation was added here.
+declares MIT. An earlier review omitted `libraries/LICENSE` and therefore
+presented an incomplete picture of this nested license layout. A follow-up on
+2026-10-19 enumerated all 177 tree entries at the pinned commit (not truncated):
+the license files are `LICENSE`, `libraries/LICENSE`, and
+`libraries/python/LICENSE`; no NOTICE or JavaScript-local LICENSE is present.
+
+These observations correct the metadata record; they do not establish a legal
+conflict or determine which terms govern particular test values. Preserve the
+source attribution rather than describing third-party fixture material as
+Hooklatch-authored content. No third-party implementation was added here.
 
 ## Limits and publication statements
 

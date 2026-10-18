@@ -288,3 +288,10 @@ See `SECURITY.md` for the vulnerability reporting policy.
 ## License
 
 MIT — see `LICENSE`.
+
+Reference test vectors come from [GitHub's webhook verification documentation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
+and the [Standard Webhooks JavaScript test suite at a pinned revision](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts).
+They are external reference material. The latter repository includes an
+[MIT notice under `libraries/`](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE).
+See the [source review](https://github.com/Its-amanjha/Hooklatch/blob/main/docs/PROVENANCE.md)
+for the recorded scope and limits.
