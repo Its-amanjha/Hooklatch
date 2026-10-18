@@ -7,7 +7,7 @@
  * After verification succeeds, the caller decodes and interprets.
  */
 
-import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
+import { verify, type VerifyOptions } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real shared secret.
 const TEST_SECRET = 'TEST0github0shared0secret0placeholder';
@@ -28,23 +28,32 @@ export async function handleGitHubWebhook(
   headers: Headers,
 ): Promise<Response> {
   const result = await verify({ rawBody, headers }, options);
+
   if (!result.ok) {
     return Response.json({ error: result.message }, { status: 400 });
   }
 
   // Verified. The bytes are authentic — now interpret them.
-  const text = new TextDecoder().decode(rawBody);
+  const text = new TextDecoder().decode(result.rawBody);
 
   // GitHub may send application/json or x-www-form-urlencoded.
   const contentType = headers.get('content-type') ?? '';
   let payload: unknown;
+
   if (contentType.includes('application/json')) {
-    payload = JSON.parse(text) as unknown;
+    payload = JSON.parse(text);
   } else {
     // Form-encoded: decode manually.
     const params = new URLSearchParams(text);
-    payload = Object.fromEntries(params.entries());
+    const encodedPayload = params.get('payload');
+
+    if (encodedPayload === null) {
+      return Response.json({ error: 'Expected a payload form field' }, { status: 400 });
+    }
+
+    payload = JSON.parse(encodedPayload);
   }
 
-  return Response.json({ received: true, action: (payload as { action?: string }).action });
+  // Schema validation belongs here before business logic uses the parsed value.
+  return Response.json({ received: true, event: payload });
 }

@@ -8,6 +8,7 @@
  */
 
 import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
+import { isIdentifiedEvent } from './event-validation.js';
 
 // Synthetic placeholder — replace with your real endpoint secret.
 const TEST_SECRET = 'whsec_TEST0placeholder0secret0do0not0use';
@@ -28,6 +29,7 @@ export async function handleWebhook(
   headers: Headers,
 ): Promise<Response> {
   const result = await verify({ rawBody, headers }, options);
+
   return respond(result);
 }
 
@@ -41,12 +43,17 @@ function respond(result: VerificationResult): Response {
       || result.reason === 'timestamp-future'
       ? 401
       : 400;
+
     return Response.json({ error: result.message }, { status });
   }
 
   // Verified. The bytes are authentic; parsing is the caller's job.
   const text = new TextDecoder().decode(result.rawBody);
-  const payload = JSON.parse(text) as unknown;
+  const payload: unknown = JSON.parse(text);
 
-  return Response.json({ received: true, id: (payload as { id?: string }).id });
+  if (!isIdentifiedEvent(payload)) {
+    return Response.json({ error: 'Expected an event with an id' }, { status: 400 });
+  }
+
+  return Response.json({ received: true, id: payload.id });
 }

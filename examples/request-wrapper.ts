@@ -29,7 +29,9 @@ export async function handleWorkersWebhook(
   env: Record<string, string>,
 ): Promise<Response> {
   const secret = env.GITHUB_SECRET;
+
   if (!secret) return new Response('Internal Server Error', { status: 500 });
+
   // Merge env-derived secrets into options.
   const opts: VerifyOptions = {
     ...options,
@@ -38,18 +40,20 @@ export async function handleWorkersWebhook(
 
   try {
     const result = await verifyRequest(request, opts);
+
     if (!result.ok) {
       return Response.json({ error: result.message }, { status: 400 });
     }
+
     // Verified. Use result.rawBody — do NOT re-read the Request body.
-    const payload = JSON.parse(new TextDecoder().decode(result.rawBody)) as unknown;
-    return Response.json({ received: true });
+    return Response.json({ received: true, bytes: result.rawBody.byteLength });
   } catch (err) {
     if (err instanceof HooklatchError) {
       // Setup error: consumed body, read failure, crypto unavailable, etc.
       // Respond with a generic 500 — do not leak internal details.
       return Response.json({ error: 'Internal error' }, { status: 500 });
     }
+
     throw err; // Unexpected — let the runtime handle it.
   }
 }

@@ -7,7 +7,8 @@
  * payload schema. Decode and validate with your own tools after success.
  */
 
-import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
+import { verify, type VerifyOptions } from 'hooklatch';
+import { isStripeEvent, type StripeEvent } from './event-validation.js';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0stripe0secret0placeholder';
@@ -22,11 +23,6 @@ const options: VerifyOptions = {
 // import { z } from 'zod';
 // const StripeEventSchema = z.object({ id: z.string(), type: z.string() });
 
-interface StripeEvent {
-  id: string;
-  type: string;
-}
-
 /**
  * Verify and parse a Stripe webhook.
  *
@@ -38,6 +34,7 @@ export async function handleStripeWebhook(
   headers: Headers,
 ): Promise<{ status: number; event?: StripeEvent; error?: string }> {
   const result = await verify({ rawBody, headers }, options);
+
   if (!result.ok) {
     return { status: 401, error: result.message };
   }
@@ -47,8 +44,9 @@ export async function handleStripeWebhook(
 
   // Step 2: Parse JSON.
   let parsed: unknown;
+
   try {
-    parsed = JSON.parse(text) as unknown;
+    parsed = JSON.parse(text);
   } catch {
     return { status: 500, error: 'Verified body is not valid JSON' };
   }
@@ -56,10 +54,9 @@ export async function handleStripeWebhook(
   // Step 3: Validate with your schema.
   // const event = StripeEventSchema.parse(parsed);
   // For this example, we do a minimal manual check:
-  const event = parsed as StripeEvent;
-  if (typeof event.id !== 'string' || typeof event.type !== 'string') {
+  if (!isStripeEvent(parsed)) {
     return { status: 500, error: 'Verified body does not match expected schema' };
   }
 
-  return { status: 200, event };
+  return { status: 200, event: parsed };
 }

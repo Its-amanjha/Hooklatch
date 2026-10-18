@@ -32,6 +32,7 @@ export function createGitHubVerifier(): (request: {
       secrets: [TEST_SECRET],
       toleranceSeconds: 300,
     };
+
     return createVerifier(options);
   } catch (err) {
     if (err instanceof HooklatchError) {
@@ -40,6 +41,7 @@ export function createGitHubVerifier(): (request: {
       // 'invalid-secret', 'invalid-options'.
       throw err;
     }
+
     throw err;
   }
 }
@@ -56,6 +58,7 @@ export async function handleRequest(
   headers: Headers,
 ): Promise<Response> {
   const result = await verify({ rawBody, headers });
+
   if (!result.ok) {
     // Request-validation failure — safe to log reason and message.
     // Map to appropriate status codes.

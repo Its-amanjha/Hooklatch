@@ -39,9 +39,11 @@ export async function handleStripeWebhook(
   headers: Record<string, string>,
 ): Promise<{ status: number; body: string }> {
   const result = await verify({ rawBody, headers });
+
   if (!result.ok) {
     return { status: 401, body: JSON.stringify({ error: result.message }) };
   }
+
   // Verified — process the event.
   return { status: 200, body: JSON.stringify({ received: true }) };
 }

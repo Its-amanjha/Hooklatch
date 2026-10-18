@@ -11,7 +11,7 @@
  * Platform limits (e.g. Cloudflare Workers plan limits) may reject earlier.
  */
 
-import { verify, HooklatchError, type VerifyOptions, type VerificationResult } from 'hooklatch';
+import { verify, HooklatchError, type VerifyOptions } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0shopify0secret0placeholder';
@@ -28,30 +28,29 @@ export async function handleShopifyWebhook(
   headers: Headers,
   maxBodyBytes = 1048576,
 ): Promise<Response> {
-  let options: VerifyOptions;
   try {
-    options = {
+    const options: VerifyOptions = {
       provider: 'shopify',
       secrets: [TEST_SECRET],
       maxBodyBytes,
     };
-    // Validate options before use — invalid limits throw HooklatchError.
-    // (In the real implementation, createVerifier or verify validates.)
+
+    const result = await verify({ rawBody, headers }, options);
+
+    if (!result.ok) {
+      const status = result.reason === 'body-too-large' ? 413 : 400;
+
+      return Response.json({ error: result.message }, { status });
+    }
+
+    return Response.json({ received: true });
   } catch (err) {
     if (err instanceof HooklatchError) {
       // Invalid configuration — respond with generic 500.
       return Response.json({ error: 'Internal error' }, { status: 500 });
     }
+
     throw err;
   }
 
-  const result = await verify({ rawBody, headers }, options);
-  if (!result.ok) {
-    if (result.reason === 'body-too-large') {
-      return Response.json({ error: 'Body too large' }, { status: 413 });
-    }
-    return Response.json({ error: result.message }, { status: 400 });
-  }
-
-  return Response.json({ received: true });
 }

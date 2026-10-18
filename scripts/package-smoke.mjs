@@ -8,16 +8,20 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const tempRoot = await mkdtemp(join(tmpdir(), 'hooklatch-package-'));
 const npmCli = process.env.npm_execpath;
+
 assert(npmCli, 'Run this check via npm run test:package.');
+
 const npm = (args, cwd) => execFileSync(process.execPath, [npmCli, ...args], {
   cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
 });
+
 try {
   const [pack] = JSON.parse(npm(['pack', '--json', '--pack-destination', tempRoot], root));
   assert(pack.files.every(({ path }) => path.startsWith('dist/') || ['package.json', 'README.md', 'LICENSE'].includes(path)), 'Unexpected files in npm tarball.');
   const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
   assert.equal(Object.keys(manifest.dependencies ?? {}).length, 0);
   npm(['install', join(tempRoot, pack.filename), '--omit=dev', '--ignore-scripts', '--offline', '--no-audit', '--no-fund'], tempRoot);
+
   // A new process outside the workspace proves core loads without dev/framework deps.
   const check = `
     import assert from 'node:assert/strict';
@@ -35,6 +39,7 @@ try {
     }
     console.log('PASS: packed core imports and verifies offline without optional frameworks.');
   `;
+
   process.stdout.write(execFileSync(process.execPath, ['--input-type=module', '-e', check], { cwd: tempRoot, encoding: 'utf8' }));
 } finally {
   const checked = resolve(tempRoot);
