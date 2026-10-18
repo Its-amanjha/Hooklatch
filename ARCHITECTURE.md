@@ -6,7 +6,7 @@ isolated framework adapters.
 ## Status
 
 The verification core, four provider descriptors, and four adapters are
-implemented. Local integration and release checks are tracked in `memory.md`.
+implemented. Run `npm run verify` for local integration and release checks.
 No live-provider validation or published release is implied.
 
 ## Layout

@@ -70,7 +70,7 @@ payload schemas.
 > **Implementation status (2026-10-18):** The core, four provider descriptors,
 > and four adapters are implemented. Tests use published reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
-> Local release checks are recorded in `memory.md`. See `ARCHITECTURE.md` for
+> Run `npm run verify` for the full local checks. See `ARCHITECTURE.md` for
 > the implemented layout. The package has not been published by this workflow.
 
 ## Core API

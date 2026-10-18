@@ -30,7 +30,7 @@
     },
     {
       "id": "local-anchor",
-      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_id.timestamp.payload with the Base64-decoded synthetic secret, documented in notes/glm-implementation.md" },
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_id.timestamp.payload with the Base64-decoded synthetic secret" },
       "request": {
         "bodyBase64": "eyJ0eXBlIjoidGVybi5maXh0dXJlIiwidGltZXN0YW1wIjoiMjEwMC0wMS0wMVQwMDowMDowMFoiLCJkYXRhIjp7ImZvbyI6ImJhciJ9fQ==",
         "headers": {

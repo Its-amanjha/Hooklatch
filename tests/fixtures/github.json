@@ -42,7 +42,7 @@
     },
     {
       "id": "wrong-secret-anchor",
-      "provenance": { "class": "local", "source": "HMAC-SHA256 of the same published payload under the wrong synthetic secret 'It's not the Secret to Everybody' computed with node:crypto in notes/glm-implementation.md" },
+      "provenance": { "class": "local", "source": "HMAC-SHA256 of the same published payload under the wrong synthetic secret 'It's not the Secret to Everybody' computed with node:crypto" },
       "request": {
         "bodyBase64": "SGVsbG8sIFdvcmxkIQ==",
         "headers": {
@@ -78,7 +78,7 @@
     },
     {
       "id": "sha1-leftover-only",
-      "provenance": { "class": "local", "source": "legacy HMAC-SHA1 X-Hub-Signature header only; contract v1 covers GitHub SHA-256; primary aligned with the current descriptor mapping observed 2026-10-18 (probe in notes/glm-implementation.md); coordinator to ratify" },
+      "provenance": { "class": "local", "source": "legacy HMAC-SHA1 X-Hub-Signature header only; contract v1 covers GitHub SHA-256; primary aligned with the current descriptor mapping observed 2026-10-18; exact reason ratified during integration" },
       "request": {
         "bodyBase64": "SGVsbG8sIFdvcmxkIQ==",
         "headers": { "x-hub-signature": "sha1=0000000000000000000000000000000000000000" }

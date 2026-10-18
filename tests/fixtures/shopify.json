@@ -2,7 +2,7 @@
   "cases": [
     {
       "id": "happy-path",
-      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over raw body with the literal UTF-8 synthetic client secret, documented in notes/glm-implementation.md; not a published provider vector" },
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over raw body with the literal UTF-8 synthetic client secret; not a published provider vector" },
       "request": {
         "bodyBase64": "eyJvcmRlcl9maXh0dXJlIjoiYmFyIn0=",
         "headers": {

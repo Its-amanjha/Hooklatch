@@ -8,8 +8,8 @@
  * Provenance: the GitHub and Standard Webhooks values below are published
  * reference vectors from official documentation/reference suites. They are
  * public test data, not credentials. Both were independently recomputed with
- * .NET `HMACSHA256` on 2026-10-18 before being embedded here; see
- * `notes/space-bunny-implementation.md`.
+ * .NET `HMACSHA256` on 2026-10-18 before being embedded here. Official source
+ * links accompany the vectors below.
  *
  * Everything else is synthetic: fixed clock, synthetic delivery ID, and
  * locally derived variants used to drive negative cases.

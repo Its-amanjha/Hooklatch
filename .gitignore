@@ -1,7 +1,49 @@
+# Dependencies, build output and local runtime state
 node_modules/
 dist/
 coverage/
+.wrangler/
+*.tgz
+*.tsbuildinfo
+.cache/
+tmp/
+temp/
+logs/
+*.log
+
+# Secrets and local configuration (sanitized templates may be committed)
 .env
 .env.*
-*.tgz
-.wrangler/
+!.env.example
+!.env.sample
+!.env.template
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Private AI coordination and project working memory
+/AGENTS.md
+/agent.md
+/memory.md
+/TEAM.md
+/notes/
+/tasks/
+/docs/superpowers/
+.codex/
+.claude/
+.cursor/
+.aider*
+/CLAUDE.md
+/GEMINI.md
+
+# Personal editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo

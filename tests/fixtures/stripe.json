@@ -2,7 +2,7 @@
   "cases": [
     {
       "id": "happy-path",
-      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 generator documented in notes/glm-implementation.md; synthetic inputs; not a published provider vector" },
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 generator; synthetic inputs; not a published provider vector" },
       "request": {
         "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
         "headers": { "stripe-signature": "t=4102444800,v1=e0ef3b87066217e639ee6fdbd7efd27e0381e794370cb0bee4fb663283996705" }
@@ -152,7 +152,7 @@
     },
     {
       "id": "empty-signature-value",
-      "provenance": { "class": "local", "source": "Stripe-Signature present but empty; primary aligned with the current descriptor mapping observed 2026-10-18 (probe in notes/glm-implementation.md); coordinator to ratify" },
+      "provenance": { "class": "local", "source": "Stripe-Signature present but empty; primary aligned with the current descriptor mapping observed 2026-10-18; exact reason ratified during integration" },
       "request": {
         "bodyBase64": "eyJpZCI6ImV2dF8xVGVybkZpeHR1cmVBIiwib2JqZWN0IjoiZXZlbnQiLCJ0eXBlIjoicGF5bWVudF9pbnRlbnQuc3VjY2VlZGVkIn0=",
         "headers": { "stripe-signature": "" }

@@ -8,7 +8,7 @@
  * `Miniflare#dispatchFetch` invokes the Worker in-process, and no Cloudflare,
  * provider, or Upstash account is involved.
  *
- * Design constraints (see `tasks/space-bunny.md`):
+ * Runtime qualification constraints:
  *  - No Node compatibility flags: esbuild uses `platform: 'neutral'` with
  *    `workerd`/`worker`/`browser` export conditions, and Miniflare runs with an
  *    empty `compatibilityFlags` array. Any `node:` builtin import in the core
@@ -205,7 +205,7 @@ async function readJson(response) {
 }
 
 /**
- * The agreed adapter contract (`tasks/beam.md`) requires 400/413/500 responses
+ * The adapter response contract requires 400/413/500 responses
  * to carry *generic* text, with core reasons kept out of HTTP bodies so they
  * remain available only for safe application-side logging. This asserts that
  * contract positively, and additionally asserts the rejection body leaks

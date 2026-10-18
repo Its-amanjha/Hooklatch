@@ -1,8 +1,7 @@
 # Fixtures — schema and provenance policy
 
-Owner: GLM (`tests/fixtures/**`). Consumers: `tests/verification/**`,
-DeepSeek's provider tests, Beam's adapter tests. Contract version 1
-(`notes/core-contract-proposal.md`) defines the meaning of every verdict.
+Consumers: public verification tests and provider/adapter suites. Public types
+in `src/types.ts` and the API documented in `README.md` define each verdict.
 
 ## Files
 
@@ -19,8 +18,8 @@ Every case:
   - `reference` = inputs AND expected value come from published provider
     material at the pinned URL/commit.
   - `local` = generated locally with `node:crypto` (test-only independent
-    signing); never a published vector; inputs and generator are documented in
-    `notes/glm-implementation.md`.
+    signing); never a published vector. Each fixture records its synthetic
+    inputs and signing method in its provenance.
 - `request.bodyBase64` — the exact request bytes (possibly empty), Base64 so
   byte-exactness survives diffs.
 - `request.headers` — map of header name(s) to string or repeated values
