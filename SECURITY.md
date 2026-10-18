@@ -11,7 +11,7 @@ must define the supported release policy when publishing the first release.
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security issue in Tern, please
+We take security seriously. If you discover a security issue in Hooklatch, please
 report it responsibly.
 
 **Do not** open a public issue for security vulnerabilities.

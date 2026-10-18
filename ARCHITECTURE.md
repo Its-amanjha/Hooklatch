@@ -1,6 +1,6 @@
 # Architecture
 
-Tern is a TypeScript ESM package with a dependency-free verification core and
+Hooklatch is a TypeScript ESM package with a dependency-free verification core and
 isolated framework adapters.
 
 ## Status
@@ -14,7 +14,7 @@ No live-provider validation or published release is implied.
 ```
 src/
   types.ts               Public contract types (frozen, v1)      [exists]
-  errors.ts              TernError with error codes              [exists]
+  errors.ts              HooklatchError with error codes              [exists]
   core.ts                Orchestration: verify, verifyRequest, createVerifier
   index.ts               Public exports
   internal/

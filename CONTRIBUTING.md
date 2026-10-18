@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in improving Tern. This guide covers the
+Thank you for your interest in improving Hooklatch. This guide covers the
 development workflow, commands, and requirements for protocol tests.
 
 ## Prerequisites
@@ -62,7 +62,7 @@ that implements the `ProviderDescriptor` interface from
 `src/internal/provider.ts`:
 
 1. `decodeSecret(secret)` — validate and decode the secret to the raw HMAC
-   key bytes. Throw `TernError('invalid-secret')` on invalid input.
+   key bytes. Throw `HooklatchError('invalid-secret')` on invalid input.
 2. `parse(headers, rawBody)` — extract signatures, build the signed content,
    and return metadata. Return `FailureDetails` on malformed input; freshness
    and HMAC checks belong to the core.

@@ -1,8 +1,10 @@
-# @hookflo/tern
+# Hooklatch
+
+**Verify webhooks. Preserve every byte.**
 
 Portable webhook signature verification with a zero-dependency core.
 
-Tern verifies that incoming webhook requests genuinely come from the provider
+Hooklatch verifies that incoming webhook requests genuinely come from the provider
 you expect — before your code parses or trusts the payload. It supports
 Stripe, GitHub, Shopify, and Standard Webhooks with one consistent
 asynchronous API, and offers optional framework adapters.
@@ -16,13 +18,13 @@ asynchronous API, and offers optional framework adapters.
 ## Installation
 
 ```bash
-npm install @hookflo/tern
+npm install hooklatch
 ```
 
 ## Quick start
 
 ```ts
-import { verify } from '@hookflo/tern';
+import { verify } from 'hooklatch';
 
 const result = await verify(
   { rawBody, headers },                       // exact bytes + headers
@@ -99,7 +101,7 @@ verify(
 ### `verifyRequest(request, options)`
 
 Consumes a Web `Request` once with bounded reading. Already-consumed bodies
-are setup errors (`TernError`). Returns the same `VerificationResult` shape.
+are setup errors (`HooklatchError`). Returns the same `VerificationResult` shape.
 
 ### `createVerifier(options)`
 
@@ -113,10 +115,10 @@ const result = await verify({ rawBody, headers });
 ## Result handling
 
 Verification failures are **returned**, not thrown. Setup and runtime
-problems are **thrown** as `TernError`.
+problems are **thrown** as `HooklatchError`.
 
 ```ts
-import { TernError, verify } from '@hookflo/tern';
+import { HooklatchError, verify } from 'hooklatch';
 
 // Request failure — an outcome, not an exception.
 const result = await verify(request, options);
@@ -131,7 +133,7 @@ if (!result.ok) {
 try {
   const verify = createVerifier({ provider: 'nope', secrets: [] });
 } catch (err) {
-  if (err instanceof TernError) console.warn(err.code);
+  if (err instanceof HooklatchError) console.warn(err.code);
 }
 ```
 
@@ -167,7 +169,7 @@ const event = StripeEventSchema.parse(
 
 `maxBodyBytes` (default 1 MiB) is enforced while reading streams and before
 copying raw inputs. Exceeding it returns `{ ok: false, reason:
-'body-too-large' }` for request verification, or `TernError` for invalid
+'body-too-large' }` for request verification, or `HooklatchError` for invalid
 limit configuration. Platform limits (e.g. Workers plan limits) may reject
 earlier.
 
@@ -177,10 +179,10 @@ Adapters live on isolated subpaths and import their framework as an optional
 peer dependency:
 
 ```ts
-import { createWebhookMiddleware } from '@hookflo/tern/express';
-import { createWebhookMiddleware } from '@hookflo/tern/hono';
-import { createWebhookHandler } from '@hookflo/tern/nextjs';
-import { createWebhookHandler } from '@hookflo/tern/cloudflare';
+import { createWebhookMiddleware } from 'hooklatch/express';
+import { createWebhookMiddleware } from 'hooklatch/hono';
+import { createWebhookHandler } from 'hooklatch/nextjs';
+import { createWebhookHandler } from 'hooklatch/cloudflare';
 ```
 
 Adapter behavior (contract v1):
@@ -195,7 +197,7 @@ Adapter behavior (contract v1):
 ### Express
 
 ```ts
-import { createWebhookMiddleware } from '@hookflo/tern/express';
+import { createWebhookMiddleware } from 'hooklatch/express';
 
 app.post(
   '/webhooks/stripe',
@@ -218,7 +220,7 @@ rejected explicitly.
 
 ```ts
 import { Hono } from 'hono';
-import { createWebhookMiddleware, type WebhookVariables } from '@hookflo/tern/hono';
+import { createWebhookMiddleware, type WebhookVariables } from 'hooklatch/hono';
 
 const app = new Hono<{ Variables: WebhookVariables }>();
 
@@ -237,7 +239,7 @@ app.post(
 
 ```ts
 // app/webhooks/stripe/route.ts
-import { createWebhookHandler } from '@hookflo/tern/nextjs';
+import { createWebhookHandler } from 'hooklatch/nextjs';
 
 export const POST = createWebhookHandler({
   provider: 'stripe',
@@ -255,7 +257,7 @@ The original request body is consumed during verification; read
 ### Cloudflare Workers
 
 ```ts
-import { createWebhookHandler } from '@hookflo/tern/cloudflare';
+import { createWebhookHandler } from 'hooklatch/cloudflare';
 
 const fetch = createWebhookHandler<{ GITHUB_SECRET: string }>({
   options: (env) => ({ provider: 'github', secrets: [env.GITHUB_SECRET] }),
