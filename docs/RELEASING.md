@@ -3,8 +3,8 @@
 Practical maintainer checklist for publishing Hooklatch to the public npm
 registry. Written against the repository state at `7afdee6`.
 
-**This document is a checklist, not an authorization.** Nothing here has been
-executed. No publication, tag, registry/account operation, or repository
+**This document is a checklist, not an authorization.** Unchecked boxes do not
+record completed release steps. No publication, tag, registry/account operation, or repository
 setting change is performed by this file, and none was performed while writing
 it. Steps that touch an account, registry, or repository setting are marked
 **[account/registry]** and must be done deliberately by a maintainer.
@@ -16,7 +16,7 @@ it. Steps that touch an account, registry, or repository setting are marked
   and the final pre-release gate.
 - Does not cover: implementing features, or any decision about pending Phase 2
   work (CLI, diagnostics, new providers). Those are still in progress; their
-  verification is a future step, listed in [Deferred](#deferred-not-part-of-a-release).
+  verification is a future step, listed in [Pending work](#pending-at-the-checklist-baseline).
 - Every step is labelled by kind: **local**, **[account/registry]**, or
   **[repository setting]**.
 
@@ -125,15 +125,20 @@ it. Steps that touch an account, registry, or repository setting are marked
       `permissions: id-token: write`, `runs-on: ubuntu-latest`, and a trigger
       that is not every push. npm documents these prerequisites for provenance
       ([generating provenance statements](https://docs.npmjs.com/generating-provenance-statements)).
-- [ ] **4.4 First publish of a public package needs explicit access.**
-      `npm publish --access public` for the first public release of an unscoped
-      package. Unscoped packages are always public and referenced by name alone
+- [ ] **4.4 Choose public access explicitly in the release command.**
+      Use `npm publish --access public` in the approved release plan. Hooklatch
+      is unscoped, so it is always public; explicit access also matches npm's
+      first-publish provenance example. The unscoped-package guide itself uses
+      plain `npm publish`
       ([creating and publishing unscoped public packages](https://docs.npmjs.com/creating-and-publishing-unscoped-public-packages)).
 - [ ] **4.5 Decide how CI authenticates.**
-      Either an npm automation/access token used as `NODE_AUTH_TOKEN`, or
+      Either an appropriately scoped granular access token used as
+      `NODE_AUTH_TOKEN` with the required publishing/2FA permissions, or
       **trusted publishing (OIDC)**, which npm documents as removing the need for
       access tokens in CI and generating provenance automatically
       ([trusted publishing](https://docs.npmjs.com/trusted-publishers)).
+      Trusted publishing requires npm CLI **11.5.1+** and Node **22.14.0+**;
+      the older minimum for provenance alone does not satisfy this requirement.
 - [ ] **4.6 Remember dist-tags under OIDC are a separate grant.** If using
       trusted publishing, enabling "Allow npm dist-tag" is a distinct permission,
       disabled by default, and requires npm CLI 11.21.0+ or 12.2.0+
@@ -156,7 +161,10 @@ retagging, token creation, and trusted-publisher configuration.
       enabled via `publishConfig.provenance`, `NPM_CONFIG_PROVENANCE`, or
       `provenance=true` in `.npmrc` — there is currently no `.npmrc` in this
       repository.
-- [ ] **5.3 Verify after publishing.** `npm audit signatures`.
+- [ ] **5.3 Verify after publishing.** Install the exact published Hooklatch
+      version in a scratch project and run `npm audit signatures` there.
+      Running it only in this repository audits its dependencies, not Hooklatch
+      itself, which is not installed here as a dependency.
 
 ## 6. Security reporting
 
@@ -199,7 +207,8 @@ retagging, token creation, and trusted-publisher configuration.
 - [ ] **7.3 Re-run step 1.2** on the exact commit you are about to publish from,
       so the inventory reflects the released tree rather than a local edit.
 - [ ] **7.4 Re-read the release notes** for claims the project cannot support.
-      Only Stripe, GitHub, Shopify and Standard Webhooks are implemented. No
+      At this checklist's baseline only Stripe, GitHub, Shopify and Standard
+      Webhooks are implemented; recheck the actual release revision. No
       live-provider verification, no QStash delivery, and no publication has ever
       occurred — none of that may be implied.
 
@@ -207,7 +216,8 @@ retagging, token creation, and trusted-publisher configuration.
 
 - [ ] **8.1 Verify what landed:** `npm view hooklatch`, and confirm the dist-tags
       are what you intended (step 3.1/3.2).
-- [ ] **8.2 Verify provenance** if step 5 ran: `npm audit signatures`.
+- [ ] **8.2 Verify provenance** in the installed-package scratch project as
+      described in step 5.3: `npm audit signatures`.
 - [ ] **8.3 Confirm the Git tag** matches the published version.
 - [ ] **8.4 Smoke the installed package** in a scratch directory outside the
       repository — not in this working tree — importing the core and, if relevant,
@@ -235,7 +245,7 @@ retagging, token creation, and trusted-publisher configuration.
   attribution are retained deliberately; no legal determination is claimed
   anywhere in this repository.
 
-## Deferred (not part of a release)
+## Pending at the checklist baseline
 
 - Phase 2 CLI scaffolding and diagnostics — in progress, unimplemented.
 - New provider presets (Clerk/Svix) — approved design, not yet implemented.
