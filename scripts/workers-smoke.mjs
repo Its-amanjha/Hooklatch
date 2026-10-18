@@ -94,20 +94,26 @@ function check(name, ok, detail) {
 
 function checkEqual(name, actual, expected) {
   const same = actual === expected;
+
   const detail = same
     ? `= ${JSON.stringify(actual)}`
     : `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+
   check(name, same, detail);
+
   return same;
 }
 
 function checkBytes(name, actualBase64, expectedBytes) {
   const actual = Buffer.from(actualBase64 ?? '', 'base64');
   const ok = actual.length === expectedBytes.length && actual.equals(Buffer.from(expectedBytes));
+
   const detail = ok
     ? `${actual.length} bytes identical`
     : `expected ${expectedBytes.length} bytes ${JSON.stringify(Buffer.from(expectedBytes).toString('utf8'))}, got ${actual.length} bytes ${JSON.stringify(actual.toString('utf8'))}`;
+
   check(name, ok, detail);
+
   return ok;
 }
 
@@ -121,16 +127,19 @@ function sha256Hex(bytes) {
 
 async function preflightSources() {
   const missing = REQUIRED_SOURCES.filter((entry) => !existsSync(path.join(PROJECT_ROOT, entry.relative)));
+
   if (missing.length === 0) return;
 
   console.error('');
   console.error('RESULT: BLOCKED — required source modules are absent.');
   console.error('This harness will not substitute its own implementations.');
   console.error('');
+
   for (const entry of missing) {
     console.error(`  missing: ${entry.relative}`);
     console.error(`    needed: ${entry.purpose}`);
   }
+
   console.error('');
   console.error('Until these land, the Workers runtime qualification cannot run.');
   process.exit(EXIT.BLOCKED);
@@ -170,7 +179,9 @@ async function bundleWorker(outfile) {
   const code = await readFile(outfile, 'utf8');
   const nodeImports = [...code.matchAll(/(?:from|import|require\()\s*["'](node:[a-z_/]+)["']/gi)].map((m) => m[1]);
   checkEqual('bundle contains no node: builtin imports', nodeImports.length, 0);
+
   if (nodeImports.length > 0) check('bundle node builtin detail', false, [...new Set(nodeImports)].join(', '));
+
   return code;
 }
 
@@ -191,11 +202,13 @@ function standardWebhooksHeaders({ id = STANDARD_WEBHOOKS_ID, timestamp, signatu
 function derivedStandardWebhooksSignature(timestamp) {
   const key = Buffer.from(STANDARD_WEBHOOKS_SECRET.slice('whsec_'.length), 'base64');
   const content = Buffer.from(`${STANDARD_WEBHOOKS_ID}.${timestamp}.${STANDARD_WEBHOOKS_BODY}`, 'utf8');
+
   return `v1,${createHmac('sha256', key).update(content).digest('base64')}`;
 }
 
 async function readJson(response) {
   const text = await response.text();
+
   try {
     return JSON.parse(text);
   } catch {
@@ -214,8 +227,10 @@ async function checkGenericRejection(label, response) {
   const body = (await response.text()).trim();
   const opaque = body !== '' && !body.startsWith('{') && !body.startsWith('[');
   check(`${label}: rejection body is generic text, not a diagnostics payload`, opaque, JSON.stringify(body.slice(0, 80)));
+
   const leaks = [GITHUB_SECRET, GITHUB_SIGNATURE_HEADER, GITHUB_SIGNATURE_HEADER.split('=')[1], STANDARD_WEBHOOKS_SECRET, STANDARD_WEBHOOKS_SIGNATURE]
     .filter((value) => value && body.includes(value));
+
   checkEqual(`${label}: rejection body leaks no secret or signature`, leaks.length, 0);
 }
 
@@ -244,6 +259,7 @@ async function runCases(mf) {
     },
     GITHUB_BODY,
   );
+
   checkEqual('github published vector returns 200', github.status, 200);
   const githubBody = await readJson(github);
   checkEqual('github published vector verifies', githubBody.verified, true);
@@ -260,6 +276,7 @@ async function runCases(mf) {
     { 'content-type': 'text/plain', 'x-hub-signature-256': GITHUB_SIGNATURE_HEADER, 'x-github-delivery': GITHUB_DELIVERY_ID },
     GITHUB_TAMPERED_BODY,
   );
+
   checkEqual('github tampered bytes rejected with 400', githubTampered.status, 400);
   await checkGenericRejection('github tampered bytes', githubTampered);
 
@@ -269,6 +286,7 @@ async function runCases(mf) {
     standardWebhooksHeaders({ timestamp: STANDARD_WEBHOOKS_TIMESTAMP }),
     STANDARD_WEBHOOKS_BODY,
   );
+
   checkEqual('standard-webhooks published vector returns 200', sw.status, 200);
   const swBody = await readJson(sw);
   checkEqual('standard-webhooks published vector verifies', swBody.verified, true);
@@ -294,16 +312,19 @@ async function runCases(mf) {
     standardWebhooksHeaders({ timestamp: STANDARD_WEBHOOKS_TIMESTAMP }),
     STANDARD_WEBHOOKS_TAMPERED_BODY,
   );
+
   checkEqual('standard-webhooks tampered bytes rejected with 400', swTampered.status, 400);
   await checkGenericRejection('standard-webhooks tampered bytes', swTampered);
 
   // ---- Standard Webhooks stale timestamp (freshness in workerd) -----------
   const expiredTs = STANDARD_WEBHOOKS_TIMESTAMP - STANDARD_WEBHOOKS_EXPIRED_OFFSET_SECONDS;
+
   const swExpired = await post(
     ROUTE_STANDARD_WEBHOOKS,
     standardWebhooksHeaders({ timestamp: expiredTs, signature: derivedStandardWebhooksSignature(expiredTs) }),
     STANDARD_WEBHOOKS_BODY,
   );
+
   checkEqual('standard-webhooks stale timestamp rejected with 400', swExpired.status, 400);
   await checkGenericRejection('standard-webhooks stale timestamp', swExpired);
 
@@ -315,6 +336,7 @@ async function runCases(mf) {
     { 'content-type': 'text/plain', 'x-hub-signature-256': GITHUB_SIGNATURE_HEADER, 'x-github-delivery': GITHUB_DELIVERY_ID },
     GITHUB_TAMPERED_BODY,
   );
+
   checkEqual('core reason: github tampered is invalid-signature', (await readJson(probeGitHubTampered)).reason, 'invalid-signature');
 
   const probeSwTampered = await post(
@@ -322,6 +344,7 @@ async function runCases(mf) {
     standardWebhooksHeaders({ timestamp: STANDARD_WEBHOOKS_TIMESTAMP }),
     STANDARD_WEBHOOKS_TAMPERED_BODY,
   );
+
   checkEqual('core reason: standard-webhooks tampered is invalid-signature', (await readJson(probeSwTampered)).reason, 'invalid-signature');
 
   const probeSwExpired = await post(
@@ -329,6 +352,7 @@ async function runCases(mf) {
     standardWebhooksHeaders({ timestamp: expiredTs, signature: derivedStandardWebhooksSignature(expiredTs) }),
     STANDARD_WEBHOOKS_BODY,
   );
+
   checkEqual('core reason: stale timestamp is timestamp-expired', (await readJson(probeSwExpired)).reason, 'timestamp-expired');
 
   // Freshness must not be reachable without a correct signature.
@@ -337,6 +361,7 @@ async function runCases(mf) {
     standardWebhooksHeaders({ timestamp: expiredTs }),
     STANDARD_WEBHOOKS_BODY,
   );
+
   checkEqual(
     'core checks cryptography before freshness',
     (await readJson(probeSwBadSigStaleTs)).reason,
@@ -349,6 +374,7 @@ async function runCases(mf) {
     { 'content-type': 'text/plain', 'x-hub-signature-256': GITHUB_SIGNATURE_HEADER, 'x-github-delivery': GITHUB_DELIVERY_ID },
     GITHUB_BODY,
   );
+
   checkEqual('verifyRequest wrapper returns 200', wrapper.status, 200);
   const wrapperBody = await readJson(wrapper);
   checkEqual('verifyRequest wrapper verifies', wrapperBody.verified, true);
@@ -360,6 +386,7 @@ async function runCases(mf) {
     { 'content-type': 'text/plain', 'x-hub-signature-256': GITHUB_SIGNATURE_HEADER, 'x-github-delivery': GITHUB_DELIVERY_ID },
     GITHUB_TAMPERED_BODY,
   );
+
   checkEqual('verifyRequest wrapper rejects tampered bytes', wrapperTampered.status, 400);
   checkEqual('verifyRequest wrapper tampered reason', (await readJson(wrapperTampered)).reason, 'invalid-signature');
 
@@ -369,6 +396,7 @@ async function runCases(mf) {
     { 'content-type': 'text/plain', 'x-hub-signature-256': GITHUB_SIGNATURE_HEADER },
     OVERSIZED_BODY,
   );
+
   checkEqual('body overflow returns 413', oversized.status, 413);
   checkEqual('body overflow reason', (await readJson(oversized)).reason, 'body-too-large');
   checkEqual('overflow fixture really exceeds the limit', OVERSIZED_BODY.length > PROBE_MAX_BODY_BYTES, true);
@@ -405,19 +433,30 @@ async function main() {
   try {
     await bundleWorker(bundlePath);
 
-    miniflare = new Miniflare({
+    const runtimeOptions = {
       modules: true,
+      // Workerd module names cannot traverse above their root on POSIX.
+      modulesRoot: tempDir,
       scriptPath: bundlePath,
       compatibilityDate: COMPATIBILITY_DATE,
       compatibilityFlags: [],
       bindings: { ...ENV_BINDINGS },
-    });
+    };
+
+    const moduleName = path.relative(runtimeOptions.modulesRoot ?? process.cwd(), bundlePath);
+    check(
+      'bundled Worker stays within the configured module root',
+      !path.isAbsolute(moduleName) && !moduleName.split(path.sep).includes('..'),
+      moduleName,
+    );
+    miniflare = new Miniflare(runtimeOptions);
 
     await runCases(miniflare);
   } catch (error) {
     failure = error;
     console.error('');
     console.error(`RESULT: FAIL — ${error instanceof Error ? error.message : String(error)}`);
+
     if (error instanceof Error && error.stack) console.error(error.stack);
   } finally {
     // Always dispose, even on throw, so the workerd child never lingers.
@@ -430,6 +469,7 @@ async function main() {
         failure ??= new Error('miniflare disposal failed');
       }
     }
+
     await rm(tempDir, { recursive: true, force: true });
   }
 
@@ -440,18 +480,22 @@ async function main() {
   if (failure) {
     process.exit(EXIT.FAIL);
   }
+
   if (failed.length > 0) {
     for (const result of failed) console.error(`  failed: ${result.name} ${result.detail}`);
     console.error('RESULT: FAIL');
     process.exit(EXIT.FAIL);
   }
+
   console.log('RESULT: PASS');
-  process.exit(EXIT.PASS);
+  // Let disposed runtime handles drain before Node shuts down.
+  process.exitCode = EXIT.PASS;
 }
 
 function readVersion(packageName) {
   try {
     const packageJson = path.join(PROJECT_ROOT, 'node_modules', packageName, 'package.json');
+
     return JSON.parse(readFileSync(packageJson, 'utf8')).version;
   } catch {
     return 'unknown';
