@@ -19,8 +19,8 @@ npm install
 | Command | Purpose |
 |---------|---------|
 | `npm run verify` | Run all local release gates in order; stop on first failure |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run dev` | Watch-compile TypeScript |
+| `npm run build` | Compile portable SDK and Node-only CLI to `dist/` |
+| `npm run dev` | Watch the portable compiler project; rebuild CLI with `npm run build` |
 | `npm run typecheck` | Type-check without emitting |
 | `npm run typecheck:workers` | Type-check the real-workerd test Worker |
 | `npm run typecheck:examples` | Check examples against built package types |

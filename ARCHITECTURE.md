@@ -5,8 +5,8 @@ isolated framework adapters.
 
 ## Status
 
-The verification core, four provider descriptors, and four adapters are
-implemented. Run `npm run verify` for local integration and release checks.
+The verification core, six provider descriptors, four adapters, a pure diagnostics
+helper and a Node-only CLI are implemented. Run `npm run verify` for local checks.
 No live-provider validation or published release is implied.
 
 ## Layout
@@ -32,6 +32,11 @@ src/
     github.ts            GitHub SHA-256 descriptor
     shopify.ts           Shopify HTTPS descriptor
     standard-webhooks.ts Standard Webhooks HMAC v1 descriptor
+    standard-webhooks-protocol.ts Shared v1 parsing and secret decoding
+    clerk.ts             Branded-header preset
+    svix.ts              Complete-family alias policy
+  diagnostics/           Pure validated-code guidance on its own subpath
+  cli/                   Node-only parser, renderer and exclusive filesystem writer
   adapters/
     express.ts           Node request middleware
     nextjs.ts            App Router POST wrapper
@@ -58,6 +63,13 @@ examples/                Runnable TypeScript examples
    a machine-readable reason.
 
 ## Design rules
+
+- Core and diagnostics never import the CLI. Portable and CLI compiler projects
+  emit into `dist/`; the package bin points only at the Node CLI entrypoint.
+- The CLI does not overwrite files or install dependencies. It rejects existing
+  symlink components; concurrent parent replacement is outside its portable
+  checks. A failed write can leave a partial owned file, rather than risk
+  unlinking a replacement created by another process.
 
 - **Raw bytes are authoritative.** No JSON helper, no re-serialization, no
   payload-type assertion in the core.

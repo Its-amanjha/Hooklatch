@@ -4,10 +4,10 @@
 
 Portable webhook signature verification with a zero-dependency core.
 
-Hooklatch verifies that incoming webhook requests genuinely come from the provider
-you expect — before your code parses or trusts the payload. It supports
-Stripe, GitHub, Shopify, and Standard Webhooks with one consistent
-asynchronous API, and offers optional framework adapters.
+Hooklatch checks incoming webhook signatures over the exact request bytes
+before your code parses or trusts the payload. It supports Stripe, GitHub,
+Shopify, Standard Webhooks, Clerk and Svix through one asynchronous API,
+with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 See the [source and reference review](docs/PROVENANCE.md) for the comparison
 scope, findings, and reference-vector attribution.
@@ -19,6 +19,9 @@ scope, findings, and reference-vector attribution.
 - Optional peers: `express`, `hono` (only needed for those adapters)
 
 ## Installation
+
+Publication to npm is pending. Build this checkout with `npm ci` and
+`npm run build` before packing it. For a published release:
 
 ```bash
 npm install hooklatch
@@ -71,12 +74,42 @@ payload schemas.
 | GitHub | Body only | Literal secret string | None signed | Unsigned delivery ID |
 | Shopify | Body only | Literal secret string | None signed | Unsigned delivery/event IDs |
 | Standard Webhooks | `id.timestamp.body` | Base64-decoded after `whsec_` strip | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
+| Clerk | `id.timestamp.body`, branded `svix-*` headers | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
+| Svix | `id.timestamp.body`, complete branded or canonical header family | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
 
-> **Implementation status (2026-10-18):** The core, four provider descriptors,
-> and four adapters are implemented. Tests use published reference vectors and
+Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
+family; if both appear they must be complete and equal. Partial families are
+never assembled together. Standard Webhooks, Clerk and Svix require decoded
+signing keys of 24–64 bytes; shorter reference-library examples are rejected.
+
+> **Implementation status (2026-10-19):** The core, six provider descriptors,
+> four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `ARCHITECTURE.md` for
 > the implemented layout. The package has not been published by this workflow.
+
+## Local scaffolding
+
+With Hooklatch installed, preview one TypeScript handler without writing files:
+
+```sh
+npx --no-install hooklatch init webhook --provider clerk --framework nextjs --dry-run
+```
+
+Remove `--dry-run` to generate it. Existing files are refused. See the
+[CLI reference](docs/cli.md) for paths, environment names and filesystem limits.
+
+## Diagnostics
+
+```ts
+import { diagnose } from 'hooklatch/diagnostics';
+
+if (!result.ok) console.warn(diagnose(result));
+```
+
+The pure helper returns static guidance for a validated reason/provider and
+ignores request messages and payloads. Possible causes are suggestions, not
+proof of a wrong secret or tampering. See [diagnostics](docs/diagnostics.md).
 
 ## Core API
 
