@@ -9,12 +9,15 @@ function main(): void {
 
   if (result.kind === 'help') {
     process.stdout.write(HELP_TEXT);
-    process.exit(0);
+
+    return;
   }
 
   if (result.kind === 'error') {
     process.stderr.write(`${result.message}\n`);
-    process.exit(result.exitCode);
+    process.exitCode = result.exitCode;
+
+    return;
   }
 
   const command = result.command;
@@ -24,11 +27,13 @@ function main(): void {
   try {
     resolved = resolveOutput(process.cwd(), command.out, fileName);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unsafe output path.';
+    const message = error instanceof CliError ? error.message : 'Unable to inspect output path.';
     const exitCode = error instanceof CliError ? error.exitCode : 2;
 
     process.stderr.write(`${message}\n`);
-    process.exit(exitCode);
+    process.exitCode = exitCode;
+
+    return;
   }
 
   const content = renderTemplate(command.provider, command.framework, {
@@ -38,29 +43,29 @@ function main(): void {
 
   if (command.dryRun) {
     process.stdout.write(`${resolved.relativePath}\n${content}`);
-    process.exit(0);
+
+    return;
   }
 
   try {
     ensureParentDirectories(process.cwd(), resolved.absolutePath);
     writeFileExclusive(resolved.absolutePath, content);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to write output file.';
+    const message = error instanceof CliError ? error.message : 'Unable to write output file.';
     const exitCode = error instanceof CliError ? error.exitCode : 1;
 
     process.stderr.write(`${message}\n`);
-    process.exit(exitCode);
+    process.exitCode = exitCode;
+
+    return;
   }
 
   process.stdout.write(`Created ${resolved.relativePath}\n`);
-  process.exit(0);
 }
 
 try {
   main();
-} catch (error) {
-  const message = error instanceof Error ? error.message : 'Unexpected error.';
-
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
+} catch {
+  process.stderr.write('Unexpected error.\n');
+  process.exitCode = 1;
 }

@@ -4,15 +4,26 @@
   "description": "Portable webhook signature verification with a zero-dependency core",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Its-amanjha/Hooklatch.git"
+  },
   "engines": {
     "node": ">=22"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "hooklatch": "./dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./diagnostics": {
+      "types": "./dist/diagnostics/index.d.ts",
+      "import": "./dist/diagnostics/index.js"
     },
     "./express": {
       "types": "./dist/adapters/express.d.ts",
@@ -38,7 +49,7 @@
   ],
   "scripts": {
     "verify": "node scripts/verify.mjs",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cli.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "typecheck:workers": "tsc -p tsconfig.workers.json --noEmit",

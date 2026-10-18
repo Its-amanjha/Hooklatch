@@ -60,11 +60,16 @@ example `--out app/api/webhooks/stripe`).
   (`..`), absolute paths, drive letters, UNC paths, `.git`/`node_modules`
   components, NUL bytes, and Windows reserved device names are rejected.
 - Spaces and Unicode in directory names are allowed.
-- Existing symlink or junction components in the target path are rejected;
-  the CLI never follows symlinks.
+- Existing symlink or junction components in the target path are rejected,
+  including dangling links. Concurrent replacement of parent directories is
+  outside this portable path check; use a directory you control.
 - An existing target file is always refused (exit 3), even when its contents
   would match. Files are created exclusively; a failed generation never
   replaces another creator's file.
+- A write error may leave an empty or partial newly created file. The CLI
+  truncates through its own descriptor when possible and does not unlink a
+  pathname that another process could have replaced. Inspect that file before
+  removing it and retrying.
 
 ## Exit codes
 

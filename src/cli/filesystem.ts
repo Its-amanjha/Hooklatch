@@ -11,8 +11,8 @@ export class CliError extends Error {
 }
 
 /** Narrow an unknown thrown value to a Node error with an errno `code`. */
-function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error;
+function isErrnoException(error: unknown): error is { readonly code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string';
 }
 
 function rejectUnsafeSegment(segment: string): void {
@@ -24,13 +24,22 @@ function rejectUnsafeSegment(segment: string): void {
     throw new CliError(2, 'Unsafe output path.');
   }
 
-  if (segment.includes('\0')) {
+  if (/[<>:"|?*]/.test(segment) || [...segment].some((character) => character.charCodeAt(0) < 32)
+    || /[. ]$/.test(segment)) {
     throw new CliError(2, 'Unsafe output path.');
   }
 
   // Windows reserved device names.
-  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(segment.replace(/\.[^.]*$/, ''))) {
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment)) {
     throw new CliError(2, 'Unsafe output path.');
+  }
+}
+
+function inspectPath(target: string): fs.Stats | undefined {
+  try { return fs.lstatSync(target); }
+  catch (error) {
+    if (isErrnoException(error) && error.code === 'ENOENT') return undefined;
+    throw new CliError(1, 'Unable to inspect output path.');
   }
 }
 
@@ -96,7 +105,8 @@ export function resolveOutput(cwd: string, outDir: string, fileName: string): Re
 
   const relativeFromCwd = path.relative(cwd, absolutePath);
 
-  if (relativeFromCwd === '' || relativeFromCwd.startsWith('..') || path.isAbsolute(relativeFromCwd)) {
+  if (relativeFromCwd === '' || relativeFromCwd === '..'
+    || relativeFromCwd.startsWith(`..${path.sep}`) || path.isAbsolute(relativeFromCwd)) {
     throw new CliError(2, 'Unsafe output path.');
   }
 
@@ -107,10 +117,9 @@ export function resolveOutput(cwd: string, outDir: string, fileName: string): Re
   for (const segment of ancestorSegments) {
     current = path.join(current, segment);
 
-    if (fs.existsSync(current)) {
-      let stat: fs.Stats;
+    const stat = inspectPath(current);
 
-      try { stat = fs.lstatSync(current); } catch { throw new CliError(1, 'Unable to inspect output path.'); }
+    if (stat !== undefined) {
 
       if (stat.isSymbolicLink()) throw new CliError(2, 'Unsafe output path.');
 
@@ -119,13 +128,12 @@ export function resolveOutput(cwd: string, outDir: string, fileName: string): Re
   }
 
   // Existing target.
-  if (fs.existsSync(absolutePath)) {
-    let stat: fs.Stats;
+  const targetStat = inspectPath(absolutePath);
 
-    try { stat = fs.lstatSync(absolutePath); } catch { throw new CliError(1, 'Unable to inspect output path.'); }
+  if (targetStat !== undefined) {
 
-    if (stat.isSymbolicLink()) throw new CliError(2, 'Unsafe output path.');
-    throw new CliError(3, `Target file already exists: ${relativePath}`);
+    if (targetStat.isSymbolicLink()) throw new CliError(2, 'Unsafe output path.');
+    throw new CliError(3, 'Target file already exists.');
   }
 
   return { relativePath, absolutePath };
@@ -140,10 +148,9 @@ export function ensureParentDirectories(cwd: string, absoluteFilePath: string): 
   for (const segment of segments) {
     current = path.join(current, segment);
 
-    if (fs.existsSync(current)) {
-      let stat: fs.Stats;
+    const stat = inspectPath(current);
 
-      try { stat = fs.lstatSync(current); } catch { throw new CliError(1, 'Unable to inspect output path.'); }
+    if (stat !== undefined) {
 
       if (stat.isSymbolicLink() || !stat.isDirectory()) {
         throw new CliError(2, 'Unsafe output path.');
@@ -156,26 +163,20 @@ export function ensureParentDirectories(cwd: string, absoluteFilePath: string): 
 
 export function writeFileExclusive(filePath: string, content: string): void {
   let fd: number | undefined;
-  let created = false;
 
   try {
     fd = fs.openSync(filePath, 'wx');
-    created = true;
     fs.writeFileSync(fd, content, 'utf8');
 
     try { fs.fsyncSync(fd); } catch { /* best effort */ }
   } catch (error) {
-    if (created && fd !== undefined) {
-      try { fs.closeSync(fd); } catch { /* ignore */ }
-
-      fd = undefined;
-
-      try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+    if (fd !== undefined) {
+      // Operate on our descriptor, never unlink a path another creator may replace.
+      try { fs.ftruncateSync(fd, 0); } catch { /* A partial owned file may remain. */ }
     }
 
     if (isErrnoException(error) && error.code === 'EEXIST') {
-      const relative = path.basename(filePath);
-      throw new CliError(3, `Target file already exists: ${relative}`);
+      throw new CliError(3, 'Target file already exists.');
     }
 
     throw new CliError(1, 'Unable to write output file.');

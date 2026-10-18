@@ -135,7 +135,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
       continue;
     }
 
-    return { kind: 'error', exitCode: 2, message: `Unknown flag: ${flag}.` };
+    return { kind: 'error', exitCode: 2, message: 'Unknown flag.' };
   }
 
   if (!provider) return { kind: 'error', exitCode: 2, message: 'Missing required --provider.' };
@@ -143,11 +143,11 @@ export function parseArgs(argv: readonly string[]): ParseResult {
   if (!framework) return { kind: 'error', exitCode: 2, message: 'Missing required --framework.' };
 
   if (!isProvider(provider)) {
-    return { kind: 'error', exitCode: 2, message: `Unsupported provider: ${provider}.` };
+    return { kind: 'error', exitCode: 2, message: 'Unsupported provider.' };
   }
 
   if (!isFramework(framework)) {
-    return { kind: 'error', exitCode: 2, message: `Unsupported framework: ${framework}.` };
+    return { kind: 'error', exitCode: 2, message: 'Unsupported framework.' };
   }
 
   if (out.length === 0) return { kind: 'error', exitCode: 2, message: 'Invalid --out: empty path.' };

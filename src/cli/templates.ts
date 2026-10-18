@@ -17,6 +17,8 @@ export function renderTemplate(provider: string, framework: string, options: Tem
 }
 
 function expressTemplate(provider: string, secretEnv: string, bodyLimit: number): string {
+  const identifier = provider.replaceAll('-', '_');
+
   return `import { createWebhookMiddleware } from 'hooklatch/express';
 import type { VerifyOptions } from 'hooklatch';
 
@@ -28,10 +30,10 @@ const options: VerifyOptions = {
 };
 
 // Mount this middleware before any body parser (express.json, urlencoded, etc.).
-export const ${provider}ExpressWebhook = createWebhookMiddleware(options);
+export const ${identifier}ExpressWebhook = createWebhookMiddleware(options);
 
 // Example mounting:
-// app.post('/webhooks/${provider}', ${provider}ExpressWebhook, (req, res) => {
+// app.post('/webhooks/${provider}', ${identifier}ExpressWebhook, (req, res) => {
 //   const verified = req.webhook;
 //   res.status(200).json({ received: true, bytes: verified?.rawBody.byteLength ?? 0 });
 // });
@@ -59,6 +61,8 @@ export const POST = createWebhookHandler({
 }
 
 function honoTemplate(provider: string, secretEnv: string, bodyLimit: number): string {
+  const identifier = provider.replaceAll('-', '_');
+
   return `import { Hono } from 'hono';
 import { createWebhookMiddleware, type WebhookVariables } from 'hooklatch/hono';
 import type { VerifyOptions } from 'hooklatch';
@@ -69,11 +73,11 @@ const options: VerifyOptions = {
   maxBodyBytes: ${bodyLimit},
 };
 
-export const ${provider}HonoWebhook = createWebhookMiddleware(options);
+export const ${identifier}HonoWebhook = createWebhookMiddleware(options);
 
 // Mount manually:
 // const app = new Hono<{ Variables: WebhookVariables }>();
-// app.post('/webhooks/${provider}', ${provider}HonoWebhook, (c) => {
+// app.post('/webhooks/${provider}', ${identifier}HonoWebhook, (c) => {
 //   const verified = c.get('webhook');
 //   return c.json({ received: true, bytes: verified.rawBody.byteLength });
 // });
