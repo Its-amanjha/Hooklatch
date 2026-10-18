@@ -7,6 +7,7 @@ import {
   failure,
   isCanonicalTimestamp,
   isSchemeToken,
+  isNonEmptySecret,
 } from './shared.js';
 
 const ID_HEADER = 'webhook-id';
@@ -27,45 +28,57 @@ export const standardWebhooksDescriptor: ProviderDescriptor = {
   provider: 'standard-webhooks',
 
   decodeSecret(secret: string): Uint8Array {
-    if (typeof secret !== 'string' || secret.length === 0) {
+    if (!isNonEmptySecret(secret)) {
       throw new HooklatchError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
     }
+
     const encoded = secret.startsWith(SECRET_PREFIX)
       ? secret.slice(SECRET_PREFIX.length)
       : secret;
+
     const bytes = decodeBase64(encoded);
+
     if (bytes === null || bytes.byteLength < MIN_KEY_BYTES || bytes.byteLength > MAX_KEY_BYTES) {
       throw new HooklatchError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
     }
+
     return bytes;
   },
 
   parse(headers: NormalizedHeaders, rawBody: Uint8Array): ParseResult {
     const signatureRaw = headers.get(SIGNATURE_HEADER);
+
     if (signatureRaw === undefined || signatureRaw.trim() === '') {
       return failure('missing-signature', 'No Standard Webhooks signature header was provided.');
     }
 
     const signatures: Uint8Array[] = [];
     let unknownSchemes = 0;
+
     for (const piece of signatureRaw.split(/\s+/)) {
       if (piece === '') continue;
       const separator = piece.indexOf(',');
+
       if (separator <= 0 || separator === piece.length - 1) {
         return failure('malformed-signature', 'The Standard Webhooks signature header is malformed.');
       }
+
       const version = piece.slice(0, separator);
       const value = piece.slice(separator + 1);
+
       // HTTP comma-combined duplicate header values never form a valid token.
       if (!isSchemeToken(version) || /[,\s]/.test(value)) {
         return failure('malformed-signature', 'The Standard Webhooks signature header is malformed.');
       }
+
       if (version === SCHEME) {
         const decoded = decodeBase64Signature(value);
+
         // A malformed `v1` fails closed even when another `v1` value is valid.
         if (decoded === null) {
           return failure('malformed-signature', 'The Standard Webhooks signature header is malformed.');
         }
+
         signatures.push(decoded);
       } else {
         unknownSchemes += 1;
@@ -79,17 +92,21 @@ export const standardWebhooksDescriptor: ProviderDescriptor = {
     }
 
     const id = headers.get(ID_HEADER);
+
     if (id === undefined || id === '') {
       return failure('missing-identity', 'No Standard Webhooks message id was provided.');
     }
+
     if (id.includes('.') || id.includes(',')) {
       return failure('malformed-signature', 'The Standard Webhooks message id is malformed.');
     }
 
     const timestampText = headers.get(TIMESTAMP_HEADER);
+
     if (timestampText === undefined || timestampText === '') {
       return failure('missing-timestamp', 'No Standard Webhooks timestamp was provided.');
     }
+
     if (!isCanonicalTimestamp(timestampText)) {
       return failure('malformed-signature', 'The Standard Webhooks timestamp is malformed.');
     }
@@ -100,6 +117,7 @@ export const standardWebhooksDescriptor: ProviderDescriptor = {
       timestamp: Number(timestampText),
       authenticatedFields: ['eventId', 'timestamp'],
     };
+
     return {
       ok: true,
       signatures,

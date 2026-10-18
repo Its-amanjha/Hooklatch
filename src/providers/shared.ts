@@ -23,25 +23,33 @@ export function isSchemeToken(value: string): boolean {
 export function isCanonicalTimestamp(value: string): boolean {
   if (!/^(?:0|[1-9]\d*)$/.test(value)) return false;
   const numeric = Number(value);
+
   return Number.isSafeInteger(numeric) && numeric >= 0;
 }
 
 /** Hex signature of exactly 32 bytes; accepts either hex case. */
 export function decodeHexSignature(value: string): Uint8Array | null {
   const bytes = decodeHex(value);
+
   return bytes !== null && bytes.byteLength === SIGNATURE_BYTES ? bytes : null;
 }
 
 /** Canonical Base64 signature of exactly 32 bytes. */
 export function decodeBase64Signature(value: string): Uint8Array | null {
   const bytes = decodeBase64(value);
+
   return bytes !== null && bytes.byteLength === SIGNATURE_BYTES ? bytes : null;
+}
+
+export function isNonEmptySecret(secret: string): secret is string {
+  return typeof secret === 'string' && secret.length > 0;
 }
 
 /** Literal, untrimmed UTF-8 secret bytes for Stripe/GitHub/Shopify. */
 export function decodeLiteralSecret(secret: string, label: string): Uint8Array {
-  if (typeof secret !== 'string' || secret.length === 0) {
+  if (!isNonEmptySecret(secret)) {
     throw new HooklatchError('invalid-secret', `Invalid ${label} signing secret.`);
   }
+
   return utf8(secret);
 }

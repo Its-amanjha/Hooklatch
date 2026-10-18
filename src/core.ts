@@ -8,6 +8,7 @@ import { failure, prepareVerifier, readClock, verifyPrepared } from './internal/
 
 function prepare(options: VerifyOptions) {
   const normalized = normalizeOptions(options);
+
   return prepareVerifier(normalized, getProviderDescriptor(normalized.provider));
 }
 
@@ -17,6 +18,7 @@ export async function verify(request: WebhookRequest, options: VerifyOptions): P
 
 export function createVerifier(options: VerifyOptions): (request: WebhookRequest) => Promise<VerificationResult> {
   const prepared = prepare(options);
+
   return (request) => verifyPrepared(request, prepared);
 }
 
@@ -24,10 +26,13 @@ export function createVerifier(options: VerifyOptions): (request: WebhookRequest
 export async function verifyRequest(request: Request, options: VerifyOptions): Promise<VerificationResult> {
   const prepared = prepare(options);
   const receivedAt = readClock(prepared);
+
   if (!(request instanceof Request)) throw new HooklatchError('invalid-input', 'A Web Request is required.');
   const headers = normalizeHeaders(request.headers);
   const rawBody = await readBody(request, prepared.options.maxBodyBytes);
+
   if (rawBody === null) return failure(prepared, 'body-too-large', 'Request body exceeds the configured limit.');
+
   // Normalize to tuples so byte and header snapshots share the raw-input path.
   return verifyPrepared({ rawBody, headers: [...headers] }, prepared, receivedAt);
 }

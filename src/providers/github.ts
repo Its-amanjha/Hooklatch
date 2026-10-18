@@ -9,6 +9,7 @@ const DELIVERY_HEADER = 'x-github-delivery';
 
 function optionalHeader(headers: NormalizedHeaders, name: string): string | null {
   const value = headers.get(name);
+
   return value === undefined || value === '' ? null : value;
 }
 
@@ -26,24 +27,31 @@ export const githubDescriptor: ProviderDescriptor = {
 
   parse(headers: NormalizedHeaders, rawBody: Uint8Array): ParseResult {
     const raw = headers.get(SIGNATURE_HEADER);
+
     if (raw === undefined || raw.trim() === '') {
       const legacy = headers.get(LEGACY_SIGNATURE_HEADER);
+
       if (legacy !== undefined && legacy.trim() !== '') {
         return failure('unsupported-scheme', 'Only the legacy SHA-1 GitHub signature was provided.');
       }
+
       return failure('missing-signature', 'No GitHub signature header was provided.');
     }
 
     const separator = raw.indexOf('=');
+
     if (separator <= 0 || separator === raw.length - 1) {
       return failure('malformed-signature', 'The GitHub signature header is malformed.');
     }
+
     const scheme = raw.slice(0, separator);
+
     if (scheme.toLowerCase() !== SCHEME) {
       return failure('unsupported-scheme', 'No supported GitHub signature scheme was provided.');
     }
 
     const signature = decodeHexSignature(raw.slice(separator + 1));
+
     if (signature === null) {
       return failure('malformed-signature', 'The GitHub signature header is malformed.');
     }
@@ -54,6 +62,7 @@ export const githubDescriptor: ProviderDescriptor = {
       timestamp: null,
       authenticatedFields: [],
     };
+
     return { ok: true, signatures: [signature], signedContent: rawBody, identity };
   },
 };

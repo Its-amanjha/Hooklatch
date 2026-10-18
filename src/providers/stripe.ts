@@ -28,6 +28,7 @@ export const stripeDescriptor: ProviderDescriptor = {
 
   parse(headers: NormalizedHeaders, rawBody: Uint8Array): ParseResult {
     const raw = headers.get(HEADER);
+
     if (raw === undefined || raw.trim() === '') {
       return failure('missing-signature', 'No Stripe signature header was provided.');
     }
@@ -39,9 +40,11 @@ export const stripeDescriptor: ProviderDescriptor = {
     for (const rawItem of raw.split(',')) {
       const item = rawItem.trim();
       const separator = item.indexOf('=');
+
       if (item === '' || separator <= 0 || separator === item.length - 1) {
         return failure('malformed-signature', 'The Stripe signature header is malformed.');
       }
+
       const key = item.slice(0, separator);
       const value = item.slice(separator + 1);
 
@@ -49,16 +52,20 @@ export const stripeDescriptor: ProviderDescriptor = {
         if (timestampText !== undefined) {
           return failure('malformed-signature', 'The Stripe signature header is malformed.');
         }
+
         if (!isCanonicalTimestamp(value)) {
           return failure('malformed-signature', 'The Stripe signature header is malformed.');
         }
+
         timestampText = value;
       } else if (key === SCHEME) {
         const decoded = decodeHexSignature(value);
+
         // A malformed `v1` fails closed even when another `v1` value is valid.
         if (decoded === null) {
           return failure('malformed-signature', 'The Stripe signature header is malformed.');
         }
+
         signatures.push(decoded);
       } else if (isSchemeToken(key)) {
         unknownSchemes += 1;
@@ -70,6 +77,7 @@ export const stripeDescriptor: ProviderDescriptor = {
     if (timestampText === undefined) {
       return failure('missing-timestamp', 'No Stripe signature timestamp was provided.');
     }
+
     if (signatures.length === 0) {
       return unknownSchemes > 0
         ? failure('unsupported-scheme', 'No supported Stripe signature scheme was provided.')
@@ -82,6 +90,7 @@ export const stripeDescriptor: ProviderDescriptor = {
       timestamp: Number(timestampText),
       authenticatedFields: ['timestamp'],
     };
+
     return {
       ok: true,
       signatures,

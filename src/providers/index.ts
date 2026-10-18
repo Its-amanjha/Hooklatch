@@ -15,10 +15,12 @@ const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
 
 /** Resolve the pure descriptor for a supported provider. */
 export function getProviderDescriptor(provider: Provider): ProviderDescriptor {
-  const descriptor = DESCRIPTORS[provider] as ProviderDescriptor | undefined;
+  const descriptor = Object.hasOwn(DESCRIPTORS, provider) ? DESCRIPTORS[provider] : undefined;
+
   if (descriptor === undefined) {
     throw new HooklatchError('unknown-provider', 'Unsupported webhook provider.');
   }
+
   return descriptor;
 }
 

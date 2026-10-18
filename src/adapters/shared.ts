@@ -9,16 +9,23 @@ export class HttpError extends Error {
   }
 }
 
-export function toUint8Array(value: unknown): Uint8Array {
+function isText(value: Uint8Array | ArrayBuffer | string): value is string {
+  return typeof value === 'string';
+}
+
+export function toUint8Array(value: Uint8Array | ArrayBuffer | string): Uint8Array {
   if (value instanceof Uint8Array) return new Uint8Array(value);
+
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
-  if (typeof value === 'string') return new TextEncoder().encode(value);
+
+  if (isText(value)) return new TextEncoder().encode(value);
   throw new HttpError(500, 'Internal Server Error');
 }
 
 export async function readNodeStream(stream: AsyncIterable<unknown>, maxBytes: number): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let size = 0;
+
   try {
     for await (const chunk of stream) {
       const bytes = chunk instanceof Uint8Array
@@ -26,8 +33,10 @@ export async function readNodeStream(stream: AsyncIterable<unknown>, maxBytes: n
         : chunk instanceof ArrayBuffer
           ? new Uint8Array(chunk)
           : null;
+
       if (!bytes) throw new HttpError(500, 'Internal Server Error');
       size += bytes.byteLength;
+
       if (size > maxBytes) throw new HttpError(413, 'Payload Too Large');
       chunks.push(new Uint8Array(bytes));
     }
@@ -35,11 +44,14 @@ export async function readNodeStream(stream: AsyncIterable<unknown>, maxBytes: n
     if (err instanceof HttpError) throw err;
     throw new HttpError(500, 'Internal Server Error');
   }
+
   const output = new Uint8Array(size);
   let offset = 0;
+
   for (const chunk of chunks) {
     output.set(chunk, offset);
     offset += chunk.byteLength;
   }
+
   return output;
 }

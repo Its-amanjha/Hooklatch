@@ -1,6 +1,7 @@
 import type { EventIdentity, FailureDetails, Provider } from '../types.js';
 
 export type NormalizedHeaders = ReadonlyMap<string, string>;
+
 export interface ParsedSignature {
   readonly ok: true;
   readonly signatures: readonly Uint8Array[];
@@ -8,7 +9,9 @@ export interface ParsedSignature {
   /** Untrusted until core signature verification succeeds. */
   readonly identity: EventIdentity;
 }
+
 export type ParseResult = ParsedSignature | FailureDetails;
+
 export interface ProviderDescriptor {
   readonly provider: Provider;
   /** Throw HooklatchError('invalid-secret') on invalid configuration. */
