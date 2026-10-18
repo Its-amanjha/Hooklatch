@@ -26,7 +26,9 @@ npm install
 | `npm run typecheck:examples` | Check examples against built package types |
 | `npm test` | Run the Jest suite (offline, deterministic) |
 | `npm run test:coverage` | Run tests with coverage |
-| `npm run lint` | Run ESLint on `src`, `tests`, `scripts` |
+| `npm run lint` | Run ESLint and anti-slop checks |
+| `npm run lint:eslint` | Run the existing ESLint checks |
+| `npm run lint:anti-slop` | Run vendored anti-slop checks on source, tests, scripts and examples |
 | `npm run test:workers` | Run the Workers runtime smoke harness |
 | `npm run test:package` | Pack and install offline without optional frameworks |
 
