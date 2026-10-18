@@ -1,5 +1,5 @@
-import type { DiagnosticCode } from './types.js';
 import type { HooklatchErrorCode, Provider, VerificationFailureReason } from '../types.js';
+import type { DiagnosticCode } from './types.js';
 
 /** Static guidance for verification failure reasons. */
 interface Guidance {
@@ -19,11 +19,11 @@ const VERIFICATION_GUIDANCE: Readonly<Record<VerificationFailureReason, Guidance
     suggestions: [
       'Check that no intermediary removes the signature header.',
       'Verify the request originates from the provider documented IP ranges.',
-      'Inspect raw incoming headers at the edge of your infrastructure.',
+      'Compare expected header names with your middleware configuration.',
     ],
   },
   'malformed-signature': {
-    summary: 'The signature header was present but could not be parsed.',
+    summary: 'Required signing headers were malformed or conflicted.',
     possibleCauses: [
       'The header value was truncated or altered by an intermediary.',
       'The provider changed its header format.',
@@ -32,7 +32,7 @@ const VERIFICATION_GUIDANCE: Readonly<Record<VerificationFailureReason, Guidance
     suggestions: [
       'Compare the raw header value against the provider documentation.',
       'Check for header-combining proxies that may merge or split values.',
-      'Capture the full raw request for comparison with provider examples.',
+      'Use synthetic requests to compare header grammar without recording sensitive values.',
     ],
   },
   'unsupported-scheme': {
@@ -99,7 +99,7 @@ const VERIFICATION_GUIDANCE: Readonly<Record<VerificationFailureReason, Guidance
     ],
     suggestions: [
       'Check clock synchronization between provider and host.',
-      'Increase toleranceSeconds if legitimate delays are expected.',
+      'Review provider delivery timing before changing the configured tolerance.',
       'Investigate whether the request is a replay attack.',
     ],
   },
@@ -111,7 +111,7 @@ const VERIFICATION_GUIDANCE: Readonly<Record<VerificationFailureReason, Guidance
     ],
     suggestions: [
       'Check clock synchronization between provider and host.',
-      'Increase toleranceSeconds if the provider clock is known to be ahead.',
+      'Review provider clock behavior before changing the configured tolerance.',
     ],
   },
   'body-too-large': {
@@ -256,7 +256,7 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
   },
   github: {
     expectedHeaders: ['X-Hub-Signature-256'],
-    grammar: 'sha256=<lowercase-hex-signature>',
+    grammar: 'sha256=<64 hexadecimal digits; letter case is ignored>',
   },
   shopify: {
     expectedHeaders: ['X-Shopify-Hmac-Sha256'],
@@ -289,9 +289,9 @@ export function getProviderDetail(provider: Provider): ProviderDetail | undefine
 }
 
 export function isVerificationCode(code: DiagnosticCode): code is VerificationFailureReason {
-  return code in VERIFICATION_GUIDANCE;
+  return typeof code === 'string' && Object.hasOwn(VERIFICATION_GUIDANCE, code);
 }
 
 export function isSetupCode(code: DiagnosticCode): code is HooklatchErrorCode {
-  return code in SETUP_GUIDANCE;
+  return typeof code === 'string' && Object.hasOwn(SETUP_GUIDANCE, code);
 }

@@ -157,13 +157,8 @@ describe('diagnose', () => {
     it('mutating returned arrays does not contaminate later output', () => {
       const failure = makeFailure('invalid-signature', 'stripe');
       const first = diagnose(failure);
-      // SAFETY: diagnose returns readonly arrays but we intentionally copy them
-      // into mutable arrays for the mutation-contamination test; the original
-      // returned arrays are never mutated, only the copied references.
-      const mutableCauses = Array.from(first.possibleCauses);
-      mutableCauses.push('injected');
-      const mutableSuggestions = Array.from(first.suggestions);
-      mutableSuggestions.push('injected');
+      Reflect.set(first.possibleCauses, '0', 'injected');
+      Reflect.set(first.suggestions, '0', 'injected');
       const second = diagnose(failure);
       expect(second.possibleCauses).not.toContain('injected');
       expect(second.suggestions).not.toContain('injected');
@@ -325,8 +320,7 @@ describe('diagnose', () => {
   });
 
   describe('purity', () => {
-    it('works without Node globals', () => {
-      // Ensure no process, Buffer, or other Node-only globals are referenced.
+    it('formats a valid failure in the Node test environment', () => {
       const failure = makeFailure('invalid-signature', 'stripe');
       const result = diagnose(failure);
       expect(result).toBeDefined();

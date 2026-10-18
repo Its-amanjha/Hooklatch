@@ -1,4 +1,5 @@
 import { HooklatchError } from '../errors.js';
+import { SUPPORTED_PROVIDERS } from '../providers/index.js';
 import type { Provider, VerificationFailure } from '../types.js';
 import type { Diagnostic, DiagnosticCode, DiagnosticOptions } from './types.js';
 import {
@@ -6,14 +7,28 @@ import {
   getSetupGuidance,
   getVerificationGuidance,
   isVerificationCode,
+  isSetupCode,
 } from './catalog.js';
+
+type DiagnosticRecord = VerificationFailure | DiagnosticOptions;
+
+function isRecord(value: DiagnosticRecord): value is DiagnosticRecord {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+
+  return prototype === null || prototype === Object.prototype;
+}
+
+function isProvider(value: Provider): value is Provider {
+  return typeof value === 'string' && SUPPORTED_PROVIDERS.some((provider) => provider === value);
+}
+
+function isBoolean(value: unknown): value is boolean { return typeof value === 'boolean'; }
 
 function validateProvider(provider: Provider | undefined): Provider | undefined {
   if (provider === undefined) return undefined;
 
-  const valid: readonly Provider[] = ['stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix'];
-
-  if (valid.includes(provider)) {
+  if (isProvider(provider)) {
     return provider;
   }
 
@@ -21,7 +36,7 @@ function validateProvider(provider: Provider | undefined): Provider | undefined 
 }
 
 function normalizeOptions(options: DiagnosticOptions): DiagnosticOptions {
-  if (options === null || !(options instanceof Object)) {
+  if (!isRecord(options) || (options.verbose !== undefined && !isBoolean(options.verbose))) {
     throw new HooklatchError('invalid-input', 'Invalid diagnostic options.');
   }
 
@@ -58,15 +73,18 @@ function buildDiagnostic(
   return result;
 }
 
-export function diagnose(
+function diagnoseValidated(
   input: VerificationFailure | HooklatchError,
   options?: DiagnosticOptions,
 ): Diagnostic {
   if (input instanceof HooklatchError) {
+    const code = input.code;
+
+    if (!isSetupCode(code)) throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
     const normalized = options !== undefined ? normalizeOptions(options) : undefined;
     const provider = normalized?.provider;
     const verbose = normalized?.verbose;
-    const guidance = getSetupGuidance(input.code);
+    const guidance = getSetupGuidance(code);
 
     if (guidance === undefined) {
       throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
@@ -74,29 +92,20 @@ export function diagnose(
 
     const detail = provider !== undefined && verbose === true ? getProviderDetail(provider) : undefined;
 
-    return buildDiagnostic(input.code, 'setup', guidance, provider, detail);
+    return buildDiagnostic(code, 'setup', guidance, provider, detail);
   }
 
-  if (input == null) {
+  if (!isRecord(input)) {
     throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
   }
 
-  // SAFETY: input was rejected when null or non-object above; HooklatchError is
-  // handled by the instanceof branch above. The remaining object must conform
-  // to VerificationFailure at the type boundary.
-  const failure = input as VerificationFailure;
-  const code = failure.reason;
+  const { ok, reason: code, provider: failureProvider } = input;
 
-  if (!isVerificationCode(code)) {
+  if (ok !== false || !isVerificationCode(code) || !isProvider(failureProvider)) {
     throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
   }
 
   const normalized = options !== undefined ? normalizeOptions(options) : undefined;
-  const failureProvider = validateProvider(failure.provider);
-
-  if (failureProvider === undefined && failure.provider !== undefined) {
-    throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
-  }
 
   if (normalized?.provider !== undefined && normalized.provider !== failureProvider) {
     throw new HooklatchError('invalid-input', 'Provider mismatch.');
@@ -108,6 +117,15 @@ export function diagnose(
   const detail = provider !== undefined && verbose === true ? getProviderDetail(provider) : undefined;
 
   return buildDiagnostic(code, 'verification', guidance, provider, detail);
+}
+
+export function diagnose(input: VerificationFailure | HooklatchError, options?: DiagnosticOptions): Diagnostic {
+  try {
+    return diagnoseValidated(input, options);
+  } catch {
+    // Untrusted accessors/proxies may throw; their messages must not escape.
+    throw new HooklatchError('invalid-input', 'Invalid diagnostic input.');
+  }
 }
 
 export type { Diagnostic, DiagnosticOptions, DiagnosticCode } from './types.js';

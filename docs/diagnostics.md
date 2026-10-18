@@ -1,6 +1,6 @@
 # Diagnostics
 
-Tern diagnostics provide structured, human-readable guidance for verification
+Hooklatch diagnostics provide structured, human-readable guidance for verification
 failures and setup errors. The `diagnose` helper turns a `VerificationFailure`
 or `HooklatchError` into a stable `Diagnostic` object with machine-readable
 codes and prose suitable for logging, troubleshooting, and CLI output.
@@ -129,7 +129,7 @@ const diagnostic = diagnose(result, { provider: 'stripe', verbose: true });
 
 ```ts
 try {
-  createVerifier({ provider: 'nope', secrets: [] });
+  createVerifier({ provider: 'stripe', secrets: [] });
 } catch (err) {
   if (err instanceof HooklatchError) {
     const diagnostic = diagnose(err);
