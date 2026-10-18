@@ -1,5 +1,6 @@
 /** Contract version 1. Verification never parses or validates payload schemas. */
-export type Provider = 'stripe' | 'github' | 'shopify' | 'standard-webhooks';
+export type Provider = 'stripe' | 'github' | 'shopify' | 'standard-webhooks'
+  | 'clerk' | 'svix';
 
 export type HeaderInput = Headers
   | Readonly<Record<string, string | readonly string[] | undefined>>

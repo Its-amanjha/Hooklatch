@@ -1,4 +1,5 @@
 import { HooklatchError } from '../errors.js';
+import { SUPPORTED_PROVIDERS } from '../providers/index.js';
 import type { Provider, VerifyOptions } from '../types.js';
 
 export interface NormalizedOptions {
@@ -25,7 +26,7 @@ export function normalizeOptions(options: VerifyOptions): NormalizedOptions {
   if (!isOptionsObject(options)) throw new HooklatchError('invalid-options', 'Invalid verification options.');
   const { provider, secrets, now } = options;
 
-  if (!['stripe', 'github', 'shopify', 'standard-webhooks'].includes(provider)) {
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
     throw new HooklatchError('unknown-provider', 'Unsupported webhook provider.');
   }
 
