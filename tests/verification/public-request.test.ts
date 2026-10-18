@@ -6,19 +6,25 @@ import type { FixtureCase } from './helpers.js';
 
 function caseById(provider: Provider, id: string): FixtureCase {
   const found = loadFixture(provider).find((entry) => entry.id === id);
+
   if (!found) throw new Error(`Fixture missing: ${provider}/${id}`);
+
   return found;
 }
 
+function isHeaderList(value: string | readonly string[]): value is readonly string[] { return Array.isArray(value); }
+
 function headersOf(case_: FixtureCase): Headers {
   const headers = new Headers();
+
   for (const [name, value] of Object.entries(case_.request.headers)) {
-    if (typeof value === 'object' && value !== null) {
+    if (isHeaderList(value)) {
       for (const item of value) headers.append(name, item);
     } else {
       headers.append(name, value);
     }
   }
+
   return headers;
 }
 
@@ -37,7 +43,9 @@ function toStreamRequest(chunks: readonly Uint8Array[], case_: FixtureCase): Req
       controller.close();
     },
   });
+
   const init: RequestInit & { duplex: 'half' } = { method: 'POST', headers: headersOf(case_), body: stream, duplex: 'half' };
+
   return new Request('https://fixture.internal/hook', init);
 }
 
@@ -50,6 +58,7 @@ describe('verifyRequest() — bounded Request reading on the public root', () =>
     const request = toRequest(githubVector);
     const result = await verifyRequest(request, fixtureOptions('github', githubVector));
     expect(result.ok).toBe(true);
+
     if (!result.ok) return;
     expect(result.provider).toBe('github');
     expect(result.rawBody).toEqual(fixtureBytes(githubVector));
@@ -60,7 +69,8 @@ describe('verifyRequest() — bounded Request reading on the public root', () =>
     const request = toRequest(stripeText);
     await request.text(); // consume first so a body error would otherwise win
     const invalid = { provider: 'nope', secrets: ['whsec_tern_fixture_synthetic_00'], now: () => 4102444800 };
-    await expect(verifyRequest(request, invalid as unknown as VerifyOptions))
+    // SAFETY: The invalid provider deliberately bypasses the static union to test runtime setup validation.
+    await expect(verifyRequest(request, invalid as VerifyOptions))
       .rejects.toMatchObject({ name: 'HooklatchError', code: 'unknown-provider' });
   });
 
@@ -92,8 +102,10 @@ describe('verifyRequest() — bounded Request reading on the public root', () =>
       [new TextEncoder().encode('TERN'), new TextEncoder().encode('X')],
       stripeText,
     );
+
     const result = await verifyRequest(request, { ...fixtureOptions('stripe', stripeText), maxBodyBytes: 4 });
     expect(result.ok).toBe(false);
+
     if (!result.ok) expect(result.reason).toBe('body-too-large');
   });
 

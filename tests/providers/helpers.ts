@@ -1,3 +1,4 @@
+import { HooklatchError } from '../../src/errors.js';
 import { createHmac } from 'node:crypto';
 import { normalizeHeaders } from '../../src/internal/headers.js';
 import type {
@@ -15,11 +16,13 @@ export function expectOk(result: ParseResult): ParsedSignature {
   if (!result.ok) {
     throw new Error(`Expected success but got ${result.reason}: ${result.message}`);
   }
+
   return result;
 }
 
 export function expectFailure(result: ParseResult): FailureDetails {
   if (result.ok) throw new Error('Expected a verification failure but parsing succeeded.');
+
   return result;
 }
 
@@ -40,11 +43,14 @@ export function base64Of(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64');
 }
 
-export function ternErrorCode(run: () => unknown): string | undefined {
+export function ternErrorCode(run: () => void): string | undefined {
   try {
     run();
+
     return undefined;
   } catch (error) {
-    return (error as { code?: string }).code;
+    if (!(error instanceof HooklatchError)) throw error;
+
+    return error.code;
   }
 }

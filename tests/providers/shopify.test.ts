@@ -10,6 +10,7 @@ const EVENT = 'ev_merchant_action_1';
 
 test('verifies a locally derived Shopify Base64 HMAC over the exact raw body', async () => {
   const signature = hmacBase64(SECRET, BODY);
+
   const parsed = expectOk(
     shopifyDescriptor.parse(
       headerMap({
@@ -36,15 +37,18 @@ test('verifies a locally derived Shopify Base64 HMAC over the exact raw body', a
 test('rejects a tampered body and accepts canonical unpadded Base64', async () => {
   const padded = hmacBase64(SECRET, BODY);
   const unpadded = padded.replace(/=+$/, '');
+
   const parsed = expectOk(
     shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': unpadded }), BODY),
   );
+
   expect(await verifyHmac([shopifyDescriptor.decodeSecret(SECRET)], parsed.signatures, parsed.signedContent))
     .toBe(true);
 
   const tampered = expectOk(
     shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': padded }), utf8('{"id":1}')),
   );
+
   expect(await verifyHmac([shopifyDescriptor.decodeSecret(SECRET)], tampered.signatures, tampered.signedContent))
     .toBe(false);
 });
@@ -53,10 +57,12 @@ test('reports absent and malformed signature headers distinctly', () => {
   expect(expectFailure(shopifyDescriptor.parse(headerMap({}), BODY)).reason).toBe('missing-signature');
   expect(expectFailure(shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': '  ' }), BODY)).reason)
     .toBe('missing-signature');
+
   for (const value of ['@@@', 'not base64', 'Zg==', 'Zg', base64Of(new Uint8Array(31))]) {
     expect(expectFailure(shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': value }), BODY)).reason)
       .toBe('malformed-signature');
   }
+
   // HTTP comma-combined duplicate values are never a valid single Base64 value.
   expect(
     expectFailure(
@@ -72,6 +78,7 @@ test('treats delivery and event ids as unsigned optional metadata', async () => 
   const parsed = expectOk(
     shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': hmacBase64(SECRET, BODY) }), BODY),
   );
+
   expect(parsed.identity.deliveryId).toBeNull();
   expect(parsed.identity.eventId).toBeNull();
   expect(parsed.identity.authenticatedFields).toEqual([]);
@@ -84,8 +91,10 @@ test('keys the HMAC with the literal client secret and preserves binary bodies',
   expect(ternErrorCode(() => shopifyDescriptor.decodeSecret(''))).toBe('invalid-secret');
 
   const body = new Uint8Array([0x00, 0xff, 0x80, 0x41]);
+
   const parsed = expectOk(
     shopifyDescriptor.parse(headerMap({ 'x-shopify-hmac-sha256': hmacBase64(SECRET, body) }), body),
   );
+
   expect(parsed.signedContent).toEqual(body);
 });

@@ -11,14 +11,19 @@ const TIMESTAMP = '1614265330';
 const BODY = utf8('{"test": 2432232314}');
 const VECTOR = 'v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=';
 
+type StandardHeaders = { 'webhook-signature': string; 'webhook-id'?: string; 'webhook-timestamp'?: string }
+
 const headersFor = (
   signature: string,
   id: string | null = ID,
   timestamp: string | null = TIMESTAMP,
-): Record<string, string> => {
-  const record: Record<string, string> = { 'webhook-signature': signature };
+) => {
+  const record: StandardHeaders = { 'webhook-signature': signature };
+
   if (id !== null) record['webhook-id'] = id;
+
   if (timestamp !== null) record['webhook-timestamp'] = timestamp;
+
   return record;
 };
 
@@ -56,9 +61,11 @@ test('rejects invalid Standard Webhooks secrets with a typed error', () => {
 test('accepts multiple whitespace-separated v1 signatures for rotation', async () => {
   const signed = concatBytes(utf8(`${ID}.${TIMESTAMP}.`), BODY);
   const retiring = hmacBase64('other-key', signed);
+
   const parsed = expectOk(
     descriptor.parse(headerMap(headersFor(`v1,${retiring} v1,${VECTOR.slice(3)}`)), BODY),
   );
+
   expect(parsed.signatures).toHaveLength(2);
   expect(await verifyHmac([descriptor.decodeSecret(SECRET)], parsed.signatures, parsed.signedContent))
     .toBe(true);
@@ -82,6 +89,7 @@ test('rejects HTTP comma-combined duplicate signature values as malformed', () =
 
 test('fails closed on a malformed recognized signature even when another v1 is valid', () => {
   const signature = VECTOR.slice(3);
+
   for (const bad of ['@@@', 'bad', '']) {
     const header = bad === '' ? `v1, v1,${signature}` : `v1,${bad} v1,${signature}`;
     expect(expectFailure(descriptor.parse(headerMap(headersFor(header)), BODY)).reason)
@@ -106,21 +114,25 @@ test('rejects malformed ids and timestamps as malformed signatures', () => {
   // A comma indicates an HTTP-combined duplicate singleton id.
   expect(expectFailure(descriptor.parse(headerMap(headersFor(VECTOR, 'a, b')), BODY)).reason)
     .toBe('malformed-signature');
+
   for (const timestamp of ['01', '-1', '1.5', '1, 2', '99999999999999999999']) {
     expect(expectFailure(descriptor.parse(headerMap(headersFor(VECTOR, ID, timestamp)), BODY)).reason)
       .toBe('malformed-signature');
   }
+
   // Zero is a canonical nonnegative timestamp.
   expect(expectOk(descriptor.parse(headerMap(headersFor(VECTOR, ID, '0')), BODY)).identity.timestamp).toBe(0);
 });
 
 test('parses headers identically across record, tuple, and Headers representations', () => {
   const signature = VECTOR.slice(3);
+
   const tuple: [string, string][] = [
     ['Webhook-Id', ID],
     ['WEBHOOK-TIMESTAMP', TIMESTAMP],
     ['webhook-signature', `v1,${signature}`],
   ];
+
   const record: HeaderInput = { 'webhook-id': ID, 'webhook-timestamp': TIMESTAMP, 'webhook-signature': `${VECTOR}` };
 
   const fromRecord = expectOk(descriptor.parse(normalizeHeaders(record), BODY));

@@ -1,32 +1,27 @@
 import { HooklatchError, verify, verifyRequest, createVerifier } from '../../src/index.js';
-import type { Provider, VerifyOptions, WebhookRequest } from '../../src/types.js';
-import { fixtureBytes, loadFixture } from './helpers.js';
+import type { Provider, VerifyOptions } from '../../src/types.js';
+import { fixtureBytes, fixtureOptions, loadFixture } from './helpers.js';
 import type { FixtureCase } from './helpers.js';
 
 const stripeHappy: FixtureCase = loadFixture('stripe').find((entry) => entry.id === 'happy-path')!;
 const swLocal: FixtureCase = loadFixture('standard-webhooks').find((entry) => entry.id === 'local-anchor')!;
 
-function requestOf(case_: FixtureCase, provider?: Provider): { request: WebhookRequest; options: VerifyOptions } {
+function requestOf(case_: FixtureCase, provider?: Provider) {
   return {
     request: { rawBody: fixtureBytes(case_), headers: case_.request.headers },
-    options: {
-      provider: provider ?? 'stripe',
-      secrets: case_.options.secrets,
-      ...(case_.options.toleranceSeconds === undefined ? {} : { toleranceSeconds: case_.options.toleranceSeconds }),
-      now: () => case_.options.now,
-    },
+    options: fixtureOptions(provider ?? 'stripe', case_),
   };
 }
 
 function expectCreateThrows(options: VerifyOptions, expectedCode: string): void {
-  let thrown: unknown = null;
+  expect(() => createVerifier(options)).toThrow(HooklatchError);
+
   try {
     createVerifier(options);
   } catch (error) {
-    thrown = error;
+    if (!(error instanceof HooklatchError)) throw error;
+    expect(error.code).toBe(expectedCode);
   }
-  expect(thrown).toBeInstanceOf(HooklatchError);
-  if (thrown instanceof HooklatchError) expect(thrown.code).toBe(expectedCode);
 }
 
 describe('createVerifier() — preconfigured verification on the public root', () => {
@@ -36,6 +31,7 @@ describe('createVerifier() — preconfigured verification on the public root', (
     const preconfigured = createVerifier(options);
     const result = await preconfigured(request);
     expect(result.ok).toBe(true);
+
     if (!result.ok) return;
     expect(result.provider).toBe('stripe');
     expect(result.rawBody).toEqual(fixtureBytes(stripeHappy));
@@ -43,7 +39,8 @@ describe('createVerifier() — preconfigured verification on the public root', (
   });
 
   test('rejects unknown providers (setup error, before any input is read)', () => {
-    expectCreateThrows({ provider: 'nope', secrets: ['x'] } as unknown as VerifyOptions, 'unknown-provider');
+    // SAFETY: Deliberately invalid provider exercises runtime validation beyond the public union.
+    expectCreateThrows({ provider: 'nope', secrets: ['x'] } as never, 'unknown-provider');
     expectCreateThrows({ provider: 'stripe', secrets: [] }, 'missing-secrets');
     expectCreateThrows({
       provider: 'stripe',
@@ -59,6 +56,7 @@ describe('createVerifier() — preconfigured verification on the public root', (
     ['maxBodyBytes negative', { provider: 'stripe', secrets: ['whsec_x'], maxBodyBytes: -1 }],
     ['now non-function', { provider: 'stripe', secrets: ['whsec_x'], now: 4102444800 }],
   ])('invalid options: %s (setup error, never a silent verify)', (_title, options) => {
+    // SAFETY: The table intentionally includes an invalid clock to verify runtime rejection.
     expectCreateThrows(options as VerifyOptions, 'invalid-options');
   });
 });

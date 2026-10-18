@@ -7,16 +7,20 @@ const descriptor: ProviderDescriptor = {
   provider: 'stripe', decodeSecret: utf8,
   parse(headers, body) {
     const signature = headers.get('signature');
+
     if (!signature) return { ok: false, reason: 'missing-signature', message: 'Missing signature.' };
+
     return { ok: true, signatures: [Uint8Array.from(Buffer.from(signature, 'hex'))],
       signedContent: body, identity: { eventId: null, deliveryId: null,
         timestamp: Number(headers.get('timestamp') ?? 1000), authenticatedFields: ['timestamp'] } };
   },
 };
+
 function input(body = 'hello', timestamp = '1000', key = 'test-key') {
   return { rawBody: utf8(body), headers: { timestamp,
     signature: createHmac('sha256', key).update(body).digest('hex') } };
 }
+
 const options = { provider: 'stripe' as const, secrets: ['test-key'], now: () => 1000 };
 
 test('orchestration snapshots caller bytes and secret configuration before awaits', async () => {
@@ -29,6 +33,7 @@ test('orchestration snapshots caller bytes and secret configuration before await
   request.headers.signature = 'bad';
   const result = await pending;
   expect(result.ok).toBe(true);
+
   if (result.ok) expect(result.rawBody).toEqual(utf8('hello'));
 });
 
@@ -37,6 +42,7 @@ test('freshness is checked only after successful cryptography and has inclusive 
   expect(await verifyPrepared(input('hello', '699', 'wrong'), prepared)).toMatchObject({ reason: 'invalid-signature' });
   expect(await verifyPrepared(input('hello', '699'), prepared)).toMatchObject({ reason: 'timestamp-expired' });
   expect(await verifyPrepared(input('hello', '1301'), prepared)).toMatchObject({ reason: 'timestamp-future' });
+
   for (const timestamp of ['700', '1300']) expect((await verifyPrepared(input('hello', timestamp), prepared)).ok).toBe(true);
 });
 

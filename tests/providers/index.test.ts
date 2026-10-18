@@ -6,5 +6,6 @@ test('resolves each supported provider descriptor and rejects unknown providers'
   expect(getProviderDescriptor('github').provider).toBe('github');
   expect(getProviderDescriptor('shopify').provider).toBe('shopify');
   expect(getProviderDescriptor('standard-webhooks').provider).toBe('standard-webhooks');
+  // SAFETY: Deliberately malformed input crosses the static API boundary to assert its runtime rejection.
   expect(() => getProviderDescriptor('unknown' as never)).toThrow('Unsupported webhook provider.');
 });

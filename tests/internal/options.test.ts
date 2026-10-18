@@ -11,10 +11,15 @@ test('default options and secret arrays are snapshotted', () => {
 
 test('zero tolerance remains zero and invalid configuration throws safe typed errors', () => {
   expect(normalizeOptions({ provider: 'stripe', secrets: ['s'], toleranceSeconds: 0 }).toleranceSeconds).toBe(0);
+  // SAFETY: Deliberately malformed input crosses the static API boundary to assert its runtime rejection.
   expect(() => normalizeOptions({ provider: 'unknown', secrets: ['s'] } as never)).toThrow('Unsupported webhook provider.');
   expect(() => normalizeOptions({ provider: 'github', secrets: [] })).toThrow('At least one signing secret is required.');
   expect(() => normalizeOptions({ provider: 'github', secrets: [''] })).toThrow('Invalid signing secret.');
-  expect(() => normalizeOptions({ provider: 'github', secrets: new Array<string>(1) })).toThrow('Invalid signing secret.');
+  const sparseSecrets: string[] = [];
+  sparseSecrets.length = 1;
+  expect(() => normalizeOptions({ provider: 'github', secrets: sparseSecrets })).toThrow('Invalid signing secret.');
+
   for (const value of [-1, NaN, Infinity]) expect(() => normalizeOptions({ provider: 'github', secrets: ['s'], toleranceSeconds: value })).toThrow();
+
   for (const value of [0, -1, 1.1, Infinity]) expect(() => normalizeOptions({ provider: 'github', secrets: ['s'], maxBodyBytes: value })).toThrow();
 });

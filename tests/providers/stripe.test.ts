@@ -10,13 +10,14 @@ const BODY = utf8('{"id":"evt_test","type":"payment_intent.succeeded"}');
 const signedBytesFor = (timestamp: number, body: Uint8Array): Uint8Array =>
   concatBytes(utf8(`${timestamp}.`), body);
 
-const headerFor = (timestamp: number, signatures: readonly string[]): Record<string, string> => ({
+const headerFor = (timestamp: number, signatures: readonly string[]) => ({
   'stripe-signature': [`t=${timestamp}`, ...signatures].join(','),
 });
 
 test('verifies a locally derived Stripe signature over the exact signed bytes', async () => {
   const signed = signedBytesFor(NOW, BODY);
   const signature = hmacHex(SECRET, signed);
+
   const parsed = expectOk(
     stripeDescriptor.parse(headerMap(headerFor(NOW, [`v1=${signature}`])), BODY),
   );
@@ -37,9 +38,11 @@ test('verifies a locally derived Stripe signature over the exact signed bytes', 
 
 test('rejects a body that does not match the signed bytes', async () => {
   const signature = hmacHex(SECRET, signedBytesFor(NOW, BODY));
+
   const tampered = expectOk(
     stripeDescriptor.parse(headerMap(headerFor(NOW, [`v1=${signature}`])), utf8('{"tampered":true}')),
   );
+
   expect(
     await verifyHmac([stripeDescriptor.decodeSecret(SECRET)], tampered.signatures, tampered.signedContent),
   ).toBe(false);
@@ -54,6 +57,7 @@ test('accepts multiple v1 signatures for zero-downtime key rotation', async () =
   const signed = signedBytesFor(NOW, BODY);
   const retiring = hmacHex('whsec_retiring', signed);
   const active = hmacHex(SECRET, signed);
+
   const parsed = expectOk(
     stripeDescriptor.parse(headerMap(headerFor(NOW, [`v1=${retiring}`, `v1=${active}`])), BODY),
   );
@@ -66,12 +70,14 @@ test('accepts multiple v1 signatures for zero-downtime key rotation', async () =
 
 test('permits whitespace around comma-separated items and accepts either hex case', async () => {
   const signature = hmacHex(SECRET, signedBytesFor(NOW, BODY)).toUpperCase();
+
   const parsed = expectOk(
     stripeDescriptor.parse(
       headerMap({ 'stripe-signature': `t=${NOW}, v1=${signature}` }),
       BODY,
     ),
   );
+
   expect(
     await verifyHmac([stripeDescriptor.decodeSecret(SECRET)], parsed.signatures, parsed.signedContent),
   ).toBe(true);
@@ -79,6 +85,7 @@ test('permits whitespace around comma-separated items and accepts either hex cas
 
 test('rejects a repeated timestamp as malformed', () => {
   const signature = hmacHex(SECRET, signedBytesFor(NOW, BODY));
+
   for (const header of [
     `t=${NOW},t=${NOW},v1=${signature}`,
     `t=${NOW},v1=${signature},t=1`,
@@ -90,11 +97,13 @@ test('rejects a repeated timestamp as malformed', () => {
 
 test('fails closed on a malformed recognized signature even when another v1 is valid', () => {
   const signature = hmacHex(SECRET, signedBytesFor(NOW, BODY));
+
   for (const bad of ['zz', 'abc']) {
     expect(
       expectFailure(stripeDescriptor.parse(headerMap(headerFor(NOW, [`v1=${bad}`, `v1=${signature}`])), BODY)).reason,
     ).toBe('malformed-signature');
   }
+
   // An empty v1 value is malformed even alongside a valid signature.
   expect(
     expectFailure(
@@ -123,12 +132,14 @@ test('reports absent metadata and unsupported-only schemes distinctly', () => {
 
 test('ignores a well-formed unknown scheme when a valid v1 signature exists', async () => {
   const signature = hmacHex(SECRET, signedBytesFor(NOW, BODY));
+
   const parsed = expectOk(
     stripeDescriptor.parse(
       headerMap({ 'stripe-signature': `t=${NOW},v0=v0value,v1=${signature}` }),
       BODY,
     ),
   );
+
   expect(parsed.signatures).toHaveLength(1);
   expect(
     await verifyHmac([stripeDescriptor.decodeSecret(SECRET)], parsed.signatures, parsed.signedContent),
