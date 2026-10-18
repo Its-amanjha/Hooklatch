@@ -38,6 +38,10 @@ Every case:
 
 ## Rules
 
+Reference vectors are externally sourced, not Hooklatch inventions. See the
+[source and reference review](../../docs/PROVENANCE.md#reference-vectors-and-attribution)
+for source links and the unresolved Standard Webhooks license-metadata discrepancy.
+
 - Synthetic data only; the secrets in this directory are literal fixture
   strings, not credentials.
 - No network, no timers: clocks come from `options.now` alone.

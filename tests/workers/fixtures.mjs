@@ -31,6 +31,8 @@ export const ORIGIN = 'https://hooklatch-workers-smoke.invalid';
 /* GitHub — published reference vector (official docs)                        */
 /* -------------------------------------------------------------------------- */
 
+// Source: https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+
 export const GITHUB_SECRET = "It's a Secret to Everybody";
 export const GITHUB_BODY = 'Hello, World!';
 export const GITHUB_SIGNATURE_HEX =
@@ -42,6 +44,9 @@ export const GITHUB_DELIVERY_ID = '00000000-0000-4000-8000-000000000001';
 /* -------------------------------------------------------------------------- */
 /* Standard Webhooks — published reference vector (official JS reference suite) */
 /* -------------------------------------------------------------------------- */
+
+// Source: https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts
+// License metadata caveat: see docs/PROVENANCE.md#unresolved-reference-metadata.
 
 export const STANDARD_WEBHOOKS_SECRET = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 export const STANDARD_WEBHOOKS_ID = 'msg_p5jXN8AQM9LWM0D4loKWxJek';

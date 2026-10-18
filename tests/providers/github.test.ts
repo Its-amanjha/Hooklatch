@@ -8,6 +8,7 @@ const BODY = utf8('Hello, World!');
 const VECTOR_HEX = '757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17';
 const DELIVERY = '72d3162e-cc78-11e3-81ab-4c9367dc0958';
 
+// Reference vector: https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
 test('verifies the published GitHub reference vector over the raw body only', async () => {
   const parsed = expectOk(
     githubDescriptor.parse(
