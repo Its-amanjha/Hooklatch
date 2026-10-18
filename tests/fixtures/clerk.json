@@ -208,7 +208,7 @@
         "headers": {
           "svix-id": "msg_hooklatchFixture01",
           "svix-timestamp": "4102444800",
-          "svix-signature": "v1,Zm9="
+          "svix-signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OF="
         }
       },
       "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },

@@ -95,6 +95,26 @@ function loadPresetFixtures(provider: PresetProvider): readonly FixtureCase[] {
   return parsed.cases;
 }
 
+test.each(['clerk', 'svix'] as const)('%s canonicality fixture has a full-size noncanonical digest', (provider) => {
+  const fixture = loadPresetFixtures(provider).find((entry) => entry.id === 'noncanonical-signature-base64');
+  expect(fixture).toBeDefined();
+  const signature = fixture?.request.headers['svix-signature'];
+
+  if (!isString(signature)) throw new Error('Expected the noncanonical signature fixture.');
+  const encoded = signature.slice('v1,'.length);
+  const decoded = Buffer.from(encoded, 'base64');
+  expect(decoded.byteLength).toBe(32);
+  expect(decoded.toString('base64')).not.toBe(encoded);
+});
+
+test('the wrong-signature-before-stale fixture is actually outside tolerance', () => {
+  const fixture = loadPresetFixtures('svix').find((entry) => entry.id === 'wrong-signature-beats-stale');
+
+  if (!fixture) throw new Error('Missing ordering fixture.');
+  const timestamp = Number(fixture.request.headers['svix-timestamp']);
+  expect(fixture.options.now - timestamp).toBeGreaterThan(fixture.options.toleranceSeconds ?? 300);
+});
+
 function requireCase(cases: readonly FixtureCase[], id: string): FixtureCase {
   const found = cases.find((entry) => entry.id === id);
 
