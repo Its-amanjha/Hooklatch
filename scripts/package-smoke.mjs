@@ -25,6 +25,8 @@ function declaredEntrypoints(packageManifest) {
     paths.add(target.import);
   }
 
+  for (const target of Object.values(packageManifest.bin ?? {})) paths.add(target);
+
   paths.delete(undefined);
 
   return [...paths].map(normalizePackagePath).sort();
@@ -66,6 +68,14 @@ try {
   const check = `
     import assert from 'node:assert/strict';
     import { verify, verifyRequest, createVerifier, HooklatchError } from 'hooklatch';
+    import { diagnose } from 'hooklatch/diagnostics';
+
+    const diagnostic = diagnose({ ok: false, provider: 'clerk', reason: 'invalid-signature', message: 'PACKAGE_PRIVATE_CANARY' }, { verbose: true });
+    assert.equal(diagnostic.code, 'invalid-signature');
+    assert.equal(diagnostic.provider, 'clerk');
+    assert(diagnostic.detail.expectedHeaders.includes('svix-signature'));
+    assert(!JSON.stringify(diagnostic).includes('PACKAGE_PRIVATE_CANARY'));
+    assert.throws(() => diagnose({ ok: false, provider: 'clerk', reason: { toString() { return 'invalid-signature'; }, secret: 'PACKAGE_PRIVATE_CANARY' } }), { code: 'invalid-input' });
 
     const encoder = new TextEncoder();
     const githubOptions = { provider: 'github', secrets: ["It's a Secret to Everybody"] };
@@ -128,6 +138,20 @@ try {
   `;
 
   process.stdout.write(execFileSync(process.execPath, ['--input-type=module', '-e', check], { cwd: tempRoot, encoding: 'utf8' }));
+
+  const installedRoot = join(tempRoot, 'node_modules', 'hooklatch');
+  const installedManifest = JSON.parse(await readFile(join(installedRoot, 'package.json'), 'utf8'));
+  const cli = join(installedRoot, installedManifest.bin.hooklatch);
+  assert((await readFile(cli, 'utf8')).startsWith('#!/usr/bin/env node'));
+  const installedBin = join(tempRoot, 'node_modules', '.bin', process.platform === 'win32' ? 'hooklatch.cmd' : 'hooklatch');
+  assert(existsSync(installedBin), 'Installed CLI bin shim is missing.');
+  const invoke = (args) => execFileSync(process.execPath, [cli, ...args], { cwd: tempRoot, encoding: 'utf8' });
+  assert(invoke(['--help']).includes('Usage: hooklatch'));
+  assert(invoke(['init', 'webhook', '--help']).includes('--dry-run'));
+  const preview = invoke(['init', 'webhook', '--provider', 'standard-webhooks', '--framework', 'express', '--out', 'preview', '--dry-run']);
+  assert(preview.includes('standard_webhooksExpressWebhook'));
+  assert.equal(existsSync(join(tempRoot, 'preview')), false);
+  console.log('PASS: installed diagnostics and CLI help/dry-run work without optional frameworks.');
 } finally {
   const checked = resolve(tempRoot);
   assert(checked.startsWith(resolve(tmpdir()) + sep) && checked !== resolve(tmpdir()));

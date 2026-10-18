@@ -263,12 +263,19 @@ for (const provider of REQUIRED_PROVIDERS) {
 
 const workerSource = `
   import { verifyRequest } from './src/index.ts';
+  import { diagnose } from './src/diagnostics/index.ts';
 
   const cases = ${JSON.stringify(cases)};
 
   export default {
     async fetch(request) {
       const url = new URL(request.url);
+
+      if (url.pathname === '/diagnostics') {
+        return Response.json(diagnose({
+          ok: false, provider: 'clerk', reason: 'invalid-signature', message: 'WORKER_PRIVATE_CANARY',
+        }, { verbose: true }));
+      }
 
       if (url.pathname === '/runtime') {
         return Response.json({
@@ -351,6 +358,14 @@ try {
   assert.equal(runtimeFacts.userAgent, 'Cloudflare-Workers', 'Expected a real workerd runtime.');
   assert.equal(runtimeFacts.hasProcess, false, 'process must be unavailable in the Worker.');
   assert.equal(runtimeFacts.hasBuffer, false, 'Buffer must be unavailable in the Worker.');
+
+  const diagnostic = await (await runtime.dispatchFetch('https://example.test/diagnostics')).json();
+  assert.equal(diagnostic.code, 'invalid-signature');
+  assert.equal(diagnostic.kind, 'verification');
+  assert.equal(diagnostic.provider, 'clerk');
+  assert(diagnostic.detail.expectedHeaders.includes('svix-signature'));
+  assert(!JSON.stringify(diagnostic).includes('WORKER_PRIVATE_CANARY'));
+  console.log('PASS: pure diagnostics run in real workerd without leaking input messages.');
 
   for (const [index, testCase] of cases.entries()) {
     const headers = new Headers();
