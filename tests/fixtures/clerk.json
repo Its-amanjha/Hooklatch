@@ -1,0 +1,232 @@
+{
+  "cases": [
+    {
+      "id": "branded-reference-vector",
+      "provenance": { "class": "reference", "source": "Clerk delivers webhooks through Svix (https://clerk.com/docs/guides/development/webhooks/overview, fetched 2026-10-19) using standard-webhooks verification; the expected signature is the same vector Svix publishes under svix-* headers (https://docs.svix.com/receiving/verifying-payloads/how) and is pinned in the Standard Webhooks suite", "commit": "7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b", "fetched": "2026-10-19" },
+      "request": {
+        "bodyBase64": "eyJ0ZXN0IjogMjQzMjIzMjMxNH0=",
+        "headers": {
+          "svix-id": "msg_p5jXN8AQM9LWM0D4loKWxJek",
+          "svix-timestamp": "1614265330",
+          "svix-signature": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
+        }
+      },
+      "options": { "secrets": ["whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"], "toleranceSeconds": 300, "now": 1614265330 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_p5jXN8AQM9LWM0D4loKWxJek", "timestamp": 1614265330, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "local-anchor",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_hooklatchFixture01.<timestamp>.<payload> with the Base64-decoded synthetic 24-byte secret; never a published vector; Clerk reads the branded family only" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_hooklatchFixture01", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "local-anchor-non-json-body",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_hooklatchFixture01.<timestamp>.<plain-text payload> with the synthetic 24-byte secret; verification is byte-based with no content-type requirement" },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoIGZpeHR1cmUgcmF3IGJ5dGVzLCBub3QgSlNPTg==",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,FWbAFVVDCiYKBH+EuNf7UTHYSaRBwK/Z5m31wiN4MFo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_hooklatchFixture01", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "local-anchor-empty-body",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 over msg_hooklatchFixture01.<timestamp>. with the synthetic 24-byte secret against the empty payload" },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,hYFKOaC8IRDON3Qx62cryE9m6BqHIIzFgqg4cSTRvYs="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_hooklatchFixture01", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "rotation-both-signatures",
+      "provenance": { "class": "local", "source": "space-delimited svix-signature list signed by the new 24-byte secret and the rotated old 32-byte secret; one match suffices; node:crypto signing" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,QPhHeVRxwXOVfDSYb+8HmiFpfJ9w8AoJYm0xkxyY3Vw= v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u", "whsec_ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_hooklatchFixture01", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "canonical-divergent-ignored",
+      "provenance": { "class": "local", "source": "complete branded family plus a complete canonical family whose signature belongs to the rotated old secret; the Clerk preset reads the branded family only and never consults canonical headers, unlike the svix dual-family policy" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo=",
+          "webhook-id": "msg_hooklatchFixture01",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,QPhHeVRxwXOVfDSYb+8HmiFpfJ9w8AoJYm0xkxyY3Vw="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "msg_hooklatchFixture01", "timestamp": 4102444800, "authenticatedFields": ["eventId", "timestamp"] } }
+    },
+    {
+      "id": "canonical-only-missing-signature",
+      "provenance": { "class": "local", "source": "only the canonical webhook-* family with a valid Standard Webhooks signature; Clerk deliberately ignores canonical headers and reports the branded family as missing" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "webhook-id": "msg_hooklatchFixture01",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "canonical-cannot-repair-malformed-branded",
+      "provenance": { "class": "local", "source": "complete canonical family plus a malformed branded signature token; a canonical family is never allowed to rescue a branded grammar failure" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-signature": "v1,@@@",
+          "webhook-id": "msg_hooklatchFixture01",
+          "webhook-timestamp": "4102444800",
+          "webhook-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "branded-signature-canonical-identity-ordering",
+      "provenance": { "class": "local", "source": "branded signature present, canonical id and timestamp present, svix-id absent; the branded parse keeps the signature -> identity -> timestamp ordering and reports the missing branded id, reading no canonical identity field" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo=",
+          "webhook-id": "msg_hooklatchFixture01",
+          "webhook-timestamp": "4102444800"
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "missing-identity" }
+    },
+    {
+      "id": "tampered-body",
+      "provenance": { "class": "local", "source": "valid signature for the anchor body replayed over modified bytes" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjpmYWxzZX19",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "wrong-key",
+      "provenance": { "class": "local", "source": "anchor signature checked under a synthetic distractor 32-byte secret; must fail cleanly" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_ZGVhZGJlZWZkZWFkYmVlZmRlYWRiZWVmZGVhZGJlZWY="], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "rotation-old-removed",
+      "provenance": { "class": "local", "source": "old-secret signature replayed after the old secret left the configured set" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,QPhHeVRxwXOVfDSYb+8HmiFpfJ9w8AoJYm0xkxyY3Vw="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "invalid-signature" }
+    },
+    {
+      "id": "stale-301-rejected",
+      "provenance": { "class": "local", "source": "valid signature; now one second past the inclusive 300-second tolerance boundary" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102445101 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "future-301-rejected",
+      "provenance": { "class": "local", "source": "valid signature; now one second before the future tolerance boundary; contract v1 rejects future timestamps beyond tolerance" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,PfvVtSfKHNqjy8bJtgO5+SN7TXB+hXvbQ68tHs1LeKo="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444499 },
+      "expected": { "ok": false, "reason": "timestamp-future" }
+    },
+    {
+      "id": "noncanonical-signature-base64",
+      "provenance": { "class": "local", "source": "v1 token with noncanonical Base64 carrying impossible trailing bits; decode must fail without weakening to a verify attempt" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1,Zm9="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "unsupported-scheme-only",
+      "provenance": { "class": "local", "source": "signature header carries only an unrecognized Ed25519-style v1a scheme over 32 zero bytes; v1 remains the only supported scheme" },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjoiaG9va2xhdGNoLmZpeHR1cmUiLCJkYXRhIjp7Im9rIjp0cnVlfX0=",
+        "headers": {
+          "svix-id": "msg_hooklatchFixture01",
+          "svix-timestamp": "4102444800",
+          "svix-signature": "v1a,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        }
+      },
+      "options": { "secrets": ["whsec_MDEyMzQ1Njc4OWFiY2RlZmdoaWprbG1u"], "toleranceSeconds": 300, "now": 4102444800 },
+      "expected": { "ok": false, "reason": "unsupported-scheme" }
+    }
+  ]
+}
