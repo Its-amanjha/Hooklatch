@@ -1,4 +1,4 @@
-import { TernError, verify, verifyRequest, createVerifier } from '../../src/index.js';
+import { HooklatchError, verify, verifyRequest, createVerifier } from '../../src/index.js';
 import type { Provider, VerifyOptions, WebhookRequest } from '../../src/types.js';
 import { fixtureBytes, loadFixture } from './helpers.js';
 import type { FixtureCase } from './helpers.js';
@@ -25,8 +25,8 @@ function expectCreateThrows(options: VerifyOptions, expectedCode: string): void 
   } catch (error) {
     thrown = error;
   }
-  expect(thrown).toBeInstanceOf(TernError);
-  if (thrown instanceof TernError) expect(thrown.code).toBe(expectedCode);
+  expect(thrown).toBeInstanceOf(HooklatchError);
+  if (thrown instanceof HooklatchError) expect(thrown.code).toBe(expectedCode);
 }
 
 describe('createVerifier() — preconfigured verification on the public root', () => {

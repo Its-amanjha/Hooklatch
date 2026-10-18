@@ -7,7 +7,7 @@
  * in examples.
  */
 
-import { verify, type VerifyOptions, type VerificationResult } from '@hookflo/tern';
+import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real endpoint secret.
 const TEST_SECRET = 'whsec_TEST0placeholder0secret0do0not0use';

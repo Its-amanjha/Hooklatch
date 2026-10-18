@@ -6,7 +6,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const tempRoot = await mkdtemp(join(tmpdir(), 'tern-package-'));
+const tempRoot = await mkdtemp(join(tmpdir(), 'hooklatch-package-'));
 const npmCli = process.env.npm_execpath;
 assert(npmCli, 'Run this check via npm run test:package.');
 const npm = (args, cwd) => execFileSync(process.execPath, [npmCli, ...args], {
@@ -21,7 +21,7 @@ try {
   // A new process outside the workspace proves core loads without dev/framework deps.
   const check = `
     import assert from 'node:assert/strict';
-    import { verify, verifyRequest, createVerifier, TernError } from '@hookflo/tern';
+    import { verify, verifyRequest, createVerifier, HooklatchError } from 'hooklatch';
     const opts = { provider: 'github', secrets: ["It's a Secret to Everybody"] };
     const headers = { 'x-hub-signature-256': 'sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17' };
     const input = { rawBody: new TextEncoder().encode('Hello, World!'), headers };
@@ -29,7 +29,7 @@ try {
     assert.equal((await createVerifier(opts)(input)).ok, true);
     assert.equal((await verifyRequest(new Request('https://example.test', { method: 'POST', headers, body: 'Hello, World!' }), opts)).ok, true);
     assert.equal((await verify({ ...input, rawBody: new TextEncoder().encode('tampered') }, opts)).ok, false);
-    assert.equal(typeof TernError, 'function');
+    assert.equal(typeof HooklatchError, 'function');
     for (const name of ['express', 'hono']) {
       await assert.rejects(import(name), { code: 'ERR_MODULE_NOT_FOUND' });
     }

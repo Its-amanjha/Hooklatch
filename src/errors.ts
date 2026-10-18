@@ -1,11 +1,11 @@
-import type { TernErrorCode } from './types.js';
+import type { HooklatchErrorCode } from './types.js';
 
 /** Operational error. Messages deliberately exclude request and credential data. */
-export class TernError extends Error {
-  readonly code: TernErrorCode;
-  constructor(code: TernErrorCode, message: string) {
+export class HooklatchError extends Error {
+  readonly code: HooklatchErrorCode;
+  constructor(code: HooklatchErrorCode, message: string) {
     super(message);
-    this.name = 'TernError';
+    this.name = 'HooklatchError';
     this.code = code;
   }
 }

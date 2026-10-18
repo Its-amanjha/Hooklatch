@@ -7,7 +7,7 @@
  * payload schema. Decode and validate with your own tools after success.
  */
 
-import { verify, type VerifyOptions, type VerificationResult } from '@hookflo/tern';
+import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0stripe0secret0placeholder';

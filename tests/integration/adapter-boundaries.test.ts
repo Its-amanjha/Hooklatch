@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { TernError } from '../../src/index.js';
+import { HooklatchError } from '../../src/index.js';
 import { createWebhookHandler as nextHandler } from '../../src/adapters/nextjs.js';
 import { createWebhookHandler as workerHandler } from '../../src/adapters/cloudflare.js';
 import { createWebhookMiddleware } from '../../src/adapters/express.js';
@@ -13,14 +13,14 @@ function request(): Request {
 }
 const options = { provider: 'github' as const, secrets: [secret] };
 
-test('Next handler TernError propagates as an application error after successful verification', async () => {
-  const applicationError = new TernError('internal', 'Application failure');
+test('Next handler HooklatchError propagates as an application error after successful verification', async () => {
+  const applicationError = new HooklatchError('internal', 'Application failure');
   const handler = nextHandler({ ...options, handler() { throw applicationError; } });
   await expect(handler(request())).rejects.toBe(applicationError);
 });
 
-test('Workers handler TernError propagates as an application error after successful verification', async () => {
-  const applicationError = new TernError('internal', 'Application failure');
+test('Workers handler HooklatchError propagates as an application error after successful verification', async () => {
+  const applicationError = new HooklatchError('internal', 'Application failure');
   const handler = workerHandler({ options: () => options, handler() { throw applicationError; } });
   await expect(handler(request(), {}, {})).rejects.toBe(applicationError);
 });

@@ -25,7 +25,7 @@
 export const COMPATIBILITY_DATE = '2026-08-06';
 
 /** Origin used for all offline `dispatchFetch` calls. Never leaves the process. */
-export const ORIGIN = 'https://tern-workers-smoke.invalid';
+export const ORIGIN = 'https://hooklatch-workers-smoke.invalid';
 
 /* -------------------------------------------------------------------------- */
 /* GitHub — published reference vector (official docs)                        */
@@ -65,7 +65,7 @@ export const STANDARD_WEBHOOKS_EXPIRED_OFFSET_SECONDS = 400;
 /** Fixed "now" in epoch seconds. Equal to the Standard Webhooks vector's ts. */
 export const FIXED_NOW = STANDARD_WEBHOOKS_TIMESTAMP;
 
-export const ENV_MARKER = 'tern-workers-smoke-marker-v1';
+export const ENV_MARKER = 'hooklatch-workers-smoke-marker-v1';
 
 /**
  * Bindings handed to the Worker through Miniflare. The Worker resolves its
@@ -73,10 +73,10 @@ export const ENV_MARKER = 'tern-workers-smoke-marker-v1';
  * binding resolution works inside workerd.
  */
 export const ENV_BINDINGS = Object.freeze({
-  TERN_GITHUB_SECRET: GITHUB_SECRET,
-  TERN_STANDARD_WEBHOOKS_SECRET: STANDARD_WEBHOOKS_SECRET,
-  TERN_NOW: String(FIXED_NOW),
-  TERN_MARKER: ENV_MARKER,
+  HOOKLATCH_GITHUB_SECRET: GITHUB_SECRET,
+  HOOKLATCH_STANDARD_WEBHOOKS_SECRET: STANDARD_WEBHOOKS_SECRET,
+  HOOKLATCH_NOW: String(FIXED_NOW),
+  HOOKLATCH_MARKER: ENV_MARKER,
 });
 
 /* -------------------------------------------------------------------------- */

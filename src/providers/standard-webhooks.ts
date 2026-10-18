@@ -1,4 +1,4 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 import { concatBytes, decodeBase64, utf8 } from '../internal/bytes.js';
 import type { NormalizedHeaders, ParseResult, ProviderDescriptor } from '../internal/provider.js';
 import type { EventIdentity } from '../types.js';
@@ -28,14 +28,14 @@ export const standardWebhooksDescriptor: ProviderDescriptor = {
 
   decodeSecret(secret: string): Uint8Array {
     if (typeof secret !== 'string' || secret.length === 0) {
-      throw new TernError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
+      throw new HooklatchError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
     }
     const encoded = secret.startsWith(SECRET_PREFIX)
       ? secret.slice(SECRET_PREFIX.length)
       : secret;
     const bytes = decodeBase64(encoded);
     if (bytes === null || bytes.byteLength < MIN_KEY_BYTES || bytes.byteLength > MAX_KEY_BYTES) {
-      throw new TernError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
+      throw new HooklatchError('invalid-secret', 'Invalid Standard Webhooks signing secret.');
     }
     return bytes;
   },

@@ -1,5 +1,5 @@
 import { verifyRequest } from '../../src/index.js';
-import { TernError } from '../../src/errors.js';
+import { HooklatchError } from '../../src/errors.js';
 import type { Provider, VerifyOptions } from '../../src/types.js';
 import { fixtureBytes, fixtureOptions, loadFixture } from './helpers.js';
 import type { FixtureCase } from './helpers.js';
@@ -41,7 +41,7 @@ function toStreamRequest(chunks: readonly Uint8Array[], case_: FixtureCase): Req
   return new Request('https://fixture.internal/hook', init);
 }
 
-const stripeTern = caseById('stripe', 'non-json-body-verified'); // body 'TERN', signed
+const stripeText = caseById('stripe', 'non-json-body-verified'); // body 'TERN', signed
 const stripeHappy = caseById('stripe', 'happy-path');
 const githubVector = caseById('github', 'reference-vector-2026-10-18');
 
@@ -57,49 +57,49 @@ describe('verifyRequest() — bounded Request reading on the public root', () =>
   });
 
   test('setup error: options are validated before any body is read', async () => {
-    const request = toRequest(stripeTern);
+    const request = toRequest(stripeText);
     await request.text(); // consume first so a body error would otherwise win
     const invalid = { provider: 'nope', secrets: ['whsec_tern_fixture_synthetic_00'], now: () => 4102444800 };
     await expect(verifyRequest(request, invalid as unknown as VerifyOptions))
-      .rejects.toMatchObject({ name: 'TernError', code: 'unknown-provider' });
+      .rejects.toMatchObject({ name: 'HooklatchError', code: 'unknown-provider' });
   });
 
   test('setup error: missing secrets win over an already consumed body', async () => {
-    const request = toRequest(stripeTern);
+    const request = toRequest(stripeText);
     await request.text();
     const options: VerifyOptions = { provider: 'stripe', secrets: [], now: () => 4102444800 };
     await expect(verifyRequest(request, options))
-      .rejects.toMatchObject({ name: 'TernError', code: 'missing-secrets' });
+      .rejects.toMatchObject({ name: 'HooklatchError', code: 'missing-secrets' });
   });
 
-  test('already consumed bodies throw TernError body-consumed', async () => {
-    const request = toRequest(stripeTern);
+  test('already consumed bodies throw HooklatchError body-consumed', async () => {
+    const request = toRequest(stripeText);
     await request.text();
-    await expect(verifyRequest(request, fixtureOptions('stripe', stripeTern)))
-      .rejects.toMatchObject({ name: 'TernError', code: 'body-consumed' });
+    await expect(verifyRequest(request, fixtureOptions('stripe', stripeText)))
+      .rejects.toMatchObject({ name: 'HooklatchError', code: 'body-consumed' });
   });
 
   test('locked-but-unread bodies are also setup errors', async () => {
     const request = toRequest(stripeHappy);
     request.body?.getReader(); // lock the stream without reading
     await expect(verifyRequest(request, fixtureOptions('stripe', stripeHappy)))
-      .rejects.toBeInstanceOf(TernError);
+      .rejects.toBeInstanceOf(HooklatchError);
   });
 
   test('overflow through a stream without Content-Length fails as body-too-large', async () => {
     // The signature header is irrelevant here: size enforcement precedes signature checks.
     const request = toStreamRequest(
       [new TextEncoder().encode('TERN'), new TextEncoder().encode('X')],
-      stripeTern,
+      stripeText,
     );
-    const result = await verifyRequest(request, { ...fixtureOptions('stripe', stripeTern), maxBodyBytes: 4 });
+    const result = await verifyRequest(request, { ...fixtureOptions('stripe', stripeText), maxBodyBytes: 4 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('body-too-large');
   });
 
   test('bodies exactly at maxBodyBytes still verify', async () => {
-    const request = toRequest(stripeTern);
-    const options = { ...fixtureOptions('stripe', stripeTern), maxBodyBytes: 4 };
+    const request = toRequest(stripeText);
+    const options = { ...fixtureOptions('stripe', stripeText), maxBodyBytes: 4 };
     const result = await verifyRequest(request, options);
     expect(result.ok).toBe(true);
   });

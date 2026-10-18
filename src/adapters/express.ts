@@ -56,7 +56,7 @@ export function createWebhookMiddleware(options: VerifyOptions): RequestHandler 
         res.status(err.status).send(err.message);
         return;
       }
-      if (err instanceof Error && err.name === 'TernError') {
+      if (err instanceof Error && err.name === 'HooklatchError') {
         res.status(500).send('Internal Server Error');
         return;
       }

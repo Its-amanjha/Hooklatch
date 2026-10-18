@@ -1,4 +1,4 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 import type { ProviderDescriptor } from '../internal/provider.js';
 import type { Provider } from '../types.js';
 import { githubDescriptor } from './github.js';
@@ -17,7 +17,7 @@ const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
 export function getProviderDescriptor(provider: Provider): ProviderDescriptor {
   const descriptor = DESCRIPTORS[provider] as ProviderDescriptor | undefined;
   if (descriptor === undefined) {
-    throw new TernError('unknown-provider', 'Unsupported webhook provider.');
+    throw new HooklatchError('unknown-provider', 'Unsupported webhook provider.');
   }
   return descriptor;
 }

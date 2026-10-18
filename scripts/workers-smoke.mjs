@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Offline Workers runtime smoke harness for @hookflo/tern.
+ * Offline Workers runtime smoke harness for hooklatch.
  *
  * Bundles `tests/workers/worker.ts` together with the core and the Cloudflare
  * Workers adapter using esbuild, then executes the bundle inside a real
@@ -74,7 +74,7 @@ const WORKER_ENTRY = path.join(PROJECT_ROOT, 'tests', 'workers', 'worker.ts');
  * blocked run reports the exact dependency instead of an opaque bundler error.
  */
 const REQUIRED_SOURCES = [
-  { relative: 'src/index.ts', owner: 'Codex', purpose: 'root exports: verify, verifyRequest, createVerifier, TernError' },
+  { relative: 'src/index.ts', owner: 'Codex', purpose: 'root exports: verify, verifyRequest, createVerifier, HooklatchError' },
   { relative: 'src/adapters/cloudflare.ts', owner: 'Beam', purpose: 'Workers adapter: createWebhookHandler' },
   { relative: 'src/providers/index.ts', owner: 'DeepSeek', purpose: 'provider descriptors: getProviderDescriptor' },
 ];
@@ -387,13 +387,13 @@ async function main() {
   await preflightSources();
   checkNodeCompatibilityFlags();
 
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'tern-workers-smoke-'));
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'hooklatch-workers-smoke-'));
   const bundlePath = path.join(tempDir, 'worker.mjs');
   let miniflare;
   let failure = null;
 
   console.log('');
-  console.log('Tern — offline Workers runtime smoke');
+  console.log('Hooklatch — offline Workers runtime smoke');
   console.log(`  node                ${process.version}`);
   console.log(`  esbuild             ${esbuild.version}`);
   console.log(`  miniflare           ${readVersion('miniflare')}`);

@@ -7,7 +7,7 @@
  * After verification succeeds, the caller decodes and interprets.
  */
 
-import { verify, type VerifyOptions, type VerificationResult } from '@hookflo/tern';
+import { verify, type VerifyOptions, type VerificationResult } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real shared secret.
 const TEST_SECRET = 'TEST0github0shared0secret0placeholder';

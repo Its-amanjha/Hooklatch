@@ -1,4 +1,4 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 import { decodeBase64, decodeHex, utf8 } from '../internal/bytes.js';
 import type { FailureDetails, VerificationFailureReason } from '../types.js';
 
@@ -41,7 +41,7 @@ export function decodeBase64Signature(value: string): Uint8Array | null {
 /** Literal, untrimmed UTF-8 secret bytes for Stripe/GitHub/Shopify. */
 export function decodeLiteralSecret(secret: string, label: string): Uint8Array {
   if (typeof secret !== 'string' || secret.length === 0) {
-    throw new TernError('invalid-secret', `Invalid ${label} signing secret.`);
+    throw new HooklatchError('invalid-secret', `Invalid ${label} signing secret.`);
   }
   return utf8(secret);
 }

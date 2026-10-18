@@ -34,6 +34,6 @@ export interface VerificationSuccess {
 }
 export interface VerificationFailure extends FailureDetails { readonly provider: Provider }
 export type VerificationResult = VerificationSuccess | VerificationFailure;
-export type TernErrorCode = 'unknown-provider' | 'missing-secrets' | 'invalid-secret'
+export type HooklatchErrorCode = 'unknown-provider' | 'missing-secrets' | 'invalid-secret'
   | 'invalid-options' | 'invalid-input' | 'body-consumed' | 'body-read-failed'
   | 'crypto-unavailable' | 'internal';

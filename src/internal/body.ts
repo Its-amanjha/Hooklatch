@@ -1,12 +1,12 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 
 /** null means size limit exceeded. Reads actual chunks, not trusted length claims. */
 export async function readBody(request: Request, maxBodyBytes: number): Promise<Uint8Array | null> {
-  if (request.bodyUsed || request.body?.locked) throw new TernError('body-consumed', 'Request body has already been consumed.');
+  if (request.bodyUsed || request.body?.locked) throw new HooklatchError('body-consumed', 'Request body has already been consumed.');
   if (!request.body) return new Uint8Array();
   let reader: ReadableStreamDefaultReader<Uint8Array>;
   try { reader = request.body.getReader(); }
-  catch { throw new TernError('body-read-failed', 'Unable to read request body.'); }
+  catch { throw new HooklatchError('body-read-failed', 'Unable to read request body.'); }
   // Bound bookkeeping as well as byte storage: a chunk array can grow very
   // large even for a tiny body, and spreading it exceeds JS argument limits.
   let output = new Uint8Array(Math.min(maxBodyBytes, 8192));
@@ -30,6 +30,6 @@ export async function readBody(request: Request, maxBodyBytes: number): Promise<
       output.set(chunk.value, size - chunk.value.byteLength);
     }
     return output.slice(0, size);
-  } catch { throw new TernError('body-read-failed', 'Unable to read request body.'); }
+  } catch { throw new HooklatchError('body-read-failed', 'Unable to read request body.'); }
   finally { reader.releaseLock(); }
 }

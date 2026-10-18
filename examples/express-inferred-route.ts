@@ -1,5 +1,5 @@
 import express from 'express';
-import { createWebhookMiddleware } from '@hookflo/tern/express';
+import { createWebhookMiddleware } from 'hooklatch/express';
 
 const app = express();
 app.post('/hook', createWebhookMiddleware({

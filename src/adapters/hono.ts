@@ -26,7 +26,7 @@ export function createWebhookMiddleware(options: VerifyOptions): MiddlewareHandl
       }
       c.set('webhook', result);
     } catch (err) {
-      if (err instanceof Error && err.name === 'TernError') {
+      if (err instanceof Error && err.name === 'HooklatchError') {
         return c.text('Internal Server Error', 500);
       }
       throw err;

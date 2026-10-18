@@ -1,5 +1,5 @@
 {
-  "name": "@hookflo/tern",
+  "name": "hooklatch",
   "version": "1.0.0",
   "description": "Portable webhook signature verification with a zero-dependency core",
   "type": "module",

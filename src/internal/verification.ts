@@ -1,4 +1,4 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 import type { FailureDetails, VerificationResult, VerifyOptions, WebhookRequest } from '../types.js';
 import type { ProviderDescriptor } from './provider.js';
 import { normalizeOptions } from './options.js';
@@ -15,16 +15,16 @@ export interface PreparedVerifier {
 export function prepareVerifier(options: VerifyOptions, descriptor: ProviderDescriptor): PreparedVerifier {
   const normalized = normalizeOptions(options);
   const keys = normalized.secrets.map((secret) => new Uint8Array(descriptor.decodeSecret(secret)));
-  if (keys.some((key) => key.byteLength === 0)) throw new TernError('invalid-secret', 'Invalid signing secret.');
+  if (keys.some((key) => key.byteLength === 0)) throw new HooklatchError('invalid-secret', 'Invalid signing secret.');
   return { options: normalized, descriptor, keys };
 }
 
 export function readClock(prepared: PreparedVerifier): number {
   let now: number;
   try { now = prepared.options.now(); }
-  catch { throw new TernError('invalid-options', 'Invalid verification clock.'); }
+  catch { throw new HooklatchError('invalid-options', 'Invalid verification clock.'); }
   if (!Number.isFinite(now) || now < 0 || now > Number.MAX_SAFE_INTEGER) {
-    throw new TernError('invalid-options', 'Invalid verification clock.');
+    throw new HooklatchError('invalid-options', 'Invalid verification clock.');
   }
   return now;
 }
@@ -36,7 +36,7 @@ export function failure(prepared: PreparedVerifier, reason: FailureDetails['reas
 export async function verifyPrepared(
   request: WebhookRequest, prepared: PreparedVerifier, receivedAt = readClock(prepared),
 ): Promise<VerificationResult> {
-  if (!request || !(request.rawBody instanceof Uint8Array)) throw new TernError('invalid-input', 'Raw body must be a Uint8Array.');
+  if (!request || !(request.rawBody instanceof Uint8Array)) throw new HooklatchError('invalid-input', 'Raw body must be a Uint8Array.');
   if (request.rawBody.byteLength > prepared.options.maxBodyBytes) return failure(prepared, 'body-too-large', 'Request body exceeds the configured limit.');
   const rawBody = new Uint8Array(request.rawBody);
   const headers = normalizeHeaders(request.headers);

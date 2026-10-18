@@ -6,15 +6,15 @@
  * Request failures (bad signature, expired timestamp, etc.) are RETURNED
  * as { ok: false, reason, message }. Setup/runtime failures (unknown
  * provider, missing secrets, invalid options, consumed body, crypto
- * unavailable) are THROWN as TernError.
+ * unavailable) are THROWN as HooklatchError.
  */
 
 import {
   createVerifier,
-  TernError,
+  HooklatchError,
   type VerifyOptions,
   type VerificationResult,
-} from '@hookflo/tern';
+} from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0github0secret0placeholder';
@@ -34,7 +34,7 @@ export function createGitHubVerifier(): (request: {
     };
     return createVerifier(options);
   } catch (err) {
-    if (err instanceof TernError) {
+    if (err instanceof HooklatchError) {
       // Setup error: crash at boot, not per-request.
       // Possible codes: 'unknown-provider', 'missing-secrets',
       // 'invalid-secret', 'invalid-options'.

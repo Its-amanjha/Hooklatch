@@ -1,9 +1,9 @@
-import { TernError } from '../errors.js';
+import { HooklatchError } from '../errors.js';
 import type { HeaderInput } from '../types.js';
 
 export function normalizeHeaders(input: HeaderInput): Map<string, string> {
   const result = new Map<string, string>();
-  const invalid = (): never => { throw new TernError('invalid-input', 'Invalid header input.'); };
+  const invalid = (): never => { throw new HooklatchError('invalid-input', 'Invalid header input.'); };
   const append = (name: unknown, value: unknown): void => {
     if (typeof name !== 'string' || typeof value !== 'string'
       || !/^[!#$%&'*+.^_`|~\da-z-]+$/i.test(name) || /[\r\n\0]/.test(value)) invalid();

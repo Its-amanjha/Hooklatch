@@ -4,10 +4,10 @@
  * Uses the implemented contract v1 Request wrapper.
  *
  * verifyRequest consumes the Request body once with bounded reading.
- * Already-consumed bodies throw TernError (setup error, not a result).
+ * Already-consumed bodies throw HooklatchError (setup error, not a result).
  */
 
-import { verifyRequest, TernError, type VerifyOptions } from '@hookflo/tern';
+import { verifyRequest, HooklatchError, type VerifyOptions } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0workers0secret0placeholder';
@@ -45,7 +45,7 @@ export async function handleWorkersWebhook(
     const payload = JSON.parse(new TextDecoder().decode(result.rawBody)) as unknown;
     return Response.json({ received: true });
   } catch (err) {
-    if (err instanceof TernError) {
+    if (err instanceof HooklatchError) {
       // Setup error: consumed body, read failure, crypto unavailable, etc.
       // Respond with a generic 500 — do not leak internal details.
       return Response.json({ error: 'Internal error' }, { status: 500 });

@@ -1,4 +1,4 @@
-import { createWebhookHandler } from '@hookflo/tern/cloudflare';
+import { createWebhookHandler } from 'hooklatch/cloudflare';
 
 interface Env { GITHUB_SECRET: string }
 

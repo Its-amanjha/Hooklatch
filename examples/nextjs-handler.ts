@@ -1,4 +1,4 @@
-import { createWebhookHandler } from '@hookflo/tern/nextjs';
+import { createWebhookHandler } from 'hooklatch/nextjs';
 
 export const POST = createWebhookHandler({
   provider: 'stripe',

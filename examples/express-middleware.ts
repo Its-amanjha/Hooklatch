@@ -15,8 +15,8 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { createWebhookMiddleware } from '@hookflo/tern/express';
-import type { VerifyOptions } from '@hookflo/tern';
+import { createWebhookMiddleware } from 'hooklatch/express';
+import type { VerifyOptions } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0express0secret0placeholder';

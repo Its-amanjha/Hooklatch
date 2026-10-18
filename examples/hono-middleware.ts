@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { createWebhookMiddleware, type WebhookVariables } from '@hookflo/tern/hono';
+import { createWebhookMiddleware, type WebhookVariables } from 'hooklatch/hono';
 
 const app = new Hono<{ Variables: WebhookVariables }>();
 app.post('/webhooks/github', createWebhookMiddleware({

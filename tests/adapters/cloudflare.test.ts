@@ -26,8 +26,8 @@ test('resolves secrets from env', async () => {
   expect(await res.text()).toBe('shh:2');
 });
 
-test('returns 500 on TernError', async () => {
-  verifyMock.mockRejectedValue(Object.assign(new Error('bad'), { name: 'TernError' }));
+test('returns 500 on HooklatchError', async () => {
+  verifyMock.mockRejectedValue(Object.assign(new Error('bad'), { name: 'HooklatchError' }));
   const handler = createWebhookHandler({
     options: () => ({ provider: 'stripe', secrets: ['s'] }),
     handler: async () => new Response('ok', { status: 200 }),

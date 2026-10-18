@@ -6,7 +6,7 @@
  * All values are synthetic placeholders.
  */
 
-import { createVerifier, type VerifyOptions } from '@hookflo/tern';
+import { createVerifier, type VerifyOptions } from 'hooklatch';
 
 /**
  * During a rotation window, configure every secret you accept. The verifier

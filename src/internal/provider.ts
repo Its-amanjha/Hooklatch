@@ -11,7 +11,7 @@ export interface ParsedSignature {
 export type ParseResult = ParsedSignature | FailureDetails;
 export interface ProviderDescriptor {
   readonly provider: Provider;
-  /** Throw TernError('invalid-secret') on invalid configuration. */
+  /** Throw HooklatchError('invalid-secret') on invalid configuration. */
   decodeSecret(secret: string): Uint8Array;
   /** Parse and format only. Freshness and HMAC checks belong to core. */
   parse(headers: NormalizedHeaders, rawBody: Uint8Array): ParseResult;

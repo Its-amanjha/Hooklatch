@@ -1,4 +1,4 @@
-import { TernError } from './errors.js';
+import { HooklatchError } from './errors.js';
 import type { VerificationResult, VerifyOptions, WebhookRequest } from './types.js';
 import { getProviderDescriptor } from './providers/index.js';
 import { normalizeOptions } from './internal/options.js';
@@ -24,7 +24,7 @@ export function createVerifier(options: VerifyOptions): (request: WebhookRequest
 export async function verifyRequest(request: Request, options: VerifyOptions): Promise<VerificationResult> {
   const prepared = prepare(options);
   const receivedAt = readClock(prepared);
-  if (!(request instanceof Request)) throw new TernError('invalid-input', 'A Web Request is required.');
+  if (!(request instanceof Request)) throw new HooklatchError('invalid-input', 'A Web Request is required.');
   const headers = normalizeHeaders(request.headers);
   const rawBody = await readBody(request, prepared.options.maxBodyBytes);
   if (rawBody === null) return failure(prepared, 'body-too-large', 'Request body exceeds the configured limit.');

@@ -24,7 +24,7 @@ export function createWebhookHandler(options: NextWebhookHandlerOptions): (reque
       }
       verification = result;
     } catch (err) {
-      if (err instanceof Error && err.name === 'TernError') {
+      if (err instanceof Error && err.name === 'HooklatchError') {
         return new Response('Internal Server Error', { status: 500 });
       }
       throw err;

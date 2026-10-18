@@ -5,13 +5,13 @@
  *
  * maxBodyBytes (default 1048576 = 1 MiB) is enforced while reading streams
  * and before copying raw inputs. Exceeding it returns { ok: false, reason:
- * 'body-too-large' } for request verification, or throws TernError for
+ * 'body-too-large' } for request verification, or throws HooklatchError for
  * invalid limit configuration.
  *
  * Platform limits (e.g. Cloudflare Workers plan limits) may reject earlier.
  */
 
-import { verify, TernError, type VerifyOptions, type VerificationResult } from '@hookflo/tern';
+import { verify, HooklatchError, type VerifyOptions, type VerificationResult } from 'hooklatch';
 
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0shopify0secret0placeholder';
@@ -35,10 +35,10 @@ export async function handleShopifyWebhook(
       secrets: [TEST_SECRET],
       maxBodyBytes,
     };
-    // Validate options before use — invalid limits throw TernError.
+    // Validate options before use — invalid limits throw HooklatchError.
     // (In the real implementation, createVerifier or verify validates.)
   } catch (err) {
-    if (err instanceof TernError) {
+    if (err instanceof HooklatchError) {
       // Invalid configuration — respond with generic 500.
       return Response.json({ error: 'Internal error' }, { status: 500 });
     }

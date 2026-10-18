@@ -20,10 +20,10 @@ import type { VerificationSuccess } from '../../src/types.js';
 import { PROBE_MAX_BODY_BYTES } from './fixtures.mjs';
 
 interface Env {
-  readonly TERN_GITHUB_SECRET: string;
-  readonly TERN_STANDARD_WEBHOOKS_SECRET: string;
-  readonly TERN_NOW: string;
-  readonly TERN_MARKER: string;
+  readonly HOOKLATCH_GITHUB_SECRET: string;
+  readonly HOOKLATCH_STANDARD_WEBHOOKS_SECRET: string;
+  readonly HOOKLATCH_NOW: string;
+  readonly HOOKLATCH_MARKER: string;
 }
 
 /** Minimal structural stand-ins; Cloudflare types are not a dependency. */
@@ -61,7 +61,7 @@ async function describe(success: VerificationSuccess, env: unknown): Promise<Res
     rawBodyLength: success.rawBody.byteLength,
     rawBodyBase64: toBase64(success.rawBody),
     rawBodySha256Hex: toHex(digest),
-    envMarker: bindings.TERN_MARKER,
+    envMarker: bindings.HOOKLATCH_MARKER,
   });
 }
 
@@ -70,8 +70,8 @@ const githubHandler = createWebhookHandler({
     const bindings = env as Env;
     return {
       provider: 'github',
-      secrets: [bindings.TERN_GITHUB_SECRET],
-      now: () => Number(bindings.TERN_NOW),
+      secrets: [bindings.HOOKLATCH_GITHUB_SECRET],
+      now: () => Number(bindings.HOOKLATCH_NOW),
     };
   },
   handler: (_request, env, _ctx, success) => describe(success, env),
@@ -82,8 +82,8 @@ const standardWebhooksHandler = createWebhookHandler({
     const bindings = env as Env;
     return {
       provider: 'standard-webhooks',
-      secrets: [bindings.TERN_STANDARD_WEBHOOKS_SECRET],
-      now: () => Number(bindings.TERN_NOW),
+      secrets: [bindings.HOOKLATCH_STANDARD_WEBHOOKS_SECRET],
+      now: () => Number(bindings.HOOKLATCH_NOW),
     };
   },
   handler: (_request, env, _ctx, success) => describe(success, env),
@@ -102,12 +102,12 @@ const standardWebhooksHandler = createWebhookHandler({
 async function requestWrapperProbe(request: Request, env: unknown, provider: 'github' | 'standard-webhooks'): Promise<Response> {
   const bindings = env as Env;
   const secret =
-    provider === 'github' ? bindings.TERN_GITHUB_SECRET : bindings.TERN_STANDARD_WEBHOOKS_SECRET;
+    provider === 'github' ? bindings.HOOKLATCH_GITHUB_SECRET : bindings.HOOKLATCH_STANDARD_WEBHOOKS_SECRET;
   try {
     const result = await verifyRequest(request, {
       provider,
       secrets: [secret],
-      now: () => Number(bindings.TERN_NOW),
+      now: () => Number(bindings.HOOKLATCH_NOW),
       maxBodyBytes: PROBE_MAX_BODY_BYTES,
     });
     if (!result.ok) {
