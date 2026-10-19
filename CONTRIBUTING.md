@@ -31,6 +31,7 @@ npm install
 | `npm run lint:anti-slop` | Run vendored anti-slop checks on source, tests, scripts and examples |
 | `npm run test:workers` | Run the Workers runtime smoke harness |
 | `npm run test:package` | Pack and install offline without optional frameworks |
+| `npm run test:templates` | Generate and strictly type-check all 24 CLI handlers against the packed package (build first) |
 
 All checks must pass before submitting a change. Do not commit code that
 skips or weakens tests.

@@ -59,6 +59,7 @@
     "lint": "npm run lint:eslint && npm run lint:anti-slop",
     "test:workers": "node scripts/workers-smoke.mjs && node scripts/workers-providers.mjs",
     "test:package": "node scripts/package-smoke.mjs",
+    "test:templates": "node scripts/templates-smoke.mjs",
     "lint:eslint": "eslint src tests scripts --no-error-on-unmatched-pattern",
     "lint:anti-slop": "oxlint --config .oxlintrc.json src tests scripts examples"
   },

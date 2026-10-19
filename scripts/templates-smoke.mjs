@@ -5,9 +5,9 @@
  *
  *   node scripts/templates-smoke.mjs
  *
- * The script is standalone (no npm_execpath requirement), performs no
- * network access beyond offline npm pack/install of the local tarball, and
- * never imports repository src or examples as a verification fallback.
+ * The script is standalone (no npm_execpath requirement). npm pack/install use
+ * offline mode on the local tarball. Repository src and examples are never
+ * imported as a verification fallback.
  */
 
 import assert from 'node:assert/strict';
@@ -202,7 +202,7 @@ async function main() {
 
     writeFileSync(join(consumerRoot, 'package.json'), `${JSON.stringify(consumerManifest, null, 2)}\n`);
 
-    const packed = JSON.parse(invoke([npmCli, 'pack', '--json', '--pack-destination', tempRoot], root, 'npm pack'));
+    const packed = JSON.parse(invoke([npmCli, 'pack', '--json', '--offline', '--ignore-scripts', '--pack-destination', tempRoot], root, 'npm pack'));
     const tarballPath = join(tempRoot, packed[0].filename);
 
     if (!existsSync(tarballPath)) fail('npm pack did not produce the expected archive.');
