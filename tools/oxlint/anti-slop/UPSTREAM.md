@@ -18,8 +18,9 @@ All generic rules and `oxc/no-accumulating-spread` are enabled as errors.
 `no-runtime-typeof` uses its supported `allowInTypeGuards: true` option: this SDK
 must validate untrusted JavaScript/HTTP inputs at boundaries, using named
 predicates with actual contract checks. Runtime checks elsewhere remain errors.
-No rule implementation or severity has been weakened. Effect rules are included
-in the supplied assets but not registered: Hooklatch has no direct Effect dependency.
+No active rule implementation or severity has been weakened. On 2026-10-19,
+the seven unused opt-in Effect files were removed from the local copy because
+Hooklatch has no direct Effect dependency. The generic plugin is unchanged.
 
 The rule sources otherwise match the pinned skill assets. The root source MIT
 license is retained here as `LICENSE`. Nested
