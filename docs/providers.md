@@ -1,17 +1,15 @@
 # Provider guide
 
-Concise reference for all nine provider IDs known to Hooklatch. Six are
+Reference for six supported provider IDs and three pending additions. Six are
 implemented and qualified on the Phase 2 baseline; three (razorpay, paddle
 Billing only, lemon-squeezy) are **pending integration and qualification** and
 are not yet advertised as supported.
 
-Existing docs: `docs/cli.md` (scaffolding), `docs/diagnostics.md` (troubleshooting).
+See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Implemented providers (qualified on baseline)
 
-These six providers are implemented, tested, and part of the current
-baseline. Do not re-implement or re-specify them here — this table exists to
-distinguish what ships from what is pending.
+These six providers are implemented, tested, and part of the current baseline.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -26,20 +24,21 @@ distinguish what ships from what is pending.
 
 - **Authenticated identity** fields are covered by the signature and survive
   verification: `eventId`, `timestamp` where the protocol signs them.
-- **Unsigned metadata** (delivery IDs, event IDs on body-only protocols, Paddle
-  payload IDs) is never authenticated. It does not stop replay and does not
-  prove a request originated from the provider.
+- **Unsigned header metadata** (delivery IDs and event IDs on body-only
+  protocols) is not covered by the signature. It does not stop replay or prove
+  the header value was supplied by the provider. IDs inside signed payload bytes
+  have integrity protection, but Hooklatch does not parse or extract them.
 
 Body-only protocols (GitHub, Shopify) sign no timestamp, so freshness checks
-and ID headers cannot stop replay on their own. Replay resistance comes from
-the signature over exact bytes plus application-level dedup, not from the
-header metadata.
+and ID headers cannot stop replay on their own. A captured valid body and
+signature can be replayed. Applications need their own replay/idempotency policy;
+deduplicating an unsigned delivery header alone is not replay protection.
 
 ## Pending providers (not yet integrated)
 
-These three provider IDs are designed but not implemented, registered, or
-qualified. Treat all details below as **planned, pending Codex integration**.
-Mark all planned examples as pending until integration passes.
+The three descriptors are implemented and directly tested on the integration
+branch, but are not registered or publicly qualified. The API policies below
+remain pending combined integration and qualification.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -67,7 +66,9 @@ Mark all planned examples as pending until integration passes.
   exactly 64 hex. Repeated `h1` values are a Hooklatch accept-set policy, not
   a claim of distinct-key SDK parity. Every `h1` must be valid; a malformed one
   poisons the whole header.
-- Unknown nonempty scheme-token fields (such as `h2`) may be ignored. Invalid
+- Unknown nonempty scheme-token fields (such as `h2`) may be ignored after
+  validation. Their values must be nonempty printable ASCII without whitespace,
+  commas, semicolons, or extra equals signs. Invalid
   key / empty value / empty segment / commas → `malformed-signature`. Duplicate
   `ts` is always malformed.
 - Missing/blank header → `missing-signature`; no `h1` but other valid
@@ -99,16 +100,18 @@ Mark all planned examples as pending until integration passes.
   before any parsing or re-serialization. Empty, non-JSON, and invalid UTF-8
   bodies are preserved; never decode/re-encode the body to build signed
   content.
-- **Key form:** all keys are literal nonempty untrimmed UTF-8 strings. No
-  `whsec_` inference across providers. Existing signature helpers require
-  exactly 32 bytes and accept upper/lowercase hex.
+- **Key form:** Stripe, GitHub, Shopify and the three pending providers use
+  literal nonempty untrimmed UTF-8 secrets. Standard Webhooks, Clerk and Svix
+  strip an optional `whsec_` prefix and Base64-decode the key, requiring 24–64
+  decoded bytes. A prefix alone never selects a protocol.
 - **No payload parsing:** verification never parses or validates the payload
   schema.
 - **Rotation:** accept-set, not business idempotency. Multiple active secrets
   are tried until one signature matches; this avoids delivery interruption
   during credential rotation but does not deduplicate business events.
-- **Case-insensitive headers** through the existing normalizer; values are
-  preserved verbatim.
+- **Case-insensitive headers** through the normalizer. Repeated names are
+  comma-combined; Web `Headers` can normalize surrounding whitespace. These
+  transformations are distinct from preserving the signed body bytes.
 
 ## What this guide does not cover
 
@@ -118,6 +121,5 @@ Mark all planned examples as pending until integration passes.
 - No new public API, provider auto-detection, or `Provider` union changes.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 
-All planned examples are **pending** until Codex integration and qualification
-pass. This document describes planned behavior only; it does not advertise
-support.
+The three new providers remain pending until combined integration and
+qualification pass. The existing six-provider baseline remains supported.
