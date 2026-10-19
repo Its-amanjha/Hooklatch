@@ -106,7 +106,7 @@ function toHeaders(headers: Readonly<Record<string, string>>): Headers {
 }
 
 function lowerCaseKeys(headers: Readonly<Record<string, string>>): HeaderInput {
-  return Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value] as const);
+  return Object.fromEntries(Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]));
 }
 
 function withTimestampText(case_: DeterministicCase, timestampText: string): HeaderInput {
@@ -570,6 +570,26 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
       await verify({ rawBody: case_.body, headers: appended }, optionsFor(case_)),
       'malformed-signature',
     );
+
+    const duplicateTuples = [
+      ...Object.entries(case_.headers),
+      [case_.signatureHeader.toLowerCase(), case_.signatureValue] as const,
+    ];
+
+    const differentlyCasedRecord = {
+      ...case_.headers,
+      [case_.signatureHeader.toLowerCase()]: case_.signatureValue,
+    };
+
+    expect(Object.keys(differentlyCasedRecord)).toHaveLength(Object.keys(case_.headers).length + 1);
+
+    for (const headers of [duplicateTuples, differentlyCasedRecord]) {
+      expectReason(
+        `${case_.context} case-insensitive-duplicate-signature`,
+        await verify({ rawBody: case_.body, headers }, optionsFor(case_)),
+        'malformed-signature',
+      );
+    }
   });
 
   test(`${case_.context} timestamp-grammar`, async () => {
@@ -661,6 +681,42 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
     }
   });
 
+  if (case_.encoding === 'base64') {
+    test(`${case_.context} noncanonical-base64-padding-bits`, async () => {
+      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      const padded = case_.signatureToken;
+      const finalIndex = alphabet.indexOf(padded.charAt(padded.length - 2));
+
+      expect(padded).toHaveLength(44);
+      expect(padded.endsWith('=')).toBe(true);
+      expect(finalIndex).toBeGreaterThanOrEqual(0);
+      expect(finalIndex & 3).toBe(0);
+
+      const noncanonical = `${padded.slice(0, -2)}${alphabet.charAt(finalIndex | 1)}=`;
+      const decoded = Buffer.from(noncanonical, 'base64');
+
+      expect(noncanonical).not.toBe(padded);
+      expect(decoded).toHaveLength(32);
+      expect(decoded).toEqual(Buffer.from(padded, 'base64'));
+      expect(decoded.toString('base64')).toBe(padded);
+
+      expectReason(
+        `${case_.context} noncanonical-base64-padding-bits`,
+        await verify(
+          {
+            rawBody: case_.body,
+            headers: {
+              ...case_.headers,
+              [case_.signatureHeader]: headerValueFor(case_, noncanonical, case_.signatureTimestampText),
+            },
+          },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
+    });
+  }
+
   test(`${case_.context} rotation-grammar`, async () => {
     if (case_.rotationHeader !== null) {
       expectSuccess(
@@ -673,6 +729,30 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
           optionsFor(case_, case_.rotationSecrets),
         ),
       );
+
+      const activeValue = headerValueFor(case_, case_.signatureToken, case_.signatureTimestampText);
+      const retiredValue = headerValueFor(case_, case_.retiredToken, case_.signatureTimestampText);
+
+      const reversed = case_.provider === 'stripe'
+        ? `t=${timestampText},v1=${case_.signatureToken},v1=${case_.retiredToken}`
+        : `${activeValue} ${retiredValue}`;
+
+      expect(case_.signatureToken).not.toBe(case_.retiredToken);
+
+      for (const signature of [case_.rotationHeader, reversed]) {
+        for (const secret of [case_.activeSecret, case_.retiredSecret]) {
+          expectSuccess(
+            `${case_.context} rotation-both-orders-single-secret`,
+            await verify(
+              {
+                rawBody: case_.body,
+                headers: { ...case_.headers, [case_.signatureHeader]: signature },
+              },
+              optionsFor(case_, [secret]),
+            ),
+          );
+        }
+      }
     } else {
       expect(case_.rotationHeader).toBeNull();
 
@@ -719,7 +799,9 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
               ...case_.headers,
               [case_.signatureHeader]: headerValueFor(
                 case_,
-                `${case_.signatureToken} ${case_.encoding === 'hex' ? 'zz' : '@@@'}`,
+                  case_.provider === 'github' || case_.provider === 'shopify'
+                    ? `${case_.signatureToken} ${case_.encoding === 'hex' ? 'zz' : '@@@'}`
+                    : `${case_.signatureToken} v1,@@@`,
                 case_.signatureTimestampText,
               ),
             },
@@ -866,7 +948,7 @@ describe('Svix dual-family fail-closed policy', () => {
 });
 
 describe.each(SECURITY_PROVIDERS)('%s invocation snapshots', (provider) => {
-  const case_ = representative(provider, 3);
+  const case_ = representative(provider, 2);
 
   test(`${case_.context} invocation-snapshot`, async () => {
     const backing = new Uint8Array(case_.body.byteLength + 4);
@@ -956,7 +1038,7 @@ describe.each(SECURITY_PROVIDERS)('%s invocation snapshots', (provider) => {
 });
 
 describe.each(SECURITY_PROVIDERS)('%s verifyRequest() signed-byte matrix', (provider) => {
-  for (const index of [1, 5]) {
+  for (const index of [0, 2, 4, 7]) {
     const case_ = representative(provider, index);
 
     test(`${case_.context} verifies once and rejects reuse`, async () => {
@@ -997,11 +1079,9 @@ describe.each(SECURITY_PROVIDERS)('%s verifyRequest() signed-byte matrix', (prov
   }
 });
 
-describe('corpus independence of production parsing', () => {
-  test('recomputes each recorded token from the documented recipe', () => {
-    for (const provider of SECURITY_PROVIDERS) {
-      const case_ = representative(provider, 1);
-
+describe('independent generator consistency', () => {
+  test('reproduces every recorded token with the same independent signer', () => {
+    for (const case_ of ALL_CASES) {
       const token = signatureTokenFor(
         case_,
         case_.activeSecret,
