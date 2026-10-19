@@ -107,7 +107,7 @@ function hmacHex(secret: string, bytes: Uint8Array): string {
 }
 
 const HEX_64 = /^[0-9a-f]{64}$/i;
-const CANONICAL_DECIMAL = /^\d+$/;
+const CANONICAL_DECIMAL = /^(?:0|[1-9]\d*)$/;
 
 const UTF8_LOOSE = new TextDecoder('utf-8');
 const UTF8_STRICT = new TextDecoder('utf-8', { fatal: true });
@@ -150,7 +150,7 @@ function readPaddleHeaderForAnchor(value: string): PaddleAnchorHeader | null {
 
   if (tsText === undefined) return null;
 
-  if (!CANONICAL_DECIMAL.test(tsText)) return null;
+  if (!CANONICAL_DECIMAL.test(tsText) || !Number.isSafeInteger(Number(tsText))) return null;
 
   if (!h1Values.every((h1) => HEX_64.test(h1))) return null;
 
@@ -483,15 +483,18 @@ describe('paddle fixture anchors', () => {
     );
   });
 
-  it('recalculates every positive h1 over exact ts colon raw body bytes', () => {
+  it('recalculates positive and freshness-only h1 values over exact ts colon raw body bytes', () => {
     const problems = paddleCases.flatMap((fixture) => {
-      if (!fixture.expected.ok) return [];
+      const freshnessOnly = fixture.expected.reason === 'timestamp-expired'
+        || fixture.expected.reason === 'timestamp-future';
+
+      if (!fixture.expected.ok && !freshnessOnly) return [];
 
       const anchorHeader = readPaddleHeaderForAnchor(combinedHeader(fixture, SIGNATURE_HEADER) ?? '');
 
       if (anchorHeader === null) return [`${fixture.id}: positive header is outside the well-formed anchor subset`];
 
-      if (Number(anchorHeader.tsText) !== fixture.expected.identity?.timestamp) {
+      if (fixture.expected.ok && Number(anchorHeader.tsText) !== fixture.expected.identity?.timestamp) {
         return [`${fixture.id}: identity timestamp does not equal the authenticated ts`];
       }
 
