@@ -79,8 +79,13 @@ test('rejects a tampered body and a wrong secret', async () => {
   expect(
     await verifyHmac([razorpayDescriptor.decodeSecret(SECRET)], tampered.signatures, tampered.signedContent),
   ).toBe(false);
+
+  const original = expectOk(
+    razorpayDescriptor.parse(headerMap({ 'x-razorpay-signature': signature }), BODY),
+  );
+
   expect(
-    await verifyHmac([razorpayDescriptor.decodeSecret('synthetic_other_secret')], tampered.signatures, tampered.signedContent),
+    await verifyHmac([razorpayDescriptor.decodeSecret('synthetic_other_secret')], original.signatures, original.signedContent),
   ).toBe(false);
 });
 
@@ -128,6 +133,17 @@ test('uses whitespace and unicode secrets literally without normalization', asyn
 
   expect(razorpayDescriptor.decodeSecret(padded)).toEqual(utf8(padded));
   expect(razorpayDescriptor.decodeSecret(unicode)).toEqual(utf8(unicode));
+
+  const paddedInput = expectOk(
+    razorpayDescriptor.parse(headerMap({ 'x-razorpay-signature': sign(padded, BODY) }), BODY),
+  );
+
+  expect(
+    await verifyHmac([razorpayDescriptor.decodeSecret(padded)], paddedInput.signatures, paddedInput.signedContent),
+  ).toBe(true);
+  expect(
+    await verifyHmac([razorpayDescriptor.decodeSecret(padded.trim())], paddedInput.signatures, paddedInput.signedContent),
+  ).toBe(false);
 
   const parsed = expectOk(
     razorpayDescriptor.parse(headerMap({ 'x-razorpay-signature': sign(unicode, BODY) }), BODY),
