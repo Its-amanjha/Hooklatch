@@ -1,5 +1,5 @@
 /**
- * Phase 2 qualification: every generated CLI handler must be real, complete,
+ * Generated CLI qualification: every handler must be real, complete,
  * deterministic and semantically typechecked against the packed package and
  * the pinned framework/type trees from this checkout. Run AFTER npm run build:
  *
@@ -27,6 +27,9 @@ const PROVIDERS = [
   ['standard-webhooks', 'STANDARD_WEBHOOKS_SECRET'],
   ['clerk', 'CLERK_WEBHOOK_SIGNING_SECRET'],
   ['svix', 'SVIX_WEBHOOK_SECRET'],
+  ['razorpay', 'RAZORPAY_WEBHOOK_SECRET'],
+  ['paddle', 'PADDLE_WEBHOOK_SECRET'],
+  ['lemon-squeezy', 'LEMON_SQUEEZY_WEBHOOK_SECRET'],
 ];
 
 const FRAMEWORKS = ['express', 'nextjs', 'hono', 'cloudflare'];

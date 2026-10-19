@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,14 @@ const npmCli = process.env.npm_execpath;
 assert(npmCli, 'Run this check via npm run test:package.');
 
 const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+
+// Full provenance stays attached to each serialized fixture, including the two
+// official Paddle vectors pinned to SDK commit 651261beddfc65ba5f861729dca17044cbeffb5f.
+// Razorpay and Lemon Squeezy fixtures are explicitly local synthetic anchors.
+const phase3Fixtures = await Promise.all(['razorpay', 'paddle', 'lemon-squeezy'].map(async (provider) => ({
+  provider,
+  cases: JSON.parse(await readFile(join(root, 'tests', 'fixtures', `${provider}.json`), 'utf8')).cases,
+})));
 
 function normalizePackagePath(path) {
   return path.startsWith('./') ? path.slice(2) : path;
@@ -131,13 +139,71 @@ try {
     await checkPreset('svix', 'svix');
     await checkPreset('svix', 'webhook');
 
+    const phase3Fixtures = ${JSON.stringify(phase3Fixtures)};
+
+    for (const { provider, cases } of phase3Fixtures) {
+      for (const fixture of cases) {
+        const rawBody = new Uint8Array(Buffer.from(fixture.request.bodyBase64, 'base64'));
+        const options = { ...fixture.options, provider, now: () => fixture.options.now };
+        const input = { rawBody, headers: fixture.request.headers };
+        const assertResult = (result, webTransport) => {
+          const label = provider + ':' + fixture.id;
+          assert.equal(result.ok, fixture.expected.ok, label);
+          assert.equal(result.provider, provider, label);
+
+          if (!result.ok) {
+            assert.equal(result.reason, fixture.expected.reason, label);
+            const diagnostic = diagnose(result, { verbose: true });
+            assert.equal(diagnostic.provider, provider);
+            assert.equal(diagnostic.code, fixture.expected.reason);
+            assert(diagnostic.detail.expectedHeaders.length > 0);
+            return;
+          }
+
+          const identity = { ...fixture.expected.identity };
+
+          if (identity.eventId === 'unsigned-or-null') {
+            const headers = fixture.request.headers;
+            identity.eventId = webTransport
+              ? new Headers(headers).get('x-razorpay-event-id')
+              : headers['x-razorpay-event-id'];
+          }
+
+          assert.deepEqual(result.identity, identity, label);
+          assert.deepEqual([...result.rawBody], [...rawBody], label);
+        };
+
+        assertResult(await verify(input, options), false);
+        assertResult(await createVerifier(options)(input), false);
+        assertResult(await verifyRequest(new Request('https://example.test/hook', {
+          method: 'POST', headers: input.headers, body: rawBody,
+        }), options), true);
+
+        if (fixture.expected.ok) {
+          const changed = new Uint8Array(rawBody.length + 1);
+          changed.set(rawBody);
+          changed[rawBody.length] = 33;
+          const tampered = await verify({ ...input, rawBody: changed }, options);
+          assert.equal(tampered.ok, false);
+          assert.equal(tampered.reason, 'invalid-signature');
+        }
+      }
+
+      console.log('PASS: packed ' + provider + ' corpus passes all three APIs, metadata, diagnostics and tamper rejection.');
+    }
+
     for (const name of ['express', 'hono']) {
       await assert.rejects(import(name), { code: 'ERR_MODULE_NOT_FOUND' });
     }
     console.log('PASS: packed core imports and verifies offline without optional frameworks.');
   `;
 
-  process.stdout.write(execFileSync(process.execPath, ['--input-type=module', '-e', check], { cwd: tempRoot, encoding: 'utf8' }));
+  // A real temporary module avoids Windows command-line limits when the full
+  // attributed corpus is embedded, and resolves imports from the consumer.
+  const probePath = join(tempRoot, 'installed-package-probe.mjs');
+
+  await writeFile(probePath, check);
+  process.stdout.write(execFileSync(process.execPath, [probePath], { cwd: tempRoot, encoding: 'utf8' }));
 
   const installedRoot = join(tempRoot, 'node_modules', 'hooklatch');
   const installedManifest = JSON.parse(await readFile(join(installedRoot, 'package.json'), 'utf8'));
@@ -151,6 +217,19 @@ try {
   const preview = invoke(['init', 'webhook', '--provider', 'standard-webhooks', '--framework', 'express', '--out', 'preview', '--dry-run']);
   assert(preview.includes('standard_webhooksExpressWebhook'));
   assert.equal(existsSync(join(tempRoot, 'preview')), false);
+
+  for (const [provider, secretEnv] of [
+    ['razorpay', 'RAZORPAY_WEBHOOK_SECRET'],
+    ['paddle', 'PADDLE_WEBHOOK_SECRET'],
+    ['lemon-squeezy', 'LEMON_SQUEEZY_WEBHOOK_SECRET'],
+  ]) {
+    const output = `preview-${provider}`;
+    const content = invoke(['init', 'webhook', '--provider', provider, '--framework', 'express', '--out', output, '--dry-run']);
+    assert(content.includes(`provider: '${provider}'`));
+    assert(content.includes(`process.env.${secretEnv}!`));
+    assert.equal(existsSync(join(tempRoot, output)), false);
+  }
+
   console.log('PASS: installed diagnostics and CLI help/dry-run work without optional frameworks.');
 } finally {
   const checked = resolve(tempRoot);

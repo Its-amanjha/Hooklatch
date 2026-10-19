@@ -25,7 +25,7 @@ import { Miniflare } from 'miniflare';
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REQUIRED_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix'];
+const REQUIRED_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix', 'razorpay', 'paddle', 'lemon-squeezy'];
 const ORIGINAL_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks'];
 const NEW_PROVIDERS = ['clerk', 'svix'];
 const WORKER_CONDITIONS = ['workerd', 'worker', 'browser'];
@@ -67,7 +67,12 @@ function resolveFixtureIdentity(provider, fixture) {
   }
 
   if (resolved.eventId === UNSIGNED_OR_NULL) {
-    resolved.eventId = headerValue(fixture.request.headers, 'x-shopify-event-id');
+    resolved.eventId = headerValue(fixture.request.headers,
+      provider === 'razorpay' ? 'x-razorpay-event-id' : 'x-shopify-event-id');
+
+    // A Web Request normalizes surrounding header whitespace before the SDK
+    // sees it; this checks transport-visible metadata rather than record input.
+    if (provider === 'razorpay' && resolved.eventId !== null) resolved.eventId = resolved.eventId.trim();
   }
 
   return resolved;
@@ -251,6 +256,77 @@ for (const provider of NEW_PROVIDERS) {
     { ok: false, reason: 'invalid-signature' }, { bodyBase64: tamperedBody(PUBLIC_BODY_BASE64) }));
 }
 
+// Carry the full independently authored Phase 3 corpus into real workerd.
+// Paddle reference cases retain attribution to the official SDK tests pinned at
+// https://github.com/PaddleHQ/paddle-node-sdk/blob/651261beddfc65ba5f861729dca17044cbeffb5f/src/__tests__/notifications/webhooks-validator.node.test.ts
+// Razorpay/Lemon Squeezy anchors are synthetic node:crypto values, never
+// represented as published vectors. Options are copied without inserting a
+// tolerance: Paddle's omitted default must actually exercise its five seconds.
+for (const provider of ['razorpay', 'paddle', 'lemon-squeezy']) {
+  const file = await fixtureFile(provider);
+
+  for (const fixture of file.cases) {
+    pushCase({
+      id: `${provider}: ${fixture.id}`,
+      provider,
+      headers: fixture.request.headers,
+      bodyBase64: fixture.request.bodyBase64,
+      options: fixture.options,
+      expected: fixture.expected.ok
+        ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
+        : fixture.expected,
+    });
+  }
+
+  const positive = file.cases.find((entry) => entry.expected.ok && entry.request.bodyBase64);
+  assert(positive, `Missing positive Phase 3 runtime fixture for ${provider}.`);
+  pushCase({
+    id: `${provider}: tampered reference bytes`,
+    provider,
+    headers: positive.request.headers,
+    bodyBase64: tamperedBody(positive.request.bodyBase64),
+    options: positive.options,
+    expected: { ok: false, reason: 'invalid-signature' },
+  });
+
+  // Independently generated invalid-UTF8/NUL bytes and a retiring literal key
+  // exercise each recipe in workerd, including Paddle's colon prefix.
+  const body = Buffer.from([0xff, 0, 0xc3, 0x28, 0x80, 13, 10]);
+  const retiringSecret = 'runtime_retiring_synthetic_key';
+  const activeSecret = 'runtime_active_synthetic_key';
+  const timestamp = 1700000500;
+
+  const signed = provider === 'paddle'
+    ? Buffer.concat([Buffer.from(`${timestamp}:`), body]) : body;
+
+  const signature = createHmac('sha256', retiringSecret).update(signed).digest('hex');
+
+  const headers = provider === 'paddle'
+    ? { 'paddle-signature': `ts=${timestamp};h1=${signature}` }
+    : { [provider === 'razorpay' ? 'x-razorpay-signature' : 'x-signature']: signature };
+
+  const identity = {
+    deliveryId: null,
+    eventId: null,
+    timestamp: provider === 'paddle' ? timestamp : null,
+    authenticatedFields: provider === 'paddle' ? ['timestamp'] : [],
+  };
+
+  for (const [label, secrets, expected] of [
+    ['binary bytes with retiring key in accept set', [activeSecret, retiringSecret], { ok: true, identity }],
+    ['removed retiring key rejects binary bytes', [activeSecret], { ok: false, reason: 'invalid-signature' }],
+  ]) {
+    pushCase({
+      id: `${provider}: ${label}`,
+      provider,
+      headers,
+      bodyBase64: body.toString('base64'),
+      options: { secrets, now: timestamp },
+      expected,
+    });
+  }
+}
+
 const coveredProviders = [...new Set(cases.map((entry) => entry.provider))].sort();
 
 assert.deepEqual(coveredProviders, [...REQUIRED_PROVIDERS].sort(),
@@ -295,7 +371,8 @@ const workerSource = `
       const result = await verifyRequest(request, {
         provider: testCase.provider,
         secrets: testCase.options.secrets,
-        toleranceSeconds: testCase.options.toleranceSeconds,
+        ...(testCase.options.toleranceSeconds === undefined
+          ? {} : { toleranceSeconds: testCase.options.toleranceSeconds }),
         now: () => testCase.options.now,
       });
 
