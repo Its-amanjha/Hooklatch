@@ -1,0 +1,192 @@
+{
+  "cases": [
+    {
+      "id": "signed-body-with-event-name-header",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc9",
+          "x-event-name": "order_created"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "x-event-name is neither authenticated nor part of Hooklatch identity; Lemon Squeezy has no signed delivery or event id headers."
+    },
+    {
+      "id": "signed-body-minimal-headers",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc9"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "uppercase-hex-accepted",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "A319AD758B2D5812A173AA338659FD8AC54C82BFFAB800F7354828A981AD0FC9"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Uppercase rendering of the signed-body-minimal-headers signature; the shared signature helper decodes hex case-insensitively."
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-signature": "0d11be476225208dfa1ceb3f483ad860565f14d477561bf045bfd13187777d9a"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "aMMo",
+        "headers": {
+          "x-signature": "25fb6dc453f1c1d1629865ec45d00dfbef96ca1addfa78d9f7fc7b056f1844c2"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Body bytes 0x68 0xC3 0x28 are not valid UTF-8; verification must depend only on the exact bytes."
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "cGxhaW4gdGV4dCBib2R5LCBub3QgSlNPTiBhdCBhbGw=",
+        "headers": {
+          "x-signature": "b790725de348d83bd6210de184a87d736d8da35ca004248fb4887d7af9fbd072"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "wrong-well-formed-signature",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "207fb73479456f0d5df8f28ca4ba4f0e14a5c844d8f494d47f7d9bd35ea5069f"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "invalid-signature" },
+      "notes": "Deliberately well-formed: the HMAC of the same body under a different, unconfigured secret."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-event-name": "order_created"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "whitespace-only-signature-is-missing",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "   "
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "empty-signature-header-is-missing",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": ""
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" },
+      "notes": "Boundary choice: an empty header value is treated as the degenerate whitespace-only case (missing), not a malformed token. Flagged for integration review."
+    },
+    {
+      "id": "comma-combined-duplicate-signature",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc9, 0d11be476225208dfa1ceb3f483ad860565f14d477561bf045bfd13187777d9a"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Same missing/malformed policy as Razorpay: a single hex token, comma combination rejected."
+    },
+    {
+      "id": "odd-length-hex-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "non-hex-digest-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "g319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc9"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "short-31-byte-digest-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0f"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "62 hex characters decode to 31 bytes; the shared helper requires exactly 32."
+    },
+    {
+      "id": "prefixed-signature-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Lemon Squeezy signature vector exists); recipe per https://docs.lemonsqueezy.com/help/webhooks/signing-requests (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJtZXRhIjp7ImV2ZW50X25hbWUiOiJvcmRlcl9jcmVhdGVkIiwiY3VzdG9tX2RhdGEiOnsic291cmNlIjoiZ2xtLXN0YWdlLWEifX0sImRhdGEiOnsidHlwZSI6Im9yZGVycyIsImlkIjoiMiIsImF0dHJpYnV0ZXMiOnsic3RhdHVzIjoicGFpZCJ9fX0=",
+        "headers": {
+          "x-signature": "sha256=a319ad758b2d5812a173aa338659fd8ac54c82bffab800f7354828a981ad0fc9"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_lemon_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    }
+  ]
+}
