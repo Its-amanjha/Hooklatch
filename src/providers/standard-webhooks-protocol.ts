@@ -1,7 +1,7 @@
 import { HooklatchError } from '../errors.js';
 import { concatBytes, decodeBase64, utf8 } from '../internal/bytes.js';
 import type { NormalizedHeaders, ParseResult, ProviderDescriptor } from '../internal/provider.js';
-import type { EventIdentity, Provider } from '../types.js';
+import type { EventIdentity } from '../types.js';
 import {
   decodeBase64Signature,
   failure,
@@ -26,11 +26,11 @@ export interface StandardWebhooksHeaderNames {
  * canonical or branded header family; callers own alias policy and must never
  * mix names from two families in one configuration.
  */
-export function createStandardWebhooksProtocol(
-  provider: Provider,
+export function createStandardWebhooksProtocol<P extends string>(
+  provider: P,
   label: string,
   headerNames: StandardWebhooksHeaderNames,
-): ProviderDescriptor {
+): { readonly provider: P } & Pick<ProviderDescriptor, 'decodeSecret' | 'parse'> {
   return {
     provider,
 
