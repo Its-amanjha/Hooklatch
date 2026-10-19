@@ -31,7 +31,7 @@ npm install
 | `npm run lint:anti-slop` | Run vendored anti-slop checks on source, tests, scripts and examples |
 | `npm run test:workers` | Run the Workers runtime smoke harness |
 | `npm run test:package` | Pack and install offline without optional frameworks |
-| `npm run test:templates` | Generate and strictly type-check all 24 CLI handlers against the packed package (build first) |
+| `npm run test:templates` | Generate and strictly type-check all 36 CLI handlers against the packed package (build first) |
 
 All checks must pass before submitting a change. Do not commit code that
 skips or weakens tests.
@@ -127,6 +127,12 @@ notes, credentials, tests, and development tools are excluded. Confirm a private
 security-reporting channel and the supported-version policy before publishing.
 Publication, registry access, and provenance configuration are separate maintainer
 operations; passing CI does not publish a release.
+
+Run `npm audit --omit=dev` and `npm audit` separately. The first checks the
+production dependency tree; the second also covers development tooling. Record
+the advisory, dependency path and affected use before choosing a remediation.
+An audit's suggested major downgrade is not evidence of a compatible fix; avoid
+`npm audit fix --force` without reviewing and verifying the resulting changes.
 
 ## Source and history notes
 
