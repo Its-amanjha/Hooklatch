@@ -11,7 +11,7 @@ import { createWebhookMiddleware as createHonoMiddleware } from '../../src/adapt
 import { isTcpAddress } from './signing.js';
 
 /**
- * Phase 3 Stage A â€” adapter byte-boundary regressions.
+ * Phase 3 Stage A - adapter byte-boundary regressions.
  *
  * Uses the implemented GitHub provider as the common signing recipe. All bodies
  * are synthetic invalid-UTF8 bytes; signatures are computed with Node's
@@ -48,8 +48,8 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 // ---------------------------------------------------------------------------
 
 test('core verify accepts a nonzero-offset Uint8Array view and preserves bytes', async () => {
-  const full = new Uint8Array([...RAW_BYTES, ...RAW_BYTES]);
-  const view = full.subarray(RAW_BYTES.byteLength);
+  const full = new Uint8Array([0x11, 0x22, ...RAW_BYTES, 0x33]);
+  const view = full.subarray(2, 2 + RAW_BYTES.byteLength);
   expect(view.byteOffset).toBeGreaterThan(0);
 
   const result = await verify({ rawBody: view, headers: { 'x-hub-signature-256': githubSigHeader(view) } }, { provider: 'github', secrets: [SECRET] });
@@ -64,9 +64,11 @@ test('core verify accepts a nonzero-offset Uint8Array view and preserves bytes',
 });
 
 test('core verify rejects a tampered nonzero-offset view', async () => {
-  const full = new Uint8Array([...RAW_BYTES, ...RAW_BYTES]);
-  const view = full.subarray(RAW_BYTES.byteLength);
-  const tampered = new Uint8Array(view);
+  const full = new Uint8Array([0x11, 0x22, ...RAW_BYTES, 0x33]);
+  const view = full.subarray(2, 2 + RAW_BYTES.byteLength);
+  const tamperedBacking = new Uint8Array(full);
+  const tampered = tamperedBacking.subarray(2, 2 + RAW_BYTES.byteLength);
+  expect(tampered.byteOffset).toBeGreaterThan(0);
   const firstByte = tampered[0];
 
   if (firstByte === undefined) throw new Error('expected a leading byte');
@@ -83,18 +85,20 @@ test('core verify rejects a tampered nonzero-offset view', async () => {
 // shared helpers for sending raw bytes
 // ---------------------------------------------------------------------------
 
-function makeExpressApp(maxBodyBytes?: number) {
+function makeExpressApp(maxBodyBytes?: number, secret = SECRET) {
   const handlerCalled = { value: false };
   const app = express();
 
   const options = maxBodyBytes === undefined
-    ? { provider: 'github' as const, secrets: [SECRET] }
-    : { provider: 'github' as const, secrets: [SECRET], maxBodyBytes };
+    ? { provider: 'github' as const, secrets: [secret] }
+    : { provider: 'github' as const, secrets: [secret], maxBodyBytes };
 
   app.use(createWebhookMiddleware(options));
   app.use((req, res) => {
     handlerCalled.value = true;
-    res.status(200).send(String(req.webhook?.rawBody.byteLength ?? 0));
+
+    if (!req.webhook) throw new Error('expected a verified webhook');
+    res.status(200).send(bytesHex(req.webhook.rawBody));
   });
   // Surface handler throws as a controlled 500 so propagation is observable.
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -104,85 +108,125 @@ function makeExpressApp(maxBodyBytes?: number) {
   return { app, handlerCalled };
 }
 
-function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string, string> = {}): Promise<{ status: number; body: string }> {
-  return new Promise((resolve, reject) => {
-    const server = http.createServer(app);
-    server.listen(0, () => {
-      const addr = server.address();
-
-      if (!isTcpAddress(addr)) { server.close(); reject(new Error('Expected TCP server address'));
-
- return; }
-
-      const port = addr.port;
-
-      const req = http.request(
-        { hostname: '127.0.0.1', port, path: '/', method: 'POST', headers: { 'content-type': 'application/octet-stream', ...headers } },
-        (res) => {
-          let data = '';
-          res.on('data', (c: Buffer) => { data += c; });
-          res.on('end', () => { server.close(); resolve({ status: res.statusCode ?? 0, body: data }); });
-        },
-      );
-
-      req.on('error', (e) => { server.close(); reject(e); });
-      req.write(Buffer.from(body));
-      req.end();
-    });
-  });
+interface HttpResult {
+  status: number;
+  body: string;
+  chunks: number;
 }
 
-function sendChunked(app: express.Express, chunks: Uint8Array[], headers: Record<string, string> = {}): Promise<{ status: number; body: string }> {
+function bytesHex(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('hex');
+}
+
+function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string, string> = {}): Promise<HttpResult> {
+  return sendChunked(app, [body], headers);
+}
+
+/** Send the next chunk only after the server observed every byte of the last.
+ * This handshake guarantees distinct incoming data events without timers or
+ * assumptions about how multiple synchronous client writes are coalesced.
+ */
+function sendChunked(app: express.Express, chunks: Uint8Array[], headers: Record<string, string> = {}): Promise<HttpResult> {
   return new Promise((resolve, reject) => {
-    const server = http.createServer(app);
-    server.listen(0, () => {
-      const addr = server.address();
+    let request: http.ClientRequest | undefined;
+    let settled = false;
+    let chunkIndex = 0;
+    let writtenBytes = 0;
+    let receivedBytes = 0;
+    let observedChunks = 0;
 
-      if (!isTcpAddress(addr)) { server.close(); reject(new Error('Expected TCP server address'));
+    function writeNext(): void {
+      const chunk = chunks[chunkIndex];
 
- return; }
+      if (!request || settled) return;
 
-      const port = addr.port;
+      if (!chunk) {
+        request.end();
 
-      const req = http.request(
-        { hostname: '127.0.0.1', port, path: '/', method: 'POST', headers: { 'content-type': 'application/octet-stream', ...headers } },
-        (res) => {
-          let data = '';
-          res.on('data', (c: Buffer) => { data += c; });
-          res.on('end', () => { server.close(); resolve({ status: res.statusCode ?? 0, body: data }); });
-        },
-      );
+        return;
+      }
 
-      req.on('error', (e) => { server.close(); reject(e); });
+      chunkIndex += 1;
+      writtenBytes += chunk.byteLength;
+      request.write(Buffer.from(chunk));
 
-      for (const chunk of chunks) req.write(Buffer.from(chunk));
-      req.end();
+      if (chunkIndex === chunks.length) request.end();
+    }
+
+    const server = http.createServer((incoming, response) => {
+      incoming.on('data', (chunk: Buffer) => {
+        observedChunks += 1;
+        receivedBytes += chunk.byteLength;
+
+        if (chunkIndex < chunks.length && receivedBytes >= writtenBytes) writeNext();
+      });
+      app(incoming, response);
+    });
+
+    function finish(outcome: { ok: true; value: HttpResult } | { ok: false; error: Error }): void {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      request?.destroy();
+      server.closeAllConnections();
+      server.close(() => {
+        if (outcome.ok) resolve(outcome.value);
+        else reject(outcome.error);
+      });
+    }
+
+    const deadline = setTimeout(() => finish({ ok: false, error: new Error('Local HTTP test timed out') }), 3000);
+    server.once('error', (error) => finish({ ok: false, error }));
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+
+      if (!isTcpAddress(address)) {
+        finish({ ok: false, error: new Error('Expected TCP server address') });
+
+        return;
+      }
+
+      request = http.request({
+        hostname: '127.0.0.1', port: address.port, path: '/', method: 'POST', agent: false,
+        headers: { 'content-type': 'application/octet-stream', ...headers },
+      }, (response) => {
+        let body = '';
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => { body += chunk; });
+        response.once('error', (error) => finish({ ok: false, error }));
+        response.once('aborted', () => finish({ ok: false, error: new Error('Local HTTP response aborted') }));
+        response.once('end', () => finish({
+          ok: true, value: { status: response.statusCode ?? 0, body, chunks: observedChunks },
+        }));
+      });
+      request.once('error', (error) => finish({ ok: false, error }));
+      writeNext();
     });
   });
 }
 
 // ---------------------------------------------------------------------------
-// 1. Byte fidelity â€” non-JSON / invalid-UTF8 raw bytes across all 4 adapters
+// 1. Byte fidelity - non-JSON / invalid-UTF8 raw bytes across all 4 adapters
 // ---------------------------------------------------------------------------
 
 test('express preserves invalid-UTF8 bytes end to end', async () => {
   const { app, handlerCalled } = makeExpressApp();
   const r = await sendRaw(app, RAW_BYTES, { 'x-hub-signature-256': githubSigHeader(RAW_BYTES) });
   expect(r.status).toBe(200);
-  expect(r.body).toBe(String(RAW_BYTES.byteLength));
+  expect(r.body).toBe(bytesHex(RAW_BYTES));
   expect(handlerCalled.value).toBe(true);
 });
 
 test('hono preserves invalid-UTF8 bytes end to end', async () => {
   const app = new Hono();
-  let seen = 0;
+  let seen: Uint8Array | undefined;
   app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [SECRET] }), (c) => {
     const w = c.get('webhook');
 
     if (!w) throw new Error('expected a verified webhook');
-    seen = w.rawBody.byteLength;
+    seen = w.rawBody;
 
-    return c.text(`ok:${w.rawBody.byteLength}`, 200);
+    return c.text(bytesHex(w.rawBody), 200);
   });
 
   const res = await app.request('/webhook', {
@@ -192,15 +236,15 @@ test('hono preserves invalid-UTF8 bytes end to end', async () => {
   });
 
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe(`ok:${RAW_BYTES.byteLength}`);
-  expect(seen).toBe(RAW_BYTES.byteLength);
+  expect(await res.text()).toBe(bytesHex(RAW_BYTES));
+  expect(seen).toEqual(RAW_BYTES);
 });
 
 test('nextjs preserves invalid-UTF8 bytes end to end', async () => {
   const handler = createNextHandler({
     provider: 'github',
     secrets: [SECRET],
-    handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    handler: async (_req, success) => new Response(bytesHex(success.rawBody), { status: 200 }),
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -210,13 +254,13 @@ test('nextjs preserves invalid-UTF8 bytes end to end', async () => {
   }));
 
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe(String(RAW_BYTES.byteLength));
+  expect(await res.text()).toBe(bytesHex(RAW_BYTES));
 });
 
 test('cloudflare preserves invalid-UTF8 bytes end to end', async () => {
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET] }),
-    handler: async (_req, _env, _ctx, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    handler: async (_req, _env, _ctx, success) => new Response(bytesHex(success.rawBody), { status: 200 }),
   });
 
   const res = await handler(
@@ -230,7 +274,7 @@ test('cloudflare preserves invalid-UTF8 bytes end to end', async () => {
   );
 
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe(String(RAW_BYTES.byteLength));
+  expect(await res.text()).toBe(bytesHex(RAW_BYTES));
 });
 
 // ---------------------------------------------------------------------------
@@ -271,9 +315,11 @@ test('nextjs tampered body returns 400 and does not call handler', async () => {
   const handler = createNextHandler({
     provider: 'github',
     secrets: [SECRET],
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -292,9 +338,11 @@ test('cloudflare tampered body returns 400 and does not call handler', async () 
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET] }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -359,9 +407,11 @@ test('nextjs enforces the limit on actual bytes despite a misleading Content-Len
     provider: 'github',
     secrets: [SECRET],
     maxBodyBytes: 1,
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -380,9 +430,11 @@ test('cloudflare enforces the limit on actual bytes despite a misleading Content
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET], maxBodyBytes: 1 }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -427,9 +479,11 @@ test('nextjs returns 413 on overflow', async () => {
     provider: 'github',
     secrets: [SECRET],
     maxBodyBytes: 1,
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -448,9 +502,11 @@ test('cloudflare returns 413 on overflow', async () => {
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET], maxBodyBytes: 1 }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -477,8 +533,9 @@ test('express preserves bytes written across multiple chunks', async () => {
   const first = RAW_BYTES.subarray(0, 4);
   const second = RAW_BYTES.subarray(4);
   const r = await sendChunked(app, [first, second], { 'x-hub-signature-256': githubSigHeader(RAW_BYTES) });
+  expect(r.chunks).toBeGreaterThanOrEqual(2);
   expect(r.status).toBe(200);
-  expect(r.body).toBe(String(RAW_BYTES.byteLength));
+  expect(r.body).toBe(bytesHex(RAW_BYTES));
   expect(handlerCalled.value).toBe(true);
 });
 
@@ -497,7 +554,7 @@ test('nextjs preserves bytes streamed via a ReadableStream', async () => {
   const handler = createNextHandler({
     provider: 'github',
     secrets: [SECRET],
-    handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    handler: async (_req, success) => new Response(bytesHex(success.rawBody), { status: 200 }),
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -509,7 +566,7 @@ test('nextjs preserves bytes streamed via a ReadableStream', async () => {
   }));
 
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe(String(RAW_BYTES.byteLength));
+  expect(await res.text()).toBe(bytesHex(RAW_BYTES));
 });
 
 test('cloudflare preserves bytes streamed via a ReadableStream', async () => {
@@ -526,7 +583,7 @@ test('cloudflare preserves bytes streamed via a ReadableStream', async () => {
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET] }),
-    handler: async (_req, _env, _ctx, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    handler: async (_req, _env, _ctx, success) => new Response(bytesHex(success.rawBody), { status: 200 }),
   });
 
   const res = await handler(
@@ -542,7 +599,7 @@ test('cloudflare preserves bytes streamed via a ReadableStream', async () => {
   );
 
   expect(res.status).toBe(200);
-  expect(await res.text()).toBe(String(RAW_BYTES.byteLength));
+  expect(await res.text()).toBe(bytesHex(RAW_BYTES));
 });
 
 // ---------------------------------------------------------------------------
@@ -561,10 +618,17 @@ test('express propagates a thrown handler error as 500', async () => {
   expect(r.body).toBe('handler-error');
 });
 
-test('hono propagates a thrown handler error as 500', async () => {
+test('hono propagates the original handler error to the application error handler', async () => {
   const app = new Hono();
+  const handlerError = new Error('phase3-handler-error');
+  let observedError: Error | undefined;
+  app.onError((error, context) => {
+    observedError = error;
+
+    return context.text('application-handler-error', 500);
+  });
   app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [SECRET] }), () => {
-    throw new Error('boom');
+    throw handlerError;
   });
 
   const res = await app.request('/webhook', {
@@ -574,7 +638,8 @@ test('hono propagates a thrown handler error as 500', async () => {
   });
 
   expect(res.status).toBe(500);
-  expect(await res.text()).not.toBe('Bad Request');
+  expect(await res.text()).toBe('application-handler-error');
+  expect(observedError).toBe(handlerError);
 });
 
 test('nextjs propagates a thrown handler error', async () => {
@@ -631,13 +696,13 @@ function assertNoLeak(body: string): void {
 }
 
 test('express error bodies contain no payload, secret or signature', async () => {
-  const { app } = makeExpressApp();
+  const { app } = makeExpressApp(undefined, LEAK_SECRET);
   const tampered = await sendRaw(app, TAMPERED_BYTES, { 'x-hub-signature-256': leakSigHeader(RAW_BYTES) });
   expect(tampered.status).toBe(400);
   assertNoLeak(tampered.body);
   expect(tampered.body).toBe('Bad Request');
 
-  const overflow = await sendRaw(makeExpressApp(1).app, RAW_BYTES, { 'x-hub-signature-256': leakSigHeader(RAW_BYTES) });
+  const overflow = await sendRaw(makeExpressApp(1, LEAK_SECRET).app, RAW_BYTES, { 'x-hub-signature-256': leakSigHeader(RAW_BYTES) });
   expect(overflow.status).toBe(413);
   assertNoLeak(overflow.body);
   expect(overflow.body).toBe('Payload Too Large');
