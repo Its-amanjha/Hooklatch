@@ -104,7 +104,11 @@ test('fails cryptographic verification on body, timestamp, or digest tamper and 
   expect(await verifyHmac([descriptor.decodeSecret(SECRET)], digestParsed.signatures, digestParsed.signedContent))
     .toBe(false);
 
-  expect(await verifyHmac([descriptor.decodeSecret(OTHER_SECRET)], bodyParsed.signatures, bodyParsed.signedContent))
+  const valid = expectOk(descriptor.parse(header(valueFor()), BODY));
+
+  expect(await verifyHmac([descriptor.decodeSecret(SECRET)], valid.signatures, valid.signedContent))
+    .toBe(true);
+  expect(await verifyHmac([descriptor.decodeSecret(OTHER_SECRET)], valid.signatures, valid.signedContent))
     .toBe(false);
 });
 
@@ -232,6 +236,31 @@ test('rejects malformed structure, canonical defects, and unsupported-only schem
     `  t=${T} , v1=${signature} , future_TOKEN=abc-123  `,
   ]) {
     expect(expectOk(descriptor.parse(header(value), BODY)).signatures).toHaveLength(1);
+  }
+});
+
+test('accepts every printable unknown-field character except comma and equals', () => {
+  const baseline = expectOk(descriptor.parse(header(valueFor()), BODY));
+
+  for (let code = 0x21; code <= 0x7e; code += 1) {
+    if (code === 0x2c || code === 0x3d) continue;
+
+    const value = String.fromCharCode(code);
+    const parsed = expectOk(descriptor.parse(header(`${valueFor()},future=a${value}b`), BODY));
+
+    expect(parsed.signatures).toEqual(baseline.signatures);
+    expect(parsed.signedContent).toEqual(baseline.signedContent);
+    expect(parsed.identity).toEqual(baseline.identity);
+  }
+});
+
+test('rejects delimiters, internal whitespace, controls and non-ASCII unknown-field values', () => {
+  for (const value of ['a,b', 'a=b', 'a b', 'a\tb', 'a\nb', 'a\u0000b', 'a\u007fb', 'aéb']) {
+    // Exercise the parser directly; header normalization rejects some controls earlier.
+    const headers = new Map([['workos-signature', `${valueFor()},future=${value}`]]);
+
+    expect(expectFailure(descriptor.parse(headers, BODY)).reason)
+      .toBe('malformed-signature');
   }
 });
 

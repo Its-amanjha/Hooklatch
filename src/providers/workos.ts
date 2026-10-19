@@ -18,7 +18,7 @@ const SIGNATURE_KEY = 'v1';
  * or additional equals signs. This is a bounded Hooklatch grammar, not a
  * promise to support an unspecified future signature version.
  */
-const OPAQUE_VALUE = /^[\x21-\x2b\x2d-\x3a\x3c\x3e-\x7e]+$/;
+const OPAQUE_VALUE = /^[\x21-\x2b\x2d-\x3c\x3e-\x7e]+$/;
 
 /**
  * WorkOS: `WorkOS-Signature: t=<unix milliseconds>, v1=<64 hex>`.
