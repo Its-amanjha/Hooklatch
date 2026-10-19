@@ -1,0 +1,890 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-extra-unsigned-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M=",
+          "x-request-id": "req_glm4_replicate_stage_a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "x-request-id is unsigned transport metadata; it never participates in verification"
+    },
+    {
+      "id": "positive-bare-base64-secret",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "identical key bytes without the whsec_ prefix; the documented recipe accepts both encodings"
+    },
+    {
+      "id": "rotation-both-signatures",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,gjvF8S/aMVbwlMYxX9t7TirtrY4iiYN7vEdCW5mzCJI= v1,x6wXvXbPoTryRFn55wOuDGCGfuUS9PzxWz36GRCcDOI="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktb2xkMDAwMDA=",
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbmV3MDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "space-separated rotation list; any matching v1 token verifies"
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,gjvF8S/aMVbwlMYxX9t7TirtrY4iiYN7vEdCW5mzCJI="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbmV3MDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "the retired secret was removed from configuration; its well-formed signature no longer verifies"
+    },
+    {
+      "id": "boundary-plus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000300
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift +300 s exactly, still inside the inclusive window; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-plus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "drift +301 s; MAC must stay valid so the failure is purely freshness; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1699999700
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift -300 s exactly, symmetric inclusive window; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1699999699
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "drift -301 s beyond the window; MAC stays valid; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "zero-width-exact-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000000,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "tolerance 0 never disables freshness; exact second matches"
+    },
+    {
+      "id": "zero-width-drift-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000001,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "age 1 s leaves the zero-width window; MAC stays valid"
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,parRCtOUskc0p15UWAuuzIA9qjSJWuWew1RHe/FOpKs="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "well-formed signature from an unconfigured key; the MAC is checked before freshness (drift 301 s would also fail)"
+    },
+    {
+      "id": "tampered-body",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAyIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "headers sign the original body eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=; the delivered body differs by one byte"
+    },
+    {
+      "id": "tampered-webhook-id",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_attacker",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "webhook-id participates in the signed content; swapping it without re-signing fails (eventId is authenticated, not free metadata)"
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,IcVjbaRq8sLX7SBZsKjtdygfcPRLhZXnu1Wg0lOYpug="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "signed content ends at the trailing full stop; zero body bytes"
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoIHJlcGxpY2F0ZSBzdGFnZSBhIG5vbi1qc29uIGJvZHkg4oCUIDQy",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,JWLv5LlBHXbdI8kmq3Kh7fpDRvoXw0mfHhX6HQn0e44="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "byte verification does not require a JSON payload"
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "/wrDKA==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,ObxbBkVHOMp8WEBCb7cw6WA8sNhmZy8sgAlpQeBoI5k="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "exact bytes are preserved and signed; invalid UTF-8 is never re-decoded"
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "whitespace-only-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "malformed-v1-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,@@@@"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "trailing-comma-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M=,"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "comma-combined duplicate portal: the second list element would be empty"
+    },
+    {
+      "id": "comma-combined-duplicates-fail",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M=, v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "HTTP comma-joined duplicates of the signature header never collapse into a list"
+    },
+    {
+      "id": "malformed-sibling-poisons",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M= v1,@@@@"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "one malformed v1 fails the whole list even though a valid v1 is present"
+    },
+    {
+      "id": "v2-only-token-is-unsupported-scheme",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v2,aG9va2xhdGNoLXJlcGxpY2F0ZS12Mi1maWxsZXIwMDA="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "version labels are honored (the Replicate SDK behavior of ignoring them is not inherited)"
+    },
+    {
+      "id": "v2-with-valid-v1-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M= v2,aG9va2xhdGNoLXJlcGxpY2F0ZS12Mi1maWxsZXIwMDA="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_replicate_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "unknown scheme tolerated next to a valid v1 token"
+    },
+    {
+      "id": "missing-webhook-id-is-missing-identity",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      }
+    },
+    {
+      "id": "webhook-id-with-dot-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_a.01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "webhook-id-with-comma-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_a,01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "missing-webhook-timestamp-is-missing-timestamp",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      }
+    },
+    {
+      "id": "zero-padded-timestamp-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "webhook-id": "msg_hooklatch_replicate_stage_a_01",
+          "webhook-timestamp": "0170000000",
+          "webhook-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "branded-svix-headers-alone-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Replicate verify-webhook docs (https://replicate.com/docs/topics/webhooks/verify-webhook, fetched 2026-10-19) and Standard Webhooks 1.0.0; replicate-node SDK leniency (commit 2fd6f3944f5e252f2eb7cd4e9e5416786b9c4861) is not inherited; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJpZCI6InBfZ2xtNF9yZXBsaWNhdGVfMDAxIiwic3RhdHVzIjoicHJvY2Vzc2luZyIsImV2ZW50IjoicHJlZGljdGlvbi5jcmVhdGVkIn0=",
+        "headers": {
+          "svix-id": "msg_hooklatch_replicate_stage_a_01",
+          "svix-timestamp": "1700000000",
+          "svix-signature": "v1,mhyslk/Q4Cp7aEPCZqzyeWOuYCpxR0lO3+6D4MOtc8M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLXJlcGxpY2F0ZS1rZXktbWFpbjAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "replicate is canonical-only; the svix-* alias family is never consulted"
+    }
+  ]
+}

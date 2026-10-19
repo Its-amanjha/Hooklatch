@@ -1,0 +1,1541 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-fractional-identity-t125",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000125,v1=bfe5918a5c6acf0feb4d0e92e1b130b61477ab259841621a70ecd396c70288c3"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100.125
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "t is integer milliseconds; identity timestamp is 1700000000.125 s (exactly binary-representable)"
+    },
+    {
+      "id": "positive-fractional-identity-t250",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000250,v1=59eb67350b2f0b6114ec03111e3088ae1940d7eb250d0da7df2cffd16cd00d7c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100.25
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.25,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-fractional-identity-t500",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000500,v1=363999da6435777b712bf0a60f00addd27e3a6dac0d96948d6f3bda9346edda4"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100.5
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.5,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-mixed-case-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=C552C066F2E3D33060C6C4989AF492939D0BDA8D49728EB6986A876972252D92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "v1 accepts either hex case"
+    },
+    {
+      "id": "positive-outer-whitespace-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": " t=1700000000000 , v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92 "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "segment outer whitespace is trimmed; whitespace adjacent to = would still be rejected"
+    },
+    {
+      "id": "positive-field-order-independent",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "field order carries no meaning"
+    },
+    {
+      "id": "positive-unknown-v2-field-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v2=RANDOM_HASH"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "unknown opaque fields are tolerated next to a valid v1"
+    },
+    {
+      "id": "positive-unknown-v0-sibling-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v0=hooklatch_stage_a_v0_token"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "stripe-style v0 tokens are ordinary unknown fields while v1 is present; rejection only applies when no v1 exists"
+    },
+    {
+      "id": "rotation-repeated-v1-distinct-keys",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=576e87bd47511d9ad02dc495032034775c5890d9e606d5a6b171399d547c9171,v1=146037ff158a843e5725eb20e95bb300d69bba79ce403c5191d9983de03507ab"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_secret_old",
+          "hooklatch_workos_stage_a_secret_new"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "comma-separated repeated v1 tokens form an accept-set across configured keys"
+    },
+    {
+      "id": "rotation-repeated-v1-same-value",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "identical repeated tokens stay in the accept-set; only t duplicates are malformed"
+    },
+    {
+      "id": "boundary-plus-180-omitted-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000180
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift +180 s exactly (identity 1700000000.0 is exact); inside the inclusive window; toleranceSeconds deliberately omitted; the WorkOS default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-plus-180-001-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000180.001
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "drift just past 180 s; 180.001 is not exactly representable, anchors assert only >180 via IEEE compare; MAC stays valid; toleranceSeconds deliberately omitted; the WorkOS default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus-180-omitted-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1699999820
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift -180 s exactly; symmetric inclusive window; toleranceSeconds deliberately omitted; the WorkOS default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus-180-001-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1699999819.999
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "negative mirror of the .001 case; MAC stays valid; toleranceSeconds deliberately omitted; the WorkOS default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "fractional-boundary-plus-180-125-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000180.125
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "drift 180.125 s (exactly representable) rejects deterministically; MAC stays valid"
+    },
+    {
+      "id": "fractional-boundary-minus-180-25-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1699999819.75
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "drift -180.25 s (exactly representable) rejects deterministically; MAC stays valid"
+    },
+    {
+      "id": "fractional-boundary-inside-plus-179-875-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000179.875
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift +179.875 s (exactly representable) stays inside"
+    },
+    {
+      "id": "fractional-boundary-inside-minus-179-5-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1699999820.5
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift -179.5 s (exactly representable) stays inside"
+    },
+    {
+      "id": "explicit-zero-fractional-exact-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000125,v1=bfe5918a5c6acf0feb4d0e92e1b130b61477ab259841621a70ecd396c70288c3"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000000.125,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "clock equals Number(t)/1000 bit-for-bit; zero-width exact match accepts even a fractional identity timestamp"
+    },
+    {
+      "id": "explicit-zero-drift-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000000.125,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "drift +0.125 s (exactly representable) leaves the zero-width window; MAC stays valid"
+    },
+    {
+      "id": "override-tolerance-60-at-edge-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000060,
+        "toleranceSeconds": 60
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "explicit override replaces the receiver default"
+    },
+    {
+      "id": "override-tolerance-60-past-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000061,
+        "toleranceSeconds": 60
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "one second past the explicit override; MAC stays valid"
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=bb14fab9374679a9a984b8f4dfe9da4c247b7d02adf7295e9b68ea9287fd5756"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000181
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "unconfigured key, drift 181 s; the MAC is verified before freshness"
+    },
+    {
+      "id": "tampered-body",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDIifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "headers sign the original body eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19; the delivered body differs in the resource id"
+    },
+    {
+      "id": "hex-lookalike-secret-literal-verified",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=a7a1d891b74092c3bce773e23fef125eea37f8f3a2e34750109bc0fe978bb31a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "a3f1c2d4e5f60718293a4b5c6d7e8f9fa1b2c3d4e5f60718293a4b5c6d7e8f9f"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "the configured secret is the literal UTF-8 text even when it looks like hex"
+    },
+    {
+      "id": "hex-decoded-key-trap-rejected",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=ff6de7ec26be2b35bfa1315288c944e83946d90a672188bc3b1d9543d98258e0"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "the token was computed with the hex-DECODED key bytes while the configured secret is the main literal; an integrator who hex-decodes a hex-looking secret lands exactly here"
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=f604462df5f763ab07ebdcd726dcac27d26ca792333fc9c5440cf1d7f085f530"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "signed content ends at the trailing full stop after t"
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoIHdvcmtvcyBzdGFnZSBhIG5vbi1qc29uIGJvZHkg4oCUIDQy",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=1b932e01d2d406f7bcad8a9b44cbdf2dafc8b667dbc3041ce5c297a4580c6cca"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aMMoAA==",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=885b0df267a99d26b3ff9ec6e96726bd339c2c44d19116ed0a6099f4a9d93f50"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "byte-preservation policy; the SDK string-decoding path is not parity behavior"
+    },
+    {
+      "id": "bom-prefixed-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "77u/eyJldmVudCI6ImRzeW5jLmRlbGV0ZS5jb21wbGV0ZWQifQ==",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=e517e9d175dae15c9f68388da73ab48bc8f11979c1603e0d460c799f7d0ed323"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "a UTF-8 BOM is part of the exact bytes"
+    },
+    {
+      "id": "canonical-zero-timestamp-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=0,v1=dc33b4f23a76e719743550d1dc858de32efe3be877c55851bfb1d0c1015e9ac5"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 0,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "zero t is canonical; signed content uses the original text \"0.\"; age 0 with the omitted default still accepts"
+    },
+    {
+      "id": "missing-workos-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {}
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "blank-workos-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "h1-style-semicolon-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "ts=1700000500;h1=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "paddle-style single segment carries one field whose value contains \"=\"; the structure stage rejects extra \"=\" before required-field checks"
+    },
+    {
+      "id": "h1-style-comma-sibling-unsupported",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,h1=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "a comma-separated h1 sibling is an unknown field; with no v1 present, unknown fields yield unsupported-scheme"
+    },
+    {
+      "id": "stripe-legacy-v0-only-unsupported",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v0=9999999999999999999999999999999999999999999999999999999999999999"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "stripe legacy v0 with no v1: unknown field present, no v1 -> unsupported-scheme"
+    },
+    {
+      "id": "unknown-empty-value-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v2="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "empty value fails the structure stage"
+    },
+    {
+      "id": "unknown-inner-space-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v2=a b"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "unknown-comma-value-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v2=a,b"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "the comma splits the segment; \"b\" has no equals sign"
+    },
+    {
+      "id": "unknown-extra-equals-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v2=a=b"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "trailing-comma-empty-segment-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "segment-without-equals-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,notafield"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "space-in-key-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t =1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "whitespace adjacent to \"=\" is rejected (outer segment trim only)"
+    },
+    {
+      "id": "space-after-equals-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "v1= c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "duplicate-t-even-equal-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "leading-zero-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=01700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "plus-signed-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=+1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "decimal-point-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000.5,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "t is integer milliseconds; fractional text is non-canonical even though identity may be fractional after division"
+    },
+    {
+      "id": "negative-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=-1,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "beyond-safe-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=9007199254740993,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "inner-space-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=17000 00000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "empty-value-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "empty value fails at the structure stage, before missing-timestamp could be reported"
+    },
+    {
+      "id": "v1-without-t-is-missing-timestamp",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      }
+    },
+    {
+      "id": "t-only-is-missing-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "non-hex-v1-sibling-poisons",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v1=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "one malformed recognized v1 fails the whole header"
+    },
+    {
+      "id": "short-v1-sibling-poisons",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92,v1=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "v1 must decode to exactly 32 bytes; 31-byte siblings poison the header"
+    },
+    {
+      "id": "combined-duplicate-header-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per WorkOS webhooks docs (https://workos.com/docs/events/data-syncing/webhooks, fetched 2026-10-19) and pinned workos-node signature-provider.ts (commit ad8bff226e9b37435f0c62390318d4819f76b3d1); Hooklatch exact-byte policy is stricter than SDK string decoding; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6ImRzeW5jLnVzZXIuY3JlYXRlZCIsImRhdGEiOnsib2JqZWN0Ijp7ImlkIjoidXNlcl9nbG00X3dvcmtvc18wMDEifX19",
+        "headers": {
+          "workos-signature": "t=1700000000000,v1=c552c066f2e3d33060c6c4989af492939d0bda8d49728eb6986a876972252d92, t=1699999900000,v1=4b69ff7585e0982bc04e2432cc7729cb24b0c30c51d4b14c0af87f1dc3c93393"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_workos_stage_a_main_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "HTTP comma-joined duplicates produce two t fields; duplicate t is malformed even when well-formed"
+    }
+  ]
+}
