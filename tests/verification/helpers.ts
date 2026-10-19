@@ -56,7 +56,7 @@ function isHeaderValue(value: unknown): value is string | readonly string[] { re
 
 interface FixtureFile { readonly cases: readonly FixtureCase[] }
 
-function isFixtureFile(value: unknown): value is FixtureFile {
+export function isFixtureFile(value: unknown): value is FixtureFile {
   if (typeof value !== 'object' || value === null || !('cases' in value) || !Array.isArray(value.cases)) return false;
 
   return value.cases.every((entry: unknown): entry is FixtureCase => {
