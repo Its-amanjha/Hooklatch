@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import { createVerifier, verify, verifyRequest } from '../../src/index.js';
+import { SUPPORTED_PROVIDERS } from '../../src/providers/index.js';
 import type {
   EventIdentity,
   HeaderInput,
@@ -26,7 +28,7 @@ import {
 import type { DeterministicCase } from './deterministic-cases.js';
 
 /**
- * Adversarial qualification of the six registered providers through the public
+ * Adversarial qualification of the nine shipped providers through the public
  * root only. All signatures are generated independently in
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
  * build expected values. Synthetic data only; not an official conformance run.
@@ -34,9 +36,26 @@ import type { DeterministicCase } from './deterministic-cases.js';
 
 type VerificationResult = Awaited<ReturnType<typeof verify>>;
 
+/** Providers with the shared 300-second default freshness window. */
 const TIMESTAMPED_PROVIDERS = ['stripe', 'standard-webhooks', 'clerk', 'svix'] as const;
-const BODY_ONLY_PROVIDERS = ['github', 'shopify'] as const;
+
+/** Providers whose signature covers the raw body only (no timestamp). */
+const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy'] as const;
 const STANDARD_WEBHOOKS_PROVIDERS = ['standard-webhooks', 'clerk', 'svix'] as const;
+
+/** Original six-provider prefix pinned before the Phase 3 corpus extension. */
+const LEGACY_PROVIDERS = [
+  'stripe',
+  'github',
+  'shopify',
+  'standard-webhooks',
+  'clerk',
+  'svix',
+] as const;
+
+const LEGACY_CASE_COUNT = LEGACY_PROVIDERS.length * CASES_PER_PROVIDER;
+const LEGACY_CORPUS_FINGERPRINT_SHA256 = 'f752a2e69f746f2088d9ea4ba79fa809da4adf05f35ffeb9762bde6eaab117b7';
+const LEGACY_FULL_RECORD_SHA256 = 'ce21294c247880d8f3ddf3346dcf4a49f17050d106ef877fbb0926d69c58c403';
 
 function optionsFor(
   case_: DeterministicCase,
@@ -95,6 +114,45 @@ function expectIdentity(
 
     throw new Error(`${context}: identity mismatch\n${detail}`);
   }
+}
+
+/**
+ * Canonical full-case serialization; the legacy prefix hash below was captured
+ * with the same field order from the immutable pre-extension corpus.
+ */
+function stableCaseRecord(entry: DeterministicCase): string {
+  return JSON.stringify({
+    seed: entry.seed,
+    provider: entry.provider,
+    index: entry.index,
+    body: Buffer.from(entry.body).toString('hex'),
+    headers: Object.entries(entry.headers),
+    activeSecret: entry.activeSecret,
+    retiredSecret: entry.retiredSecret,
+    wrongSecret: entry.wrongSecret,
+    secrets: entry.secrets,
+    rotationSecrets: entry.rotationSecrets,
+    now: entry.now,
+    timestamp: entry.timestamp,
+    authenticatedId: entry.authenticatedId,
+    deliveryId: entry.deliveryId,
+    eventId: entry.eventId,
+    signatureHeader: entry.signatureHeader,
+    signatureValue: entry.signatureValue,
+    signatureToken: entry.signatureToken,
+    retiredToken: entry.retiredToken,
+    signatureTimestampText: entry.signatureTimestampText,
+    encoding: entry.encoding,
+    rotationHeader: entry.rotationHeader,
+    idHeader: entry.idHeader,
+    timestampHeader: entry.timestampHeader,
+    unsignedHeaders: Object.entries(entry.unsignedHeaders),
+    expectedIdentity: entry.expectedIdentity,
+  });
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
 }
 
 function toHeaders(headers: Readonly<Record<string, string>>): Headers {
@@ -172,6 +230,81 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
     expect(bodies.some((body) => body.byteLength >= 200)).toBe(true);
     expect(ALL_CASES.filter((entry) => entry.body.byteOffset > 0).length)
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
+  });
+
+  test('covers the exact shipped nine-provider registry with no unmapped branch', () => {
+    expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
+    expect(SECURITY_PROVIDERS).toHaveLength(9);
+    expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
+
+    for (const provider of SUPPORTED_PROVIDERS) {
+      expect(casesFor(provider)).toHaveLength(CASES_PER_PROVIDER);
+    }
+  });
+
+  test('keeps the original six-provider corpus as a byte-identical prefix', () => {
+    const legacy = ALL_CASES.slice(0, LEGACY_CASE_COUNT);
+
+    for (const [position, provider] of LEGACY_PROVIDERS.entries()) {
+      const start = position * CASES_PER_PROVIDER;
+
+      expect(legacy.slice(start, start + CASES_PER_PROVIDER).every((entry) => entry.provider === provider))
+        .toBe(true);
+    }
+
+    expect(sha256(corpusFingerprint(legacy))).toBe(LEGACY_CORPUS_FINGERPRINT_SHA256);
+    expect(sha256(legacy.map(stableCaseRecord).join('\n'))).toBe(LEGACY_FULL_RECORD_SHA256);
+  });
+
+  test('keeps binary and nonzero-offset bodies for the added providers', () => {
+    for (const provider of ['razorpay', 'paddle', 'lemon-squeezy'] as const) {
+      const providerCases = casesFor(provider);
+
+      expect(providerCases.some((entry) => entry.body.byteLength === 0)).toBe(true);
+      expect(providerCases.some((entry) => entry.body.includes(0x00))).toBe(true);
+      expect(
+        providerCases.some((entry) =>
+          entry.body.includes(0xff) || entry.body.includes(0xfe) || entry.body.includes(0x80)),
+      ).toBe(true);
+      expect(providerCases.some((entry) => entry.body.byteOffset > 0)).toBe(true);
+      expect(providerCases.some((entry) => entry.body.byteLength >= 200)).toBe(true);
+    }
+  });
+
+  test('maps the added providers to their documented signing recipes', () => {
+    const razorpay = casesFor('razorpay');
+    const paddle = casesFor('paddle');
+    const lemon = casesFor('lemon-squeezy');
+
+    expect(razorpay.every((entry) => entry.signatureHeader === 'X-Razorpay-Signature')).toBe(true);
+    expect(razorpay.every((entry) => entry.encoding === 'hex' && entry.timestamp === null)).toBe(true);
+    expect(razorpay.every((entry) => entry.expectedIdentity.authenticatedFields.length === 0)).toBe(true);
+
+    const razorpayEventIds = razorpay.map((entry) => entry.headers['X-Razorpay-Event-Id']);
+    const absentEventIds = razorpayEventIds.filter((value) => value === undefined);
+    const blankEventIds = razorpayEventIds.filter((value) => value !== undefined && value.trim() === '');
+    const nonblankEventIds = razorpay.filter((entry) => entry.expectedIdentity.eventId !== null);
+
+    expect(absentEventIds.length).toBeGreaterThan(0);
+    expect(blankEventIds.length).toBeGreaterThan(0);
+    expect(nonblankEventIds.length).toBeGreaterThan(0);
+    expect(nonblankEventIds.every(
+      (entry) => entry.headers['X-Razorpay-Event-Id'] === entry.expectedIdentity.eventId,
+    )).toBe(true);
+
+    expect(paddle.every((entry) => entry.signatureHeader === 'Paddle-Signature')).toBe(true);
+    expect(paddle.every((entry) => entry.encoding === 'hex' && entry.timestamp !== null)).toBe(true);
+    expect(paddle.every((entry) => entry.signatureTimestampText !== null)).toBe(true);
+    expect(paddle.every((entry) => entry.rotationHeader !== null)).toBe(true);
+    expect(paddle.every((entry) => entry.expectedIdentity.authenticatedFields.length === 1
+      && entry.expectedIdentity.authenticatedFields[0] === 'timestamp')).toBe(true);
+
+    expect(lemon.every((entry) => entry.signatureHeader === 'X-Signature')).toBe(true);
+    expect(lemon.every((entry) => entry.headers['X-Event-Name'] === 'order_created')).toBe(true);
+    expect(lemon.every((entry) => entry.expectedIdentity.deliveryId === null
+      && entry.expectedIdentity.eventId === null
+      && entry.expectedIdentity.timestamp === null
+      && entry.expectedIdentity.authenticatedFields.length === 0)).toBe(true);
   });
 
   test('keeps literal and Base64-decoded key protocols distinct', async () => {
@@ -453,6 +586,119 @@ describe.each(TIMESTAMPED_PROVIDERS)('%s freshness boundaries through verify()',
   });
 });
 
+describe('paddle five-second default freshness through verify()', () => {
+  const case_ = representative('paddle', 1);
+  const timestamp = requiredTimestamp(case_);
+
+  test(`${case_.context} inclusive-five-second-window`, async () => {
+    for (const delta of [5, -5]) {
+      expectSuccess(
+        `${case_.context} now-offset=${delta}`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+      );
+    }
+
+    for (const [delta, reason] of [
+      [6, 'timestamp-expired'],
+      [-6, 'timestamp-future'],
+    ] as const) {
+      expectReason(
+        `${case_.context} now-offset=${delta}`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+        reason,
+      );
+    }
+  });
+
+  test(`${case_.context} explicit-tolerance-zero`, async () => {
+    expectSuccess(
+      `${case_.context} tolerance=0`,
+      await verify(
+        { rawBody: case_.body, headers: case_.headers },
+        { ...optionsFor(case_), toleranceSeconds: 0 },
+      ),
+    );
+    expectReason(
+      `${case_.context} tolerance=0 now+1`,
+      await verify(
+        { rawBody: case_.body, headers: case_.headers },
+        { ...optionsFor(case_), toleranceSeconds: 0, now: () => timestamp + 1 },
+      ),
+      'timestamp-expired',
+    );
+    expectReason(
+      `${case_.context} tolerance=0 now-1`,
+      await verify(
+        { rawBody: case_.body, headers: case_.headers },
+        { ...optionsFor(case_), toleranceSeconds: 0, now: () => timestamp - 1 },
+      ),
+      'timestamp-future',
+    );
+  });
+
+  test(`${case_.context} mac-before-freshness`, async () => {
+    const mutatedBody = flipBodyByte(case_.body, 0);
+
+    for (const delta of [6, -6]) {
+      expectReason(
+        `${case_.context} bad-mac now-offset=${delta}`,
+        await verify(
+          { rawBody: mutatedBody, headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+        'invalid-signature',
+      );
+    }
+  });
+
+  test(`${case_.context} repeated-h1-rotation-single-keys`, async () => {
+    const activeFirst = `ts=${timestamp};h1=${case_.signatureToken};h1=${case_.retiredToken}`;
+    const retiredFirst = `ts=${timestamp};h1=${case_.retiredToken};h1=${case_.signatureToken}`;
+
+    expect(case_.signatureToken).not.toBe(case_.retiredToken);
+
+    for (const value of [activeFirst, retiredFirst]) {
+      for (const secret of [case_.activeSecret, case_.retiredSecret]) {
+        expectSuccess(
+          `${case_.context} rotation-single-key`,
+          await verify(
+            {
+              rawBody: case_.body,
+              headers: { ...case_.headers, [case_.signatureHeader]: value },
+            },
+            optionsFor(case_, [secret]),
+          ),
+        );
+      }
+    }
+  });
+
+  test(`${case_.context} poisoned-recognized-token`, async () => {
+    for (const poisoned of [
+      `ts=${timestamp};h1=${case_.signatureToken};h1=zz`,
+      `ts=${timestamp};h1=${case_.signatureToken};h1=${'0'.repeat(62)}`,
+    ]) {
+      expectReason(
+        `${case_.context} poisoned-h1`,
+        await verify(
+          {
+            rawBody: case_.body,
+            headers: { ...case_.headers, [case_.signatureHeader]: poisoned },
+          },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
+    }
+  });
+});
+
 describe.each(STANDARD_WEBHOOKS_PROVIDERS)('%s authenticated identity tampering', (provider) => {
   const case_ = representative(provider, 2);
   const idHeader = requiredHeader(case_, case_.idHeader);
@@ -527,7 +773,72 @@ describe.each(BODY_ONLY_PROVIDERS)('%s unsigned metadata isolation', (provider) 
 
     expect(success.identity).toEqual({
       deliveryId: provider === 'github' || provider === 'shopify' ? marker : null,
-      eventId: provider === 'shopify' ? marker : null,
+      eventId: provider === 'shopify' || provider === 'razorpay' ? marker : null,
+      timestamp: null,
+      authenticatedFields: [],
+    });
+  });
+});
+
+describe('razorpay unsigned event identity', () => {
+  test('maps absent and blank event ids to null', async () => {
+    for (const index of [0, 1, 2]) {
+      const case_ = representative('razorpay', index);
+      const success = await expectValidCase(case_);
+
+      expect(success.identity).toEqual({
+        deliveryId: null,
+        eventId: null,
+        timestamp: null,
+        authenticatedFields: [],
+      });
+    }
+  });
+
+  test('preserves a nonblank event id without authenticating it', async () => {
+    const case_ = representative('razorpay', 3);
+    const eventId = case_.headers['X-Razorpay-Event-Id'];
+
+    if (eventId === undefined || eventId.trim() === '') {
+      throw new Error(`${case_.context}: expected a nonblank event id.`);
+    }
+
+    const success = await expectValidCase(case_);
+
+    expect(success.identity.eventId).toBe(eventId);
+
+    const replacement = 'evt_unsigned_replacement';
+
+    const replaced = expectSuccess(
+      `${case_.context} event-id-replacement`,
+      await verify(
+        { rawBody: case_.body, headers: { ...case_.headers, 'X-Razorpay-Event-Id': replacement } },
+        optionsFor(case_),
+      ),
+    );
+
+    expect(replaced.identity.eventId).toBe(replacement);
+  });
+});
+
+describe('lemon squeezy unsigned metadata', () => {
+  test('never interprets X-Event-Name as identity', async () => {
+    const case_ = representative('lemon-squeezy', 1);
+
+    const success = expectSuccess(
+      `${case_.context} event-name-change`,
+      await verify(
+        {
+          rawBody: case_.body,
+          headers: { ...case_.headers, 'X-Event-Name': 'subscription_created' },
+        },
+        optionsFor(case_),
+      ),
+    );
+
+    expect(success.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
       timestamp: null,
       authenticatedFields: [],
     });
@@ -595,6 +906,38 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
   test(`${case_.context} timestamp-grammar`, async () => {
     if (timestampText === null) {
       expect(case_.timestamp).toBeNull();
+    } else if (case_.provider === 'paddle') {
+      const paddleTimestamp = requiredTimestamp(case_);
+
+      expectReason(
+        `${case_.context} duplicate-paddle-timestamp`,
+        await verify(
+          {
+            rawBody: case_.body,
+            headers: {
+              ...case_.headers,
+              [case_.signatureHeader]:
+                `ts=${paddleTimestamp};ts=${paddleTimestamp};h1=${case_.signatureToken}`,
+            },
+          },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
+      expectReason(
+        `${case_.context} noncanonical-paddle-timestamp`,
+        await verify(
+          {
+            rawBody: case_.body,
+            headers: {
+              ...case_.headers,
+              [case_.signatureHeader]: `ts=0${paddleTimestamp};h1=${case_.signatureToken}`,
+            },
+          },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
     } else if (case_.timestampHeader === null) {
       expectReason(
         `${case_.context} duplicate-stripe-timestamp`,
@@ -735,7 +1078,9 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
 
       const reversed = case_.provider === 'stripe'
         ? `t=${timestampText},v1=${case_.signatureToken},v1=${case_.retiredToken}`
-        : `${activeValue} ${retiredValue}`;
+        : case_.provider === 'paddle'
+          ? `ts=${requiredTimestamp(case_)};h1=${case_.signatureToken};h1=${case_.retiredToken}`
+          : `${activeValue} ${retiredValue}`;
 
       expect(case_.signatureToken).not.toBe(case_.retiredToken);
 

@@ -2,11 +2,14 @@ import { createHmac } from 'node:crypto';
 import type { EventIdentity, Provider } from '../../src/types.js';
 
 /**
- * Deterministic, independently signed adversarial corpus for the six registered
+ * Deterministic, independently signed adversarial corpus for the nine shipped
  * public providers. Signing is implemented here from the documented recipes
  * with test-only `node:crypto`; it never calls production parse/decode or
  * signed-content helpers. Every value is synthetic and this corpus is not an
  * official provider conformance certificate.
+ *
+ * Providers are appended in registry order so the original six-provider prefix
+ * remains byte-identical; `core-properties.test.ts` pins its full-case hash.
  */
 
 export const SECURITY_SEED = 0x5ec0_2026;
@@ -20,6 +23,9 @@ export const SECURITY_PROVIDERS = [
   'standard-webhooks',
   'clerk',
   'svix',
+  'razorpay',
+  'paddle',
+  'lemon-squeezy',
 ] as const satisfies readonly Provider[];
 
 export type SignatureEncoding = 'hex' | 'base64';
@@ -141,58 +147,22 @@ function bodyFor(index: number, random: Random): Uint8Array {
   return encoder.encode(`{"unicode":"héllo-秘密","nul":"\u0000","index":${index}}`);
 }
 
-function isStandardWebhooks(provider: Provider): boolean {
+type StandardWebhooksProvider = 'standard-webhooks' | 'clerk' | 'svix';
+
+function isStandardWebhooks(provider: Provider): provider is StandardWebhooksProvider {
   return provider === 'standard-webhooks' || provider === 'clerk' || provider === 'svix';
 }
 
-function encodingFor(provider: Provider): SignatureEncoding {
-  return isStandardWebhooks(provider) || provider === 'shopify' ? 'base64' : 'hex';
-}
-
-function isTimestamped(provider: Provider): boolean {
-  return provider === 'stripe' || isStandardWebhooks(provider);
-}
-
-function keyBytesFor(provider: Provider, secret: string): Buffer {
-  return isStandardWebhooks(provider)
-    ? standardWebhooksKeyBytes(secret)
-    : literalKeyBytes(secret);
-}
-
-function signedContentFor(
-  provider: Provider,
-  body: Uint8Array,
-  timestampText: string | null,
-  idText: string | null,
-): Buffer {
-  if (provider === 'stripe') {
-    if (timestampText === null) throw new Error('A Stripe case requires a timestamp.');
-
-    return Buffer.concat([Buffer.from(`${timestampText}.`, 'utf8'), Buffer.from(body)]);
-  }
-
-  if (isStandardWebhooks(provider)) {
-    if (timestampText === null || idText === null) {
-      throw new Error('A Standard Webhooks case requires an id and timestamp.');
-    }
-
-    return Buffer.concat([Buffer.from(`${idText}.${timestampText}.`, 'utf8'), Buffer.from(body)]);
-  }
-
-  return Buffer.from(body);
-}
-
-function signToken(
-  provider: Provider,
-  encoding: SignatureEncoding,
-  body: Uint8Array,
-  secret: string,
-  timestampText: string | null,
-  idText: string | null,
-): string {
-  return createHmac('sha256', keyBytesFor(provider, secret))
-    .update(signedContentFor(provider, body, timestampText, idText))
-    .digest(encoding);
+interface SigningRecipe {
+  readonly encoding: SignatureEncoding;
+  readonly timestamped: boolean;
+  readonly key: (secret: string) => Buffer;
+  readonly signedContent: (
+    body: Uint8Array,
+    timestampText: string | null,
+    idText: string | null,
+  ) => Buffer;
+  readonly signatureValue: (token: string, timestampText: string | null) => string;
 }
 
 /** Literal UTF-8 key material, as documented for Stripe/GitHub/Shopify. */
@@ -208,30 +178,109 @@ export function standardWebhooksKeyBytes(secret: string): Buffer {
   return Buffer.from(encoded, 'base64');
 }
 
+const standardWebhooksRecipe: SigningRecipe = {
+  encoding: 'base64',
+  timestamped: true,
+  key: standardWebhooksKeyBytes,
+  signedContent: (body, timestampText, idText) => {
+    if (timestampText === null || idText === null) {
+      throw new Error('A Standard Webhooks case requires an id and timestamp.');
+    }
+
+    return Buffer.concat([Buffer.from(`${idText}.${timestampText}.`, 'utf8'), Buffer.from(body)]);
+  },
+  signatureValue: (token) => `v1,${token}`,
+};
+
+/**
+ * One explicit recipe per shipped provider. The `Record<Provider, ...>` type
+ * makes a missing or unmapped provider a compile error; there is no protocol
+ * fallback for future IDs added to the public union.
+ */
+const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
+  stripe: {
+    encoding: 'hex',
+    timestamped: true,
+    key: literalKeyBytes,
+    signedContent: (body, timestampText) => {
+      if (timestampText === null) throw new Error('A Stripe case requires a timestamp.');
+
+      return Buffer.concat([Buffer.from(`${timestampText}.`, 'utf8'), Buffer.from(body)]);
+    },
+    signatureValue: (token, timestampText) => {
+      if (timestampText === null) throw new Error('A Stripe case requires a timestamp.');
+
+      return `t=${timestampText},v1=${token}`;
+    },
+  },
+  github: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => `sha256=${token}`,
+  },
+  shopify: {
+    encoding: 'base64',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => token,
+  },
+  'standard-webhooks': standardWebhooksRecipe,
+  clerk: standardWebhooksRecipe,
+  svix: standardWebhooksRecipe,
+  razorpay: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => token,
+  },
+  paddle: {
+    encoding: 'hex',
+    timestamped: true,
+    key: literalKeyBytes,
+    signedContent: (body, timestampText) => {
+      if (timestampText === null) throw new Error('A Paddle case requires a timestamp.');
+
+      return Buffer.concat([Buffer.from(`${timestampText}:`, 'utf8'), Buffer.from(body)]);
+    },
+    signatureValue: (token, timestampText) => {
+      if (timestampText === null) throw new Error('A Paddle case requires a timestamp.');
+
+      return `ts=${timestampText};h1=${token}`;
+    },
+  },
+  'lemon-squeezy': {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => token,
+  },
+};
+
+function signToken(
+  provider: Provider,
+  body: Uint8Array,
+  secret: string,
+  timestampText: string | null,
+  idText: string | null,
+): string {
+  const recipe = SIGNING_RECIPES[provider];
+
+  return createHmac('sha256', recipe.key(secret))
+    .update(recipe.signedContent(body, timestampText, idText))
+    .digest(recipe.encoding);
+}
+
 export function hmacToken(
   key: Buffer,
   content: Uint8Array,
   encoding: SignatureEncoding,
 ): string {
   return createHmac('sha256', key).update(content).digest(encoding);
-}
-
-function formatSignatureValue(
-  provider: Provider,
-  token: string,
-  timestampText: string | null,
-): string {
-  if (provider === 'stripe') {
-    if (timestampText === null) throw new Error('A Stripe case requires a timestamp.');
-
-    return `t=${timestampText},v1=${token}`;
-  }
-
-  if (provider === 'github') return `sha256=${token}`;
-
-  if (provider === 'shopify') return token;
-
-  return `v1,${token}`;
 }
 
 /** Exported so property tests can sign shifted timestamps or ids independently. */
@@ -241,7 +290,7 @@ export function signatureTokenFor(
   timestampText: string | null,
   idText: string | null,
 ): string {
-  return signToken(case_.provider, case_.encoding, case_.body, secret, timestampText, idText);
+  return signToken(case_.provider, case_.body, secret, timestampText, idText);
 }
 
 export function headerValueFor(
@@ -249,7 +298,7 @@ export function headerValueFor(
   token: string,
   timestampText: string | null,
 ): string {
-  return formatSignatureValue(case_.provider, token, timestampText);
+  return SIGNING_RECIPES[case_.provider].signatureValue(token, timestampText);
 }
 
 /** Flip one digest bit and re-encode to a still-valid canonical token. */
@@ -287,79 +336,137 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
   const wrongSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
   const timestamp = BASE_TIMESTAMP + ((index * 37 + randomInt(random, 17)) % 1000);
   const timestampText = String(timestamp);
-  const timestamped = isTimestamped(provider);
-  const signedTimestamp = timestamped ? timestampText : null;
+  const recipe = SIGNING_RECIPES[provider];
+  const signedTimestamp = recipe.timestamped ? timestampText : null;
   const id = `msg_${provider.replaceAll('-', '')}_${index}_${randomToken(random, 10)}`;
   const signedId = isStandardWebhooks(provider) ? id : null;
   const deliveryId = index % 3 === 0 ? null : `dlv_${index}_${randomToken(random, 8)}`;
   const shopifyEventId = index % 4 === 0 ? null : `evt_${index}_${randomToken(random, 8)}`;
-  const encoding = encodingFor(provider);
-  const signatureToken = signToken(provider, encoding, body, activeSecret, signedTimestamp, signedId);
-  const retiredToken = signToken(provider, encoding, body, retiredSecret, signedTimestamp, signedId);
-  const signatureValue = formatSignatureValue(provider, signatureToken, signedTimestamp);
+  let razorpayEventHeader: string | null = null;
+  let razorpayEventId: string | null = null;
+
+  if (provider === 'razorpay') {
+    const eventIdMode = index % 4;
+
+    if (eventIdMode === 1) {
+      razorpayEventHeader = '';
+    } else if (eventIdMode === 2) {
+      razorpayEventHeader = '   ';
+    } else if (eventIdMode === 3) {
+      razorpayEventHeader = `evt_${index}_${randomToken(random, 8)}`;
+      razorpayEventId = razorpayEventHeader;
+    }
+  }
+
+  const signatureToken = signToken(provider, body, activeSecret, signedTimestamp, signedId);
+  const retiredToken = signToken(provider, body, retiredSecret, signedTimestamp, signedId);
+  const signatureValue = recipe.signatureValue(signatureToken, signedTimestamp);
   const headers: Record<string, string> = {};
   const unsignedHeaders: Record<string, string> = {};
   let signatureHeader = '';
   let idHeader: string | null = null;
   let timestampHeader: string | null = null;
 
-  if (provider === 'stripe') {
-    signatureHeader = 'Stripe-Signature';
-    headers[signatureHeader] = signatureValue;
-  } else if (provider === 'github') {
-    signatureHeader = 'X-Hub-Signature-256';
-    headers[signatureHeader] = signatureValue;
-    headers['X-GitHub-Event'] = 'push';
-    unsignedHeaders['X-GitHub-Event'] = 'push';
+  switch (provider) {
+    case 'stripe':
+      signatureHeader = 'Stripe-Signature';
+      headers[signatureHeader] = signatureValue;
+      break;
+    case 'github':
+      signatureHeader = 'X-Hub-Signature-256';
+      headers[signatureHeader] = signatureValue;
+      headers['X-GitHub-Event'] = 'push';
+      unsignedHeaders['X-GitHub-Event'] = 'push';
 
-    if (deliveryId !== null) {
-      headers['X-GitHub-Delivery'] = deliveryId;
-      unsignedHeaders['X-GitHub-Delivery'] = deliveryId;
+      if (deliveryId !== null) {
+        headers['X-GitHub-Delivery'] = deliveryId;
+        unsignedHeaders['X-GitHub-Delivery'] = deliveryId;
+      }
+
+      break;
+    case 'shopify':
+      signatureHeader = 'X-Shopify-Hmac-Sha256';
+      headers[signatureHeader] = signatureValue;
+
+      if (deliveryId !== null) {
+        headers['X-Shopify-Webhook-Id'] = deliveryId;
+        unsignedHeaders['X-Shopify-Webhook-Id'] = deliveryId;
+      }
+
+      if (shopifyEventId !== null) {
+        headers['X-Shopify-Event-Id'] = shopifyEventId;
+        unsignedHeaders['X-Shopify-Event-Id'] = shopifyEventId;
+      }
+
+      break;
+    case 'standard-webhooks':
+    case 'clerk':
+    case 'svix': {
+      const canonical = provider === 'svix' && index % 2 === 1;
+
+      if (canonical) {
+        idHeader = 'Webhook-Id';
+        timestampHeader = 'Webhook-Timestamp';
+        signatureHeader = 'Webhook-Signature';
+      } else if (provider === 'clerk' || provider === 'svix') {
+        idHeader = 'Svix-Id';
+        timestampHeader = 'Svix-Timestamp';
+        signatureHeader = 'Svix-Signature';
+      } else {
+        idHeader = 'Webhook-Id';
+        timestampHeader = 'Webhook-Timestamp';
+        signatureHeader = 'Webhook-Signature';
+      }
+
+      headers[idHeader] = id;
+      headers[timestampHeader] = timestampText;
+      headers[signatureHeader] = signatureValue;
+      break;
     }
-  } else if (provider === 'shopify') {
-    signatureHeader = 'X-Shopify-Hmac-Sha256';
-    headers[signatureHeader] = signatureValue;
 
-    if (deliveryId !== null) {
-      headers['X-Shopify-Webhook-Id'] = deliveryId;
-      unsignedHeaders['X-Shopify-Webhook-Id'] = deliveryId;
-    }
+    case 'razorpay':
+      signatureHeader = 'X-Razorpay-Signature';
+      headers[signatureHeader] = signatureValue;
 
-    if (shopifyEventId !== null) {
-      headers['X-Shopify-Event-Id'] = shopifyEventId;
-      unsignedHeaders['X-Shopify-Event-Id'] = shopifyEventId;
-    }
-  } else {
-    const canonical = provider === 'svix' && index % 2 === 1;
+      if (razorpayEventHeader !== null) {
+        headers['X-Razorpay-Event-Id'] = razorpayEventHeader;
+        unsignedHeaders['X-Razorpay-Event-Id'] = razorpayEventHeader;
+      }
 
-    if (canonical) {
-      idHeader = 'Webhook-Id';
-      timestampHeader = 'Webhook-Timestamp';
-      signatureHeader = 'Webhook-Signature';
-    } else if (provider === 'clerk' || provider === 'svix') {
-      idHeader = 'Svix-Id';
-      timestampHeader = 'Svix-Timestamp';
-      signatureHeader = 'Svix-Signature';
-    } else {
-      idHeader = 'Webhook-Id';
-      timestampHeader = 'Webhook-Timestamp';
-      signatureHeader = 'Webhook-Signature';
-    }
-
-    headers[idHeader] = id;
-    headers[timestampHeader] = timestampText;
-    headers[signatureHeader] = signatureValue;
+      break;
+    case 'paddle':
+      signatureHeader = 'Paddle-Signature';
+      headers[signatureHeader] = signatureValue;
+      break;
+    case 'lemon-squeezy':
+      signatureHeader = 'X-Signature';
+      headers[signatureHeader] = signatureValue;
+      headers['X-Event-Name'] = 'order_created';
+      unsignedHeaders['X-Event-Name'] = 'order_created';
+      break;
   }
 
-  const rotationHeader = provider === 'stripe'
-    ? `t=${timestampText},v1=${retiredToken},v1=${signatureToken}`
-    : isStandardWebhooks(provider)
-      ? `v1,${retiredToken} v1,${signatureToken}`
-      : null;
+  let rotationHeader: string | null = null;
+
+  if (provider === 'stripe') {
+    rotationHeader = `t=${timestampText},v1=${retiredToken},v1=${signatureToken}`;
+  } else if (isStandardWebhooks(provider)) {
+    rotationHeader = `v1,${retiredToken} v1,${signatureToken}`;
+  } else if (provider === 'paddle') {
+    rotationHeader = `ts=${timestampText};h1=${retiredToken};h1=${signatureToken}`;
+  }
+
+  let recordEventId: string | null = null;
+
+  if (provider === 'shopify') {
+    recordEventId = shopifyEventId;
+  } else if (provider === 'razorpay') {
+    recordEventId = razorpayEventId;
+  }
 
   let expectedIdentity: EventIdentity;
 
-  if (provider === 'stripe') {
+  if (provider === 'stripe' || provider === 'paddle') {
     expectedIdentity = {
       deliveryId: null, eventId: null, timestamp, authenticatedFields: ['timestamp'],
     };
@@ -371,9 +478,18 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     expectedIdentity = {
       deliveryId, eventId: shopifyEventId, timestamp: null, authenticatedFields: [],
     };
-  } else {
+  } else if (isStandardWebhooks(provider)) {
     expectedIdentity = {
       deliveryId: null, eventId: id, timestamp, authenticatedFields: ['eventId', 'timestamp'],
+    };
+  } else if (provider === 'razorpay') {
+    expectedIdentity = {
+      deliveryId: null, eventId: razorpayEventId, timestamp: null, authenticatedFields: [],
+    };
+  } else {
+    // Lemon Squeezy documents no timestamp or signed identity.
+    expectedIdentity = {
+      deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [],
     };
   }
 
@@ -390,16 +506,16 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     secrets: [activeSecret],
     rotationSecrets: [activeSecret, retiredSecret],
     now: timestamp,
-    timestamp: timestamped ? timestamp : null,
+    timestamp: recipe.timestamped ? timestamp : null,
     authenticatedId: signedId,
     deliveryId: provider === 'github' || provider === 'shopify' ? deliveryId : null,
-    eventId: provider === 'shopify' ? shopifyEventId : null,
+    eventId: recordEventId,
     signatureHeader,
     signatureValue,
     signatureToken,
     retiredToken,
     signatureTimestampText: signedTimestamp,
-    encoding,
+    encoding: recipe.encoding,
     rotationHeader,
     idHeader,
     timestampHeader,
