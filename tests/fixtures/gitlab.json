@@ -1,0 +1,978 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-extra-unsigned-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU=",
+          "x-gitlab-event": "Push Hook"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "x-gitlab-event is unsigned transport metadata; it never participates in verification"
+    },
+    {
+      "id": "positive-bare-base64-secret",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "identical key bytes without the whsec_ prefix; the documented recipe accepts both encodings"
+    },
+    {
+      "id": "rotation-both-signatures",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,TkhvGiwNIkTABYQscpQo47MlQlyo3vsusoFWx7iswsY= v1,26Ed2IYIoiagp5kNyQ/761rvdgq9B1rAvc6bFY1sq0U="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktb2xkMDAwMDAwMDA=",
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbmV3MDAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "space-separated rotation list; any matching v1 token verifies"
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,TkhvGiwNIkTABYQscpQo47MlQlyo3vsusoFWx7iswsY="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbmV3MDAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "the retired secret was removed from configuration; its well-formed signature no longer verifies"
+    },
+    {
+      "id": "boundary-plus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000300
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift +300 s exactly, still inside the inclusive window; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-plus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "drift +301 s; MAC must stay valid so the failure is purely freshness; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1699999700
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "drift -300 s exactly, symmetric inclusive window; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "boundary-minus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1699999699
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "drift -301 s beyond the window; MAC stays valid; toleranceSeconds deliberately omitted; the receiver default is a Stage B coordinator decision, not fixture data"
+    },
+    {
+      "id": "zero-width-exact-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000000,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "tolerance 0 never disables freshness; exact second matches"
+    },
+    {
+      "id": "zero-width-drift-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000001,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "age 1 s leaves the zero-width window; MAC stays valid"
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,vLvJIAthoyf03j/sjSiavasS6E3D3lJJuJ2vbtMoebo="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "well-formed signature from an unconfigured key; the MAC is checked before freshness (drift 301 s would also fail)"
+    },
+    {
+      "id": "tampered-body",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAyLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "headers sign the original body eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==; the delivered body differs by one byte"
+    },
+    {
+      "id": "tampered-webhook-id",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_attacker",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "webhook-id participates in the signed content; swapping it without re-signing fails (eventId is authenticated, not free metadata)"
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,5zPkK9nA1IZL2r1fLn50fGQ2tgD1PMfKxASzIrUepM4="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "signed content ends at the trailing full stop; zero body bytes"
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoIGdpdGxhYiBzdGFnZSBhIG5vbi1qc29uIGJvZHkg4oCUIDQy",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,l3FLRhOobRDd2zDq99JeRLUxF8LC3A1S4/5yKAR+JBU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "byte verification does not require a JSON payload"
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "AP/+",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,EOX91USqJZmoZPHG2vicGKZoeZvlZRlXlbg5PsTEyUY="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "exact bytes are preserved and signed; invalid UTF-8 is never re-decoded"
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "whitespace-only-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "malformed-v1-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,@@@@"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "trailing-comma-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU=,"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "comma-combined duplicate portal: the second list element would be empty"
+    },
+    {
+      "id": "comma-combined-duplicates-fail",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU=, v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "HTTP comma-joined duplicates of the signature header never collapse into a list"
+    },
+    {
+      "id": "malformed-sibling-poisons",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU= v1,@@@@"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "one malformed v1 fails the whole list even though a valid v1 is present"
+    },
+    {
+      "id": "v2-only-token-is-unsupported-scheme",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v2,aG9va2xhdGNoLWdpdGxhYi12Mi1maWxsZXIwMDAwMDA="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "version labels are honored (the Replicate SDK behavior of ignoring them is not inherited)"
+    },
+    {
+      "id": "v2-with-valid-v1-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU= v2,aG9va2xhdGNoLWdpdGxhYi12Mi1maWxsZXIwMDAwMDA="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "unknown scheme tolerated next to a valid v1 token"
+    },
+    {
+      "id": "missing-webhook-id-is-missing-identity",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      }
+    },
+    {
+      "id": "webhook-id-with-dot-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_a.01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "webhook-id-with-comma-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_a,01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "missing-webhook-timestamp-is-missing-timestamp",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      }
+    },
+    {
+      "id": "zero-padded-timestamp-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "0170000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "branded-svix-headers-alone-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "svix-id": "msg_hooklatch_gitlab_stage_a_01",
+          "svix-timestamp": "1700000000",
+          "svix-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "gitlab is canonical-only; the svix-* alias family is never consulted"
+    },
+    {
+      "id": "legacy-token-ignored-with-valid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,8oz1rt8GYuoNzK28tQKLWDlu6vGdnyKwe+K1vL2QrjU=",
+          "x-gitlab-token": "hooklatch_stage_a_legacy_token"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_hooklatch_gitlab_stage_a_01",
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "the legacy plaintext token is unsigned transport metadata and is ignored"
+    },
+    {
+      "id": "legacy-token-no-fallback-on-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "webhook-signature": "v1,vLvJIAthoyf03j/sjSiavasS6E3D3lJJuJ2vbtMoebo=",
+          "x-gitlab-token": "hooklatch_stage_a_legacy_token"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "a matching plaintext token never substitutes for signature verification; no migration fallback"
+    },
+    {
+      "id": "legacy-token-only-is-missing-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per GitLab webhooks docs signing-tokens section (https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens, fetched 2026-10-19; signing tokens introduced 19.0, GA 19.1) and Standard Webhooks 1.0.0; legacy X-Gitlab-Token is not body authentication; no provider-published vector exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJvYmplY3Rfa2luZCI6InB1c2giLCJwcm9qZWN0X2lkIjo0MjAxLCJyZWYiOiJyZWZzL2hlYWRzL21haW4ifQ==",
+        "headers": {
+          "webhook-id": "msg_hooklatch_gitlab_stage_a_01",
+          "webhook-timestamp": "1700000000",
+          "x-gitlab-token": "hooklatch_stage_a_legacy_token"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoLWdpdGxhYi1rZXktbWFpbjAwMDAwMDA="
+        ],
+        "now": 1700000010
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "token-only deliveries are never a success outcome"
+    }
+  ]
+}
