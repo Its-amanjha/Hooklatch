@@ -1,0 +1,412 @@
+{
+  "cases": [
+    {
+      "id": "published-vector-p1",
+      "provenance": { "class": "reference", "source": "published vector in the official Paddle Node SDK webhook validator test suite; body, secret, ts and h1 exactly as published; https://github.com/PaddleHQ/paddle-node-sdk/blob/651261beddfc65ba5f861729dca17044cbeffb5f/src/__tests__/notifications/webhooks-validator.node.test.ts", "commit": "651261beddfc65ba5f861729dca17044cbeffb5f", "fetched": "2026-10-19" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogWyIxIiwgIjIiXX0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=a300428748dce5c70e4da19bffd60769591ea969c99dea3105d0ec9612cf43f9"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1698796800, "authenticatedFields": ["timestamp"] } },
+      "notes": "Body bytes are exactly {\"data\": [\"1\", \"2\"]} including spaces; independently recomputed with node:crypto before embedding."
+    },
+    {
+      "id": "published-vector-p2-duplicate-identical-h1-and-unknown-h2",
+      "provenance": { "class": "reference", "source": "published duplicate-signature and unknown-field vector in the official Paddle Node SDK webhook validator test suite; body, secret, ts, h1 list and h2 exactly as published; https://github.com/PaddleHQ/paddle-node-sdk/blob/651261beddfc65ba5f861729dca17044cbeffb5f/src/__tests__/notifications/webhooks-validator.node.test.ts", "commit": "651261beddfc65ba5f861729dca17044cbeffb5f", "fetched": "2026-10-19" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogInZhbHVlIn0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=28981e941fae76e53db32f3d2a83cb69db41476595e84e1970a1b5d98f62b261;h1=28981e941fae76e53db32f3d2a83cb69db41476595e84e1970a1b5d98f62b261;h2=RANDOM_HASH"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796800 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1698796800, "authenticatedFields": ["timestamp"] } },
+      "notes": "Published test uses two identical h1 values; the pinned SDK keeps the last h1. Hooklatch treats repeated h1 as an accept set, so acceptance holds either way. Under Hooklatch policy every h1 must still be valid."
+    },
+    {
+      "id": "published-bytes-at-default-plus5",
+      "provenance": { "class": "local", "source": "published P1 bytes with only options.now shifted; boundary expectations per the phase-3 contract's symmetric inclusive freshness with the Codex integration default of 5 seconds (toleranceSeconds intentionally omitted)" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogWyIxIiwgIjIiXX0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=a300428748dce5c70e4da19bffd60769591ea969c99dea3105d0ec9612cf43f9"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796805 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1698796800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "published-bytes-at-default-plus6",
+      "provenance": { "class": "local", "source": "published P1 bytes with only options.now shifted; boundary expectations per the phase-3 contract's symmetric inclusive freshness with the Codex integration default of 5 seconds (toleranceSeconds intentionally omitted)" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogWyIxIiwgIjIiXX0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=a300428748dce5c70e4da19bffd60769591ea969c99dea3105d0ec9612cf43f9"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796806 },
+      "expected": { "ok": false, "reason": "timestamp-expired" }
+    },
+    {
+      "id": "published-bytes-at-default-minus5",
+      "provenance": { "class": "local", "source": "published P1 bytes with only options.now shifted; boundary expectations per the phase-3 contract's symmetric inclusive freshness with the Codex integration default of 5 seconds (toleranceSeconds intentionally omitted)" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogWyIxIiwgIjIiXX0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=a300428748dce5c70e4da19bffd60769591ea969c99dea3105d0ec9612cf43f9"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796795 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1698796800, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "published-bytes-at-default-minus6",
+      "provenance": { "class": "local", "source": "published P1 bytes with only options.now shifted; boundary expectations per the phase-3 contract's symmetric inclusive freshness with the Codex integration default of 5 seconds (toleranceSeconds intentionally omitted)" },
+      "request": {
+        "bodyBase64": "eyJkYXRhIjogWyIxIiwgIjIiXX0=",
+        "headers": {
+          "paddle-signature": "ts=1698796800;h1=a300428748dce5c70e4da19bffd60769591ea969c99dea3105d0ec9612cf43f9"
+        }
+      },
+      "options": { "secrets": ["VALID_SECRET"], "now": 1698796794 },
+      "expected": { "ok": false, "reason": "timestamp-future" }
+    },
+    {
+      "id": "explicit-zero-at-exact-ts",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "toleranceSeconds": 0, "now": 1700000500 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1700000500, "authenticatedFields": ["timestamp"] } }
+    },
+    {
+      "id": "explicit-zero-one-second-late",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "toleranceSeconds": 0, "now": 1700000501 },
+      "expected": { "ok": false, "reason": "timestamp-expired" },
+      "notes": "Zero tolerance stays zero-width: one second of drift is already outside."
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=1a4cfe4ea4ed023646169cfd92003bf75bbc7533f4678b953446659e3c4466e9"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000506 },
+      "expected": { "ok": false, "reason": "invalid-signature" },
+      "notes": "Deliberately well-formed h1 computed under a different unconfigured secret. now-ts is 6 seconds, beyond the 5-second default, so BOTH checks would reject; HMAC-before-clock-rejection ordering pins invalid-signature as the reason."
+    },
+    {
+      "id": "h2-only-is-unsupported-scheme",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h2=RANDOM_HASH"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "unsupported-scheme" }
+    },
+    {
+      "id": "ts-only-is-missing-signature",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "h1-without-ts-is-missing-timestamp",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "missing-timestamp" }
+    },
+    {
+      "id": "missing-paddle-signature-header",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {}
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "blank-paddle-signature-header",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "   "
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "duplicate-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "plus-signed-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=+1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Noncanonical ts: the pinned SDK would parseInt-normalize a plus sign; the contract requires a canonical decimal."
+    },
+    {
+      "id": "zero-padded-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=01700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Noncanonical ts: zero padding is the research-cited example the pinned SDK would normalize and a strict parser rejects."
+    },
+    {
+      "id": "decimal-point-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500.0;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "negative-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=-1;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "beyond-safe-integer-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=9007199254740993;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "2^53 + 1 is not a safe integer; the contract requires a safe decimal."
+    },
+    {
+      "id": "inner-space-ts-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=17000 00500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Segment trimming is outer-only, so the inner space survives and the value is not a canonical decimal."
+    },
+    {
+      "id": "malformed-second-h1-poisons-accept-set",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h1=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Every h1 must be valid; one malformed h1 poisons the whole header even though the first h1 verifies."
+    },
+    {
+      "id": "odd-length-single-h1-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "distinct-key-h1-accept-set",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=3cb270bece03bfd360fd87506074f026f30b9f6532be2b3e1538151991aa78fc;h1=a54688e1237f14b76150ac7260426bc06411af098869fab9a11dac0bd7fe5afc"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_secret_old", "pdl_ntfset_glm_stage_a_secret_new"], "now": 1700000500 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1700000500, "authenticatedFields": ["timestamp"] } },
+      "notes": "Hooklatch accept-set policy: distinct-key rotation accepted when each h1 is valid and both secrets are configured. NOT an SDK parity claim; the pinned SDK keeps the last h1 and its published duplicate test uses identical values."
+    },
+    {
+      "id": "unknown-field-h2-accepted",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h2=RANDOM_HASH"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1700000500, "authenticatedFields": ["timestamp"] } },
+      "notes": "Contract example accepted structurally; a bounded Hooklatch policy, not a promise to support a future algorithm."
+    },
+    {
+      "id": "unknown-field-double-equals-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h2=a=b"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "unknown-field-inner-space-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h2=a b"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "unknown-field-empty-value-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h2="
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "unknown-field-comma-value-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;h2=a,b"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "empty-segment-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "segment-without-equals-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7;notapair"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Invalid key: a segment with no equals sign is not a key=value field."
+    },
+    {
+      "id": "outer-whitespace-segments-accepted",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": " ts=1700000500 ; h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7 "
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": 1700000500, "authenticatedFields": ["timestamp"] } },
+      "notes": "Outer segment whitespace is trimmed; only the outer edges, not inner characters."
+    },
+    {
+      "id": "comma-combined-h1-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact ts colon raw body bytes; synthetic pdl_ntfset_ literal secret/body authored for this suite; recipe per https://developer.paddle.com/webhooks/about/signature-verification/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudF9pZCI6ImV2dF9nbG1fc3RhZ2VfYV8xIiwiZXZlbnRfdHlwZSI6InN1YnNjcmlwdGlvbi5jcmVhdGVkIiwib2NjdXJyZWRfYXQiOiIyMDI2LTEwLTE5VDAwOjAwOjAwWiIsIm5vdGlmaWNhdGlvbl9pZCI6Im50Zl9nbG1fc3RhZ2VfYV8xIiwiZGF0YSI6eyJpZCI6InN1Yl9nbG1fc3RhZ2VfYV8xIn19",
+        "headers": {
+          "paddle-signature": "ts=1700000500;h1=8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7,8b171a1e693d1477f88caced60cc027cb6360bc93f7e3330fb022abf60c9c9f7"
+        }
+      },
+      "options": { "secrets": ["pdl_ntfset_glm_stage_a_synthetic"], "now": 1700000500 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Commas are banned in field values; a h1 list must use repeated h1 fields, not comma combination."
+    }
+  ]
+}

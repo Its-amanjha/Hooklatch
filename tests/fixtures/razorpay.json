@@ -1,0 +1,260 @@
+{
+  "cases": [
+    {
+      "id": "signed-body-with-unsigned-event-id",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278",
+          "x-razorpay-event-id": "evt_glm_razorpay_stage_a_001"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "unsigned-or-null", "timestamp": null, "authenticatedFields": [] } },
+      "notes": "x-razorpay-event-id is unsigned metadata; sentinel asserts eventId equals the header value when present without being authenticated."
+    },
+    {
+      "id": "signed-body-without-event-id",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "whitespace-only-event-id-is-null",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278",
+          "x-razorpay-event-id": "   "
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Whitespace-only event id normalizes to null per the phase-3 contract; deliberately NOT the unsigned-or-null sentinel, whose header is present with a real value."
+    },
+    {
+      "id": "padded-event-id-preserved-without-trim",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278",
+          "x-razorpay-event-id": "  evt_glm_padded  "
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "unsigned-or-null", "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Sentinel asserts eventId equals the normalized header value preserved WITHOUT further trim; the existing normalizer keeps values untrimmed, so the padded value is expected verbatim."
+    },
+    {
+      "id": "tampered-event-id-ignored",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278",
+          "x-razorpay-event-id": "evt_forged_by_attacker"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": "unsigned-or-null", "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Same exact body and signature as signed-body-with-unsigned-event-id but a forged event id; acceptance must not change because the metadata is never authenticated."
+    },
+    {
+      "id": "uppercase-hex-accepted",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5B2059E1E5ED52A7F9AB81856D53B04A1983A1295FCFCE6CF76E8EDFC4F1F278"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Uppercase rendering of the signed-body-without-event-id signature; the shared signature helper decodes hex case-insensitively."
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-razorpay-signature": "7522bdb661bf44aab5f2be743dd7bb960df6d1a2de60fe2d12a51873ec2eaf67"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Empty raw body signed byte-exactly; HMAC over zero bytes."
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "aMMo",
+        "headers": {
+          "x-razorpay-signature": "a24e5ff70a9d1085c3e86676fc46854b381f8b7622507608ea3a59767c7440e3"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Body bytes 0x68 0xC3 0x28 are not valid UTF-8; verification must depend only on the exact bytes."
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "cGxhaW4gdGV4dCBib2R5LCBub3QgSlNPTiBhdCBhbGw=",
+        "headers": {
+          "x-razorpay-signature": "f98bd20e92f66f931475e1c05401f4d41294e556b0810a540b54a28da95481cb"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } }
+    },
+    {
+      "id": "old-secret-retry-accepted",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "a2dd4879d82e1a9041e20e98b28cc3c985bfe189b578ce1c0b93f6ccaa81e141"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret_old", "hooklatch_stage_a_razorpay_secret_new"], "now": 1700000000 },
+      "expected": { "ok": true, "identity": { "deliveryId": null, "eventId": null, "timestamp": null, "authenticatedFields": [] } },
+      "notes": "Retry signed with the old secret during rotation; multi-secret accept behavior."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-event-id": "evt_glm_razorpay_stage_a_001"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "whitespace-only-signature-is-missing",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "   "
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" }
+    },
+    {
+      "id": "empty-signature-header-is-missing",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": ""
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "missing-signature" },
+      "notes": "Boundary choice: an empty header value is treated as the degenerate whitespace-only case (missing), not a malformed token. Flagged for integration review."
+    },
+    {
+      "id": "comma-combined-duplicate-signature",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278, 7522bdb661bf44aab5f2be743dd7bb960df6d1a2de60fe2d12a51873ec2eaf67"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "Comma-combined duplicates are rejected; Razorpay defines a single hex token, not a list."
+    },
+    {
+      "id": "prefixed-signature-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "sha256=5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "space-listed-signatures-are-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278 7522bdb661bf44aab5f2be743dd7bb960df6d1a2de60fe2d12a51873ec2eaf67"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "odd-length-hex-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f27"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "non-hex-digest-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "gb2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f278"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" }
+    },
+    {
+      "id": "short-31-byte-digest-is-malformed",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "5b2059e1e5ed52a7f9ab81856d53b04a1983a1295fcfce6cf76e8edfc4f1f2"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "malformed-signature" },
+      "notes": "62 hex characters decode to 31 bytes; the shared helper requires exactly 32."
+    },
+    {
+      "id": "wrong-well-formed-signature",
+      "provenance": { "class": "local", "source": "node:crypto HMAC-SHA256 anchor over exact raw body bytes; synthetic secret/body authored for this suite (no published Razorpay signature vector exists); recipe per https://razorpay.com/docs/webhooks/validate-test/ (fetched 2026-10-19 by phase-3 research)" },
+      "request": {
+        "bodyBase64": "eyJldmVudCI6InBheW1lbnQuY2FwdHVyZWQiLCJwYXlsb2FkIjp7InBheW1lbnQiOnsiZW50aXR5Ijp7ImlkIjoicGF5X2dsbV9zdGFnZV9hXzEiLCJhbW91bnQiOjEwMDAsImN1cnJlbmN5IjoiSU5SIn19fX0=",
+        "headers": {
+          "x-razorpay-signature": "10cc55f3aab72e5c1d6319eef9afcf7dff13794a8eb49f86774d0ee841bcb1f0"
+        }
+      },
+      "options": { "secrets": ["hooklatch_stage_a_razorpay_secret"], "now": 1700000000 },
+      "expected": { "ok": false, "reason": "invalid-signature" },
+      "notes": "Deliberately well-formed: the HMAC of the same body under a different, unconfigured secret."
+    }
+  ]
+}
