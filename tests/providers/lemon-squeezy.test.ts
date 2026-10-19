@@ -5,9 +5,9 @@ import { lemonSqueezyDescriptor } from '../../src/providers/lemon-squeezy.js';
 import { expectFailure, expectOk, headerMap, hmacHex, ternErrorCode } from './helpers.js';
 
 // Synthetic anchors computed independently with node:crypto. The research
-// review found no published Lemon Squeezy signature vectors (see
-// notes/phase-3/deepseek-provider-batch-1.md), so no fixture below is labeled
-// official.
+// review found no published vector in the cited signing documentation:
+// https://docs.lemonsqueezy.com/help/webhooks/signing-requests
+// No fixture below is labeled official.
 const SECRET = 'synthetic_lemon_secret';
 
 const BODY = utf8(

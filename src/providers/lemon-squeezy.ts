@@ -10,6 +10,7 @@ const SIGNATURE_HEADER = 'x-signature';
  * cryptographic limit. No timestamp or event identifier is documented for
  * verification, so identity stays null and unsigned (`X-Event-Name` is
  * metadata and is not interpreted).
+ * Source: https://docs.lemonsqueezy.com/help/webhooks/signing-requests
  */
 export const lemonSqueezyDescriptor = {
   provider: 'lemon-squeezy',
