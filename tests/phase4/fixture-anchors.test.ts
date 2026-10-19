@@ -1015,7 +1015,16 @@ describe('workos fixture anchors', () => {
 
     expect(trap.expected.ok).toBe(false);
     expect(trap.expected.reason).toBe('invalid-signature');
-    expect(trap.options.secrets).toEqual(['hooklatch_workos_stage_a_main_secret']);
+    expect(trap.options.secrets).toEqual(literal.options.secrets);
+
+    const trapHeader = readWorkosHeaderForAnchor(combinedHeader(trap, WORKOS_SIG_HEADER) ?? '');
+
+    const decodedKeyDigest = createHmac('sha256', Buffer.from(configured, 'hex'))
+      .update(`${trapHeader?.tText}.`)
+      .update(fixtureBytes(trap))
+      .digest('hex');
+
+    expect(trapHeader?.v1Values).toEqual([decodedKeyDigest]);
   });
 
   it('keeps the recorded signature untouched while tampering the body', () => {

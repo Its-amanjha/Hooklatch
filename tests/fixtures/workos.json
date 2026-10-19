@@ -766,7 +766,7 @@
       },
       "options": {
         "secrets": [
-          "hooklatch_workos_stage_a_main_secret"
+          "a3f1c2d4e5f60718293a4b5c6d7e8f9fa1b2c3d4e5f60718293a4b5c6d7e8f9f"
         ],
         "now": 1700000100
       },
@@ -774,7 +774,7 @@
         "ok": false,
         "reason": "invalid-signature"
       },
-      "notes": "the token was computed with the hex-DECODED key bytes while the configured secret is the main literal; an integrator who hex-decodes a hex-looking secret lands exactly here"
+      "notes": "the token was computed with the hex-DECODED key bytes of the configured hex-looking secret; verification uses its literal UTF-8 bytes and must reject the token"
     },
     {
       "id": "empty-body-signed",
