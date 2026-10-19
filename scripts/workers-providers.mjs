@@ -4,12 +4,18 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
 
 /**
- * Real-workerd qualification for every supported provider.
+ * Real-workerd qualification for every provider in the built registry.
+ *
+ * Required coverage is derived from `dist/providers/index.js`
+ * `SUPPORTED_PROVIDERS` (an internal file import; no public registry export is
+ * added or assumed). Registering a provider together with its fixture extends
+ * this check automatically; the exact registry/covered-provider equality below
+ * refuses to pass if a registered provider has no fixture or no passing anchor.
  *
  * The fixture layer is Node-only and uses `node:crypto` solely to prepare
  * synthetic cases. The bundled Worker imports the built-in verification code
@@ -25,18 +31,57 @@ import { Miniflare } from 'miniflare';
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REQUIRED_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix', 'razorpay', 'paddle', 'lemon-squeezy'];
-const ORIGINAL_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks'];
-const NEW_PROVIDERS = ['clerk', 'svix'];
 const WORKER_CONDITIONS = ['workerd', 'worker', 'browser'];
 const COMPATIBILITY_DATE = '2026-08-06';
 const COMPATIBILITY_FLAGS = [];
 const UNSIGNED_OR_NULL = 'unsigned-or-null';
 
+/**
+ * Explicit header names for the legacy `unsigned-or-null` identity sentinel.
+ * Any sentinel for a provider absent here fails loudly instead of guessing, so
+ * a new fixture schema cannot be silently treated as an existing one.
+ */
+const SENTINEL_HEADER = {
+  github: { deliveryId: 'x-github-delivery' },
+  shopify: { deliveryId: 'x-shopify-webhook-id', eventId: 'x-shopify-event-id' },
+  razorpay: { eventId: 'x-razorpay-event-id' },
+};
+
+/** Provider-specific synthetic binary/rotating-key recipes (never inferred). */
+const BINARY_SUPPLEMENT_PROVIDERS = ['razorpay', 'paddle', 'lemon-squeezy'];
+
 const cases = [];
 
+/** Load the built internal registry; no new public export is created here. */
+async function loadRegistryProviders() {
+  const registryPath = join(root, 'dist', 'providers', 'index.js');
+
+  if (!existsSync(registryPath)) {
+    throw new Error('Built provider registry is missing: dist/providers/index.js. Run npm run build before npm run test:workers.');
+  }
+
+  const module = await import(pathToFileURL(registryPath).href);
+  const providers = module.SUPPORTED_PROVIDERS;
+
+  assert(Array.isArray(providers) && providers.length > 0,
+    'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.');
+
+  return [...providers];
+}
+
 async function fixtureFile(provider) {
-  return JSON.parse(await readFile(resolve(root, 'tests/fixtures', `${provider}.json`), 'utf8'));
+  const path = resolve(root, 'tests/fixtures', `${provider}.json`);
+
+  if (!existsSync(path)) {
+    throw new Error(`Registered provider ${provider} has no fixture file: tests/fixtures/${provider}.json.`);
+  }
+
+  const file = JSON.parse(await readFile(path, 'utf8'));
+
+  assert(Array.isArray(file.cases) && file.cases.length > 0,
+    `Fixture for ${provider} has no cases; workerd coverage would silently shrink.`);
+
+  return file;
 }
 
 function tamperedBody(bodyBase64) {
@@ -60,19 +105,19 @@ function resolveFixtureIdentity(provider, fixture) {
 
   const resolved = { ...expected };
 
-  if (resolved.deliveryId === UNSIGNED_OR_NULL) {
-    resolved.deliveryId = provider === 'github'
-      ? headerValue(fixture.request.headers, 'x-github-delivery')
-      : headerValue(fixture.request.headers, 'x-shopify-webhook-id');
-  }
+  for (const field of ['deliveryId', 'eventId']) {
+    if (resolved[field] !== UNSIGNED_OR_NULL) continue;
+    const headerName = SENTINEL_HEADER[provider]?.[field];
 
-  if (resolved.eventId === UNSIGNED_OR_NULL) {
-    resolved.eventId = headerValue(fixture.request.headers,
-      provider === 'razorpay' ? 'x-razorpay-event-id' : 'x-shopify-event-id');
+    if (headerName === undefined) {
+      throw new Error(`Unhandled ${UNSIGNED_OR_NULL} sentinel for ${provider}.${field}; add an explicit header mapping.`);
+    }
+
+    resolved[field] = headerValue(fixture.request.headers, headerName);
 
     // A Web Request normalizes surrounding header whitespace before the SDK
     // sees it; this checks transport-visible metadata rather than record input.
-    if (provider === 'razorpay' && resolved.eventId !== null) resolved.eventId = resolved.eventId.trim();
+    if (provider === 'razorpay' && field === 'eventId' && resolved[field] !== null) resolved[field] = resolved[field].trim();
   }
 
   return resolved;
@@ -82,39 +127,104 @@ function pushCase(entry) {
   cases.push(entry);
 }
 
-for (const provider of ORIGINAL_PROVIDERS) {
-  const file = await fixtureFile(provider);
-  const fixture = file.cases.find((entry) => entry.expected.ok && entry.request.bodyBase64);
-  assert(fixture, `Missing positive runtime fixture for ${provider}.`);
+/** Replay one fixture case verbatim, preserving supplied now/omitted tolerance. */
+function fixtureRuntimeCases(provider, file) {
+  const positive = file.cases.find((entry) => entry.expected.ok && entry.request && entry.request.bodyBase64 !== undefined);
 
-  pushCase({
-    id: `${provider}: positive fixture`,
-    provider,
-    headers: fixture.request.headers,
-    bodyBase64: fixture.request.bodyBase64,
-    options: {
-      secrets: fixture.options.secrets,
-      toleranceSeconds: fixture.options.toleranceSeconds ?? 300,
-      now: fixture.options.now,
-    },
-    expected: { ok: true, identity: resolveFixtureIdentity(provider, fixture) },
-  });
+  assert(positive, `Fixture for ${provider} has no positive runtime anchor (expected.ok with bodyBase64).`);
 
-  pushCase({
-    id: `${provider}: tampered body bytes`,
+  const entries = [];
+
+  for (const fixture of file.cases) {
+    entries.push({
+      id: `${provider}: ${fixture.id}`,
+      provider,
+      headers: fixture.request.headers,
+      bodyBase64: fixture.request.bodyBase64,
+      options: fixture.options,
+      expected: fixture.expected.ok
+        ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
+        : { ok: false, reason: fixture.expected.reason },
+    });
+  }
+
+  // Every provider must exercise at least one tampered body, even when its
+  // fixture corpus omits a negative case.
+  entries.push({
+    id: `${provider}: synthesized body tamper`,
     provider,
-    headers: fixture.request.headers,
-    bodyBase64: tamperedBody(fixture.request.bodyBase64),
-    options: {
-      secrets: fixture.options.secrets,
-      toleranceSeconds: fixture.options.toleranceSeconds ?? 300,
-      now: fixture.options.now,
-    },
+    headers: positive.request.headers,
+    bodyBase64: tamperedBody(positive.request.bodyBase64),
+    options: positive.options,
     expected: { ok: false, reason: 'invalid-signature' },
   });
+
+  return entries;
 }
 
-const standardWebhooks = await fixtureFile('standard-webhooks');
+/** Independent node:crypto recipe; never used to imply an unknown v1 form. */
+function binarySupplementCases(provider) {
+  const body = Buffer.from([0xff, 0, 0xc3, 0x28, 0x80, 13, 10]);
+  const retiringSecret = 'runtime_retiring_synthetic_key';
+  const activeSecret = 'runtime_active_synthetic_key';
+  const timestamp = 1700000500;
+
+  const signed = provider === 'paddle'
+    ? Buffer.concat([Buffer.from(`${timestamp}:`), body]) : body;
+
+  const signature = createHmac('sha256', retiringSecret).update(signed).digest('hex');
+
+  const headers = provider === 'paddle'
+    ? { 'paddle-signature': `ts=${timestamp};h1=${signature}` }
+    : { [provider === 'razorpay' ? 'x-razorpay-signature' : 'x-signature']: signature };
+
+  const identity = {
+    deliveryId: null,
+    eventId: null,
+    timestamp: provider === 'paddle' ? timestamp : null,
+    authenticatedFields: provider === 'paddle' ? ['timestamp'] : [],
+  };
+
+  return [
+    {
+      id: `${provider}: binary bytes with retiring key in accept set`,
+      provider,
+      headers,
+      bodyBase64: body.toString('base64'),
+      options: { secrets: [activeSecret, retiringSecret], now: timestamp },
+      expected: { ok: true, identity },
+    },
+    {
+      id: `${provider}: removed retiring key rejects binary bytes`,
+      provider,
+      headers,
+      bodyBase64: body.toString('base64'),
+      options: { secrets: [activeSecret], now: timestamp },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+  ];
+}
+
+const requiredProviders = await loadRegistryProviders();
+const fixtures = new Map();
+
+for (const provider of requiredProviders) fixtures.set(provider, await fixtureFile(provider));
+
+for (const provider of requiredProviders) {
+  for (const entry of fixtureRuntimeCases(provider, fixtures.get(provider))) pushCase(entry);
+}
+
+for (const provider of requiredProviders) {
+  if (BINARY_SUPPLEMENT_PROVIDERS.includes(provider)) {
+    for (const entry of binarySupplementCases(provider)) pushCase(entry);
+  }
+}
+
+// Preserve the published Clerk/Svix branded-family matrix (alias, conflicting
+// family, rotation and two-sided freshness cases) exactly as before.
+const standardWebhooks = fixtures.get('standard-webhooks');
+
+assert(standardWebhooks, 'The published Standard Webhooks reference vector requires the standard-webhooks fixture.');
 
 const vector = standardWebhooks.cases.find((entry) => entry.id === 'reference-vector-sign-works');
 
@@ -230,7 +340,7 @@ pushCase(providerCase('canonical family does not repair malformed branded signat
   ...canonicalHeaders(),
 }, { ok: false, reason: 'malformed-signature' }));
 
-for (const provider of NEW_PROVIDERS) {
+for (const provider of ['clerk', 'svix']) {
   pushCase(providerCase('past window boundary is inclusive', provider, brandedHeaders(), success,
     { now: PUBLIC_TIMESTAMP + 300 }));
   pushCase(providerCase('future window boundary is inclusive', provider, brandedHeaders(), success,
@@ -256,85 +366,17 @@ for (const provider of NEW_PROVIDERS) {
     { ok: false, reason: 'invalid-signature' }, { bodyBase64: tamperedBody(PUBLIC_BODY_BASE64) }));
 }
 
-// Carry the full independently authored Phase 3 corpus into real workerd.
-// Paddle reference cases retain attribution to the official SDK tests pinned at
-// https://github.com/PaddleHQ/paddle-node-sdk/blob/651261beddfc65ba5f861729dca17044cbeffb5f/src/__tests__/notifications/webhooks-validator.node.test.ts
-// Razorpay/Lemon Squeezy anchors are synthetic node:crypto values, never
-// represented as published vectors. Options are copied without inserting a
-// tolerance: Paddle's omitted default must actually exercise its five seconds.
-for (const provider of ['razorpay', 'paddle', 'lemon-squeezy']) {
-  const file = await fixtureFile(provider);
-
-  for (const fixture of file.cases) {
-    pushCase({
-      id: `${provider}: ${fixture.id}`,
-      provider,
-      headers: fixture.request.headers,
-      bodyBase64: fixture.request.bodyBase64,
-      options: fixture.options,
-      expected: fixture.expected.ok
-        ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
-        : fixture.expected,
-    });
-  }
-
-  const positive = file.cases.find((entry) => entry.expected.ok && entry.request.bodyBase64);
-  assert(positive, `Missing positive Phase 3 runtime fixture for ${provider}.`);
-  pushCase({
-    id: `${provider}: tampered reference bytes`,
-    provider,
-    headers: positive.request.headers,
-    bodyBase64: tamperedBody(positive.request.bodyBase64),
-    options: positive.options,
-    expected: { ok: false, reason: 'invalid-signature' },
-  });
-
-  // Independently generated invalid-UTF8/NUL bytes and a retiring literal key
-  // exercise each recipe in workerd, including Paddle's colon prefix.
-  const body = Buffer.from([0xff, 0, 0xc3, 0x28, 0x80, 13, 10]);
-  const retiringSecret = 'runtime_retiring_synthetic_key';
-  const activeSecret = 'runtime_active_synthetic_key';
-  const timestamp = 1700000500;
-
-  const signed = provider === 'paddle'
-    ? Buffer.concat([Buffer.from(`${timestamp}:`), body]) : body;
-
-  const signature = createHmac('sha256', retiringSecret).update(signed).digest('hex');
-
-  const headers = provider === 'paddle'
-    ? { 'paddle-signature': `ts=${timestamp};h1=${signature}` }
-    : { [provider === 'razorpay' ? 'x-razorpay-signature' : 'x-signature']: signature };
-
-  const identity = {
-    deliveryId: null,
-    eventId: null,
-    timestamp: provider === 'paddle' ? timestamp : null,
-    authenticatedFields: provider === 'paddle' ? ['timestamp'] : [],
-  };
-
-  for (const [label, secrets, expected] of [
-    ['binary bytes with retiring key in accept set', [activeSecret, retiringSecret], { ok: true, identity }],
-    ['removed retiring key rejects binary bytes', [activeSecret], { ok: false, reason: 'invalid-signature' }],
-  ]) {
-    pushCase({
-      id: `${provider}: ${label}`,
-      provider,
-      headers,
-      bodyBase64: body.toString('base64'),
-      options: { secrets, now: timestamp },
-      expected,
-    });
-  }
-}
-
 const coveredProviders = [...new Set(cases.map((entry) => entry.provider))].sort();
 
-assert.deepEqual(coveredProviders, [...REQUIRED_PROVIDERS].sort(),
-  'Workerd qualification must cover exactly the supported provider set.');
+assert.deepEqual(coveredProviders, [...requiredProviders].sort(),
+  'Workerd qualification must cover exactly the providers in the built registry.');
 
-for (const provider of REQUIRED_PROVIDERS) {
+for (const provider of requiredProviders) {
   assert(cases.some((entry) => entry.provider === provider && entry.expected.ok),
     `Workerd qualification needs at least one passing case for ${provider}.`);
+  assert(cases.some((entry) => entry.provider === provider
+    && entry.expected.ok === false && entry.expected.reason === 'invalid-signature'),
+  `Workerd qualification needs at least one tamper case for ${provider}.`);
 }
 
 const workerSource = `
@@ -501,4 +543,4 @@ if (failure !== null) process.exit(1);
 
 console.log('');
 
-console.log(`PASS: ${cases.length} workerd provider cases across ${REQUIRED_PROVIDERS.length} providers.`);
+console.log(`PASS: ${cases.length} workerd provider cases across ${requiredProviders.length} providers.`);

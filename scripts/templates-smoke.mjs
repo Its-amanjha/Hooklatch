@@ -5,6 +5,13 @@
  *
  *   node scripts/templates-smoke.mjs
  *
+ * The generation set is derived from the built registry
+ * (`dist/providers/index.js` `SUPPORTED_PROVIDERS`), so registering a provider
+ * extends this from 36 to 52 handlers automatically. The expected secret-env
+ * table is exhaustive for the full 13-provider set (current nine plus the four
+ * Phase 4 IDs from notes/phase-4/contract.md); the extra four entries document
+ * the finished graph without generating handlers the unregistered CLI rejects.
+ *
  * The script is standalone (no npm_execpath requirement). npm pack/install use
  * offline mode on the local tarball. Repository src and examples are never
  * imported as a verification fallback.
@@ -16,21 +23,32 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, 
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const PROVIDERS = [
-  ['stripe', 'STRIPE_WEBHOOK_SECRET'],
-  ['github', 'GITHUB_WEBHOOK_SECRET'],
-  ['shopify', 'SHOPIFY_WEBHOOK_SECRET'],
-  ['standard-webhooks', 'STANDARD_WEBHOOKS_SECRET'],
-  ['clerk', 'CLERK_WEBHOOK_SIGNING_SECRET'],
-  ['svix', 'SVIX_WEBHOOK_SECRET'],
-  ['razorpay', 'RAZORPAY_WEBHOOK_SECRET'],
-  ['paddle', 'PADDLE_WEBHOOK_SECRET'],
-  ['lemon-squeezy', 'LEMON_SQUEEZY_WEBHOOK_SECRET'],
-];
+/**
+ * Expected default secret env per provider: the nine registered today plus the
+ * four Phase 4 IDs. `generate` is driven by the built registry, so the four
+ * unregistered names never reach the CLI here.
+ */
+const EXPECTED_SECRET_ENV = {
+  stripe: 'STRIPE_WEBHOOK_SECRET',
+  github: 'GITHUB_WEBHOOK_SECRET',
+  shopify: 'SHOPIFY_WEBHOOK_SECRET',
+  'standard-webhooks': 'STANDARD_WEBHOOKS_SECRET',
+  clerk: 'CLERK_WEBHOOK_SIGNING_SECRET',
+  svix: 'SVIX_WEBHOOK_SECRET',
+  razorpay: 'RAZORPAY_WEBHOOK_SECRET',
+  paddle: 'PADDLE_WEBHOOK_SECRET',
+  'lemon-squeezy': 'LEMON_SQUEEZY_WEBHOOK_SECRET',
+  'dodo-payments': 'DODO_WEBHOOK_SECRET',
+  gitlab: 'GITLAB_WEBHOOK_SECRET',
+  replicate: 'REPLICATE_WEBHOOK_SECRET',
+  workos: 'WORKOS_WEBHOOK_SECRET',
+};
+
+const PHASE4_PROVIDERS = ['dodo-payments', 'gitlab', 'replicate', 'workos'];
 
 const FRAMEWORKS = ['express', 'nextjs', 'hono', 'cloudflare'];
 
@@ -53,9 +71,23 @@ function invoke(argv, cwd, label) {
   }
 }
 
+/** Load the built internal registry; no public export is added or assumed. */
+async function loadRegistryProviders() {
+  const registryPath = join(root, 'dist', 'providers', 'index.js');
+  const module = await import(pathToFileURL(registryPath).href);
+  const providers = module.SUPPORTED_PROVIDERS;
+
+  assert(Array.isArray(providers) && providers.length > 0,
+    'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.');
+
+  return [...providers];
+}
+
 function requireBuildArtifacts() {
-  if (!existsSync(join(root, 'dist', 'index.js')) || !existsSync(join(root, 'dist', 'cli', 'index.js'))) {
-    fail('Built package artifacts are missing; run npm run build before node scripts/templates-smoke.mjs.');
+  for (const artifact of [join('dist', 'index.js'), join('dist', 'cli', 'index.js'), join('dist', 'providers', 'index.js')]) {
+    if (!existsSync(join(root, artifact))) {
+      fail(`Built package artifact is missing: ${artifact}. Run npm run build before node scripts/templates-smoke.mjs.`);
+    }
   }
 
   if (!existsSync(join(root, 'node_modules', 'typescript', 'lib', 'tsc.js'))) {
@@ -187,6 +219,23 @@ function typecheckGeneratedFile(file, consumerRoot, label) {
 async function main() {
   requireBuildArtifacts();
 
+  const providers = await loadRegistryProviders();
+
+  assert.deepEqual(FRAMEWORKS, ['express', 'nextjs', 'hono', 'cloudflare'],
+    'Template qualification must cover exactly the four supported frameworks.');
+
+  for (const provider of providers) {
+    if (!Object.hasOwn(EXPECTED_SECRET_ENV, provider)) {
+      fail(`Registry provider ${provider} has no expected secret env; extend the template expectation table.`);
+    }
+  }
+
+  for (const provider of PHASE4_PROVIDERS) {
+    if (!Object.hasOwn(EXPECTED_SECRET_ENV, provider)) {
+      fail(`Phase 4 provider ${provider} is missing from the template expectation table.`);
+    }
+  }
+
   const npmCli = locateNpmCli();
   const tempRoot = await mkdtemp(join(tmpdir(), 'hooklatch-templates-'));
   const consumerRoot = join(tempRoot, 'consumer');
@@ -220,7 +269,9 @@ async function main() {
 
     for (const name of ['express', 'hono', '@types/express', '@types/node']) linkFixedDependency(name, consumerRoot);
 
-    for (const [provider, secretEnv] of PROVIDERS) {
+    for (const provider of providers) {
+      const secretEnv = EXPECTED_SECRET_ENV[provider];
+
       for (const framework of FRAMEWORKS) {
         const label = `${provider}/${framework}`;
         const relativeOut = join('gen', provider, framework);
@@ -267,7 +318,7 @@ async function main() {
 
     if (existsSync(join(consumerRoot, 'gen-invalid'))) fail('Installed CLI wrote output for a rejected provider.');
 
-    console.log(`PASS: ${PROVIDERS.length * FRAMEWORKS.length} generated handlers are complete, deterministic and semantically typechecked.`);
+    console.log(`PASS: ${providers.length * FRAMEWORKS.length} generated handlers are complete, deterministic and semantically typechecked.`);
   } finally {
     const checked = resolve(tempRoot);
 

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npmCli = process.env.npm_execpath;
@@ -13,13 +13,49 @@ assert(npmCli, 'Run this check via npm run test:package.');
 
 const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 
-// Full provenance stays attached to each serialized fixture, including the two
-// official Paddle vectors pinned to SDK commit 651261beddfc65ba5f861729dca17044cbeffb5f.
-// Razorpay and Lemon Squeezy fixtures are explicitly local synthetic anchors.
-const phase3Fixtures = await Promise.all(['razorpay', 'paddle', 'lemon-squeezy'].map(async (provider) => ({
-  provider,
-  cases: JSON.parse(await readFile(join(root, 'tests', 'fixtures', `${provider}.json`), 'utf8')).cases,
-})));
+// Required fixture coverage is derived from the built registry, so registering
+// a provider with its fixture extends the installed-package matrix without
+// editing this harness. No public registry export is added or assumed.
+const registryPath = join(root, 'dist', 'providers', 'index.js');
+
+if (!existsSync(registryPath)) {
+  throw new Error('Built provider registry is missing: dist/providers/index.js. Run npm run build before npm run test:package.');
+}
+
+const { SUPPORTED_PROVIDERS } = await import(pathToFileURL(registryPath).href);
+
+assert(Array.isArray(SUPPORTED_PROVIDERS) && SUPPORTED_PROVIDERS.length > 0,
+  'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.');
+
+/**
+ * Explicit header names for the legacy `unsigned-or-null` identity sentinel.
+ * A sentinel for any provider absent here fails loudly instead of guessing, so
+ * a new canonical family or WorkOS is never treated as an old provider.
+ */
+const SENTINEL_HEADER = {
+  github: { deliveryId: 'x-github-delivery' },
+  shopify: { deliveryId: 'x-shopify-webhook-id', eventId: 'x-shopify-event-id' },
+  razorpay: { eventId: 'x-razorpay-event-id' },
+};
+
+const providerFixtures = [];
+
+for (const provider of SUPPORTED_PROVIDERS) {
+  const path = join(root, 'tests', 'fixtures', `${provider}.json`);
+
+  if (!existsSync(path)) {
+    throw new Error(`Registered provider ${provider} has no fixture file: tests/fixtures/${provider}.json.`);
+  }
+
+  const { cases } = JSON.parse(await readFile(path, 'utf8'));
+
+  assert(Array.isArray(cases) && cases.length > 0,
+    `Fixture for ${provider} has no cases; installed-package coverage would silently shrink.`);
+  assert(cases.some((entry) => entry.expected.ok && entry.request && entry.request.bodyBase64 !== undefined),
+    `Fixture for ${provider} has no positive anchor (expected.ok with bodyBase64).`);
+
+  providerFixtures.push({ provider, cases });
+}
 
 function normalizePackagePath(path) {
   return path.startsWith('./') ? path.slice(2) : path;
@@ -139,44 +175,69 @@ try {
     await checkPreset('svix', 'svix');
     await checkPreset('svix', 'webhook');
 
-    const phase3Fixtures = ${JSON.stringify(phase3Fixtures)};
+    const providerFixtures = ${JSON.stringify(providerFixtures)};
+    const sentinelHeader = ${JSON.stringify(SENTINEL_HEADER)};
 
-    for (const { provider, cases } of phase3Fixtures) {
+    // HTTP folds repeated header values with ', '; mirror that on both the
+    // direct record path and the Web Request path so array fixtures stay valid.
+    const materialize = (headers) => Object.fromEntries(
+      Object.entries(headers).map(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : value]),
+    );
+
+    const lookupHeader = (headers, name) => {
+      const wanted = name.toLowerCase();
+      const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === wanted);
+
+      return entry === undefined ? null : entry[1];
+    };
+
+    const resolveIdentity = (provider, expected, headers, webTransport) => {
+      const resolved = { ...expected };
+
+      for (const field of ['deliveryId', 'eventId']) {
+        if (resolved[field] !== 'unsigned-or-null') continue;
+        const headerName = (sentinelHeader[provider] ?? {})[field];
+
+        if (!headerName) throw new Error('Unhandled unsigned-or-null sentinel for ' + provider + '.' + field + '.');
+
+        resolved[field] = webTransport
+          ? new Headers(headers).get(headerName)
+          : lookupHeader(headers, headerName);
+      }
+
+      return resolved;
+    };
+
+    for (const { provider, cases } of providerFixtures) {
       for (const fixture of cases) {
+        const headers = materialize(fixture.request.headers);
         const rawBody = new Uint8Array(Buffer.from(fixture.request.bodyBase64, 'base64'));
         const options = { ...fixture.options, provider, now: () => fixture.options.now };
-        const input = { rawBody, headers: fixture.request.headers };
+        const input = { rawBody, headers };
+        const label = provider + ':' + fixture.id;
+
         const assertResult = (result, webTransport) => {
-          const label = provider + ':' + fixture.id;
           assert.equal(result.ok, fixture.expected.ok, label);
           assert.equal(result.provider, provider, label);
 
           if (!result.ok) {
             assert.equal(result.reason, fixture.expected.reason, label);
-            const diagnostic = diagnose(result, { verbose: true });
-            assert.equal(diagnostic.provider, provider);
-            assert.equal(diagnostic.code, fixture.expected.reason);
-            assert(diagnostic.detail.expectedHeaders.length > 0);
+            const failureDiagnostic = diagnose(result, { verbose: true });
+            assert.equal(failureDiagnostic.provider, provider);
+            assert.equal(failureDiagnostic.code, fixture.expected.reason);
+            assert(failureDiagnostic.detail.expectedHeaders.length > 0);
             return;
           }
 
-          const identity = { ...fixture.expected.identity };
-
-          if (identity.eventId === 'unsigned-or-null') {
-            const headers = fixture.request.headers;
-            identity.eventId = webTransport
-              ? new Headers(headers).get('x-razorpay-event-id')
-              : headers['x-razorpay-event-id'];
-          }
-
-          assert.deepEqual(result.identity, identity, label);
+          const resolved = resolveIdentity(provider, fixture.expected.identity, headers, webTransport);
+          assert.deepEqual(result.identity, resolved, label);
           assert.deepEqual([...result.rawBody], [...rawBody], label);
         };
 
         assertResult(await verify(input, options), false);
         assertResult(await createVerifier(options)(input), false);
         assertResult(await verifyRequest(new Request('https://example.test/hook', {
-          method: 'POST', headers: input.headers, body: rawBody,
+          method: 'POST', headers, body: rawBody,
         }), options), true);
 
         if (fixture.expected.ok) {
