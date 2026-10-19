@@ -26,6 +26,7 @@ const OPAQUE_VALUE = /^[\x21-\x2b\x2d-\x3a\x3c\x3e-\x7e]+$/;
  * body. Repeated `h1` values are a Hooklatch rotation accept-set; every `h1`
  * must be valid. Unknown fields such as `h2` are validated then ignored.
  * Freshness is enforced by core, never here.
+ * Source: https://developer.paddle.com/webhooks/about/signature-verification/
  */
 export const paddleDescriptor = {
   provider: 'paddle',

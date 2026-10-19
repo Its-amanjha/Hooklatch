@@ -1,4 +1,4 @@
-import { concatBytes, utf8 } from '../../src/internal/bytes.js';
+import { utf8 } from '../../src/internal/bytes.js';
 import { verifyHmac } from '../../src/internal/crypto.js';
 import { normalizeHeaders } from '../../src/internal/headers.js';
 import { paddleDescriptor as descriptor } from '../../src/providers/paddle.js';
@@ -23,7 +23,10 @@ const NEW_SECRET = 'pdl_ntfset_synthetic_new_secret';
 const OLD_HEX = 'd0a559f180607c27b0cd5edf19f8cefa8518a2c17e85c8726a9a738946833786';
 const NEW_HEX = '35062070dd72913bbb4cdfe602fd454beda571cd72838eab3f7c77da9a1e7177';
 
-const signed = (timestamp: string, body: Uint8Array): Uint8Array => concatBytes(utf8(`${timestamp}:`), body);
+// Independent Node byte construction must not share the descriptor's concat helper.
+const signed = (timestamp: string, body: Uint8Array): Uint8Array =>
+  Buffer.concat([Buffer.from(`${timestamp}:`, 'utf8'), body]);
+
 const header = (value: string): ReturnType<typeof headerMap> => headerMap({ 'paddle-signature': value });
 
 test('verifies the published Paddle vector over exact timestamp text and raw body', async () => {
@@ -54,6 +57,9 @@ test('accepts the published repeated-h1 plus unknown-h2 fixture', async () => {
 });
 
 test('accepts distinct h1 values as a Hooklatch rotation accept-set', async () => {
+  expect(hmacHex(OLD_SECRET, signed(TIMESTAMP, ROTATE_BODY))).toBe(OLD_HEX);
+  expect(hmacHex(NEW_SECRET, signed(TIMESTAMP, ROTATE_BODY))).toBe(NEW_HEX);
+
   const parsed = expectOk(descriptor.parse(header(`ts=${TIMESTAMP};h1=${OLD_HEX};h1=${NEW_HEX}`), ROTATE_BODY));
 
   expect(parsed.signatures).toHaveLength(2);
@@ -75,7 +81,9 @@ test('fails closed when any h1 is malformed, even beside a valid h1', () => {
 });
 
 test('accepts either hex case for h1', async () => {
-  for (const value of [VECTOR_HEX.toUpperCase(), VECTOR_HEX.replace(/[a-f]/g, (char) => char.toUpperCase())]) {
+  const mixedCase = [...VECTOR_HEX].map((char, index) => index % 2 === 0 ? char.toUpperCase() : char).join('');
+
+  for (const value of [VECTOR_HEX.toUpperCase(), mixedCase]) {
     const parsed = expectOk(descriptor.parse(header(`ts=${TIMESTAMP};h1=${value}`), BODY));
     expect(await verifyHmac([descriptor.decodeSecret(SECRET)], parsed.signatures, parsed.signedContent))
       .toBe(true);
@@ -133,6 +141,7 @@ test('ignores structurally valid unknown fields but rejects invalid ones', () =>
 });
 
 test('reports missing, unsupported, and ordering failures distinctly', () => {
+  expect(expectFailure(descriptor.parse(headerMap({}), BODY)).reason).toBe('missing-signature');
   expect(expectFailure(descriptor.parse(header(''), BODY)).reason).toBe('missing-signature');
   expect(expectFailure(descriptor.parse(header('   '), BODY)).reason).toBe('missing-signature');
   expect(expectFailure(descriptor.parse(header(`ts=${TIMESTAMP}`), BODY)).reason).toBe('missing-signature');
