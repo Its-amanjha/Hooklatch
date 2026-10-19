@@ -9,9 +9,11 @@ import { expectFailure, expectOk, headerMap, hmacHex, ternErrorCode } from './he
 // notes/phase-3/deepseek-provider-batch-1.md), so no fixture below is labeled
 // official.
 const SECRET = 'synthetic_lemon_secret';
+
 const BODY = utf8(
   '{"meta":{"event_name":"order_created"},"data":{"type":"orders","id":"1","attributes":{"status":"paid"}}}',
 );
+
 const ANCHOR_HEX = 'e79a0b1cbfed5b8942144dadc958880e24616a50bdc347c23184d8565d36b47a';
 
 test('verifies a synthetic hex anchor over the exact raw body', async () => {
@@ -101,6 +103,7 @@ test('rejects duplicate and comma-combined header values', () => {
 
 test('preserves empty, non-JSON, and non-UTF-8 bodies byte-exactly', async () => {
   const empty = new Uint8Array();
+
   const emptyParsed = expectOk(
     lemonSqueezyDescriptor.parse(headerMap({ 'x-signature': hmacHex(SECRET, empty) }), empty),
   );
@@ -110,6 +113,7 @@ test('preserves empty, non-JSON, and non-UTF-8 bodies byte-exactly', async () =>
     .toBe(true);
 
   const nonJson = utf8('not json at all');
+
   const nonJsonParsed = expectOk(
     lemonSqueezyDescriptor.parse(headerMap({ 'x-signature': hmacHex(SECRET, nonJson) }), nonJson),
   );
@@ -119,6 +123,7 @@ test('preserves empty, non-JSON, and non-UTF-8 bodies byte-exactly', async () =>
     .toBe(true);
 
   const binary = new Uint8Array([0xff, 0xfe, 0x80, 0x00, 0x41]);
+
   const binaryParsed = expectOk(
     lemonSqueezyDescriptor.parse(headerMap({ 'x-signature': hmacHex(SECRET, binary) }), binary),
   );
