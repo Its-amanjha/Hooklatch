@@ -9,9 +9,6 @@ before your code parses or trusts the payload. It supports Stripe, GitHub,
 Shopify, Standard Webhooks, Clerk and Svix through one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
 
-See the [source and reference review](docs/PROVENANCE.md) for the comparison
-scope, findings, and reference-vector attribution.
-
 ## Requirements
 
 - **Node.js >= 22** (ESM-only; no CommonJS build)
@@ -85,7 +82,7 @@ signing keys of 24–64 bytes; shorter reference-library examples are rejected.
 > **Implementation status (2026-10-19):** The core, six provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
-> Run `npm run verify` for the full local checks. See `ARCHITECTURE.md` for
+> Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
 > the implemented layout. The package has not been published by this workflow.
 
 ## Local scaffolding
@@ -326,5 +323,5 @@ Reference test vectors come from [GitHub's webhook verification documentation](h
 and the [Standard Webhooks JavaScript test suite at a pinned revision](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts).
 They are external reference material. The latter repository includes an
 [MIT notice under `libraries/`](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE).
-See the [source review](https://github.com/Its-amanjha/Hooklatch/blob/main/docs/PROVENANCE.md)
-for the recorded scope and limits.
+See [source and history notes](https://github.com/Its-amanjha/Hooklatch/blob/main/CONTRIBUTING.md#source-and-history-notes)
+for attribution and review limits.

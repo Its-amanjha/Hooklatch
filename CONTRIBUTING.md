@@ -43,7 +43,9 @@ skips or weakens tests.
 - `examples/` — runnable TypeScript examples
 - `scripts/` — maintenance and smoke-test scripts
 
-See `ARCHITECTURE.md` for the full structure.
+The core normalizes headers, parses provider signatures, verifies exact bytes,
+then checks signed timestamps. Payload parsing stays with the caller. Framework
+adapters, pure diagnostics, and the Node-only CLI have separate entry points.
 
 ## Writing tests
 
@@ -108,3 +110,36 @@ Before advertising provider support:
 ## Reporting vulnerabilities
 
 See `SECURITY.md`.
+
+## Preparing a release
+
+Run `npm ci` and `npm run verify` before inspecting `npm pack --dry-run`.
+Packing alone does not build the package or guarantee that `dist/` exists.
+Check that every exported entry point and the CLI are included, and that local
+notes, credentials, tests, and development tools are excluded. Confirm a private
+security-reporting channel and the supported-version policy before publishing.
+Publication, registry access, and provenance configuration are separate maintainer
+operations; passing CI does not publish a release.
+
+## Source and history notes
+
+The idea came from the maintainer's refinements of a general discussion on X.
+The generated implementation brief contained Hookflo/Tern identifiers; those
+were replaced with Hooklatch. This project is not affiliated with Hookflo/Tern.
+A bounded review on 2026-10-19 compared Hooklatch at `544b09f` with
+[Tern at its pinned revision](https://github.com/Hookflo/tern/tree/3739224566f1080e7ebcdf57e1e145fcfde0e0c1)
+and found no distinctive copied implementation block or documentation passage.
+That review does not prove independent authorship or establish rights.
+
+Published reference vectors retain their original source links in fixtures,
+tests, and the README. Standard Webhooks' pinned repository has an Apache-2.0
+root license and a nested [MIT notice attributed to Svix, copyright 2023](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE).
+These are source metadata observations, not a determination of rights to test
+values. Synthetic fixtures must remain distinguishable from published vectors.
+
+The first 57 commits were reconstructed from a completed snapshot on
+2026-10-18. At the owner's request, their dates span October 2–18, excluding
+October 8, 11, and 15. These dates do not establish when development occurred,
+and intermediate commits were not independently verified. Subsequent work uses
+actual timestamps. Private coordination files were removed from public history;
+some original commit positions and messages remain despite empty changes.
