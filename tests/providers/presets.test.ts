@@ -8,7 +8,7 @@ import { base64Of, hmacBase64 } from './helpers.js';
 // Published Svix/Standard Webhooks reference vector (24 decoded key bytes):
 // https://docs.svix.com/receiving/verifying-payloads/how
 // https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts
-// Source license metadata caveat: docs/PROVENANCE.md#unresolved-reference-metadata.
+// Source license metadata caveat: CONTRIBUTING.md#source-and-history-notes.
 const SECRET = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
 const KEY = Buffer.from('MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw', 'base64');
 const ID = 'msg_p5jXN8AQM9LWM0D4loKWxJek';

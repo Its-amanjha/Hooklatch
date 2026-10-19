@@ -28,7 +28,7 @@ const headersFor = (
 };
 
 // Reference: https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts
-// Source license metadata caveat: docs/PROVENANCE.md#unresolved-reference-metadata.
+// Source license metadata caveat: CONTRIBUTING.md#source-and-history-notes.
 test('verifies the published Standard Webhooks reference vector', async () => {
   const parsed = expectOk(descriptor.parse(headerMap(headersFor(VECTOR)), BODY));
   expect(parsed.signatures).toHaveLength(1);
