@@ -94,7 +94,7 @@ CLI, and framework adapters.
 ## Providers pending integration and qualification
 
 The following four provider IDs are documented here only as planned protocol
-mappings. They are **not implemented, not registered, and not qualified**.
+mappings. They are **not publicly registered or qualified**.
 Do not treat anything in this section as advertised support.
 
 | ID | Header | Signed content | Secret form | Identity | Status |
@@ -181,7 +181,7 @@ Do not treat anything in this section as advertised support.
   existing defaults remain floored seconds. Custom `now` is always seconds
   and may be fractional. Explicit tolerance `0` is zero-width, never bypass.
   Symmetric inclusive boundaries.
-- **Precision:** floating-point numerical precision is tested using exactly
+- **Planned precision qualification:** floating-point boundaries will be tested using exactly
   representable fractional boundaries and integer-millisecond `Date.now`
   probes; Hooklatch does not claim mathematical sub-millisecond exactness.
 - **Receiver policy vs SDK parity:** repeated-`v1`, strict grammar, and
@@ -203,9 +203,6 @@ Do not treat anything in this section as advertised support.
   Clerk, Svix, Dodo Payments, GitLab and Replicate strip an optional `whsec_`
   prefix and Base64-decode the key, requiring 24–64 decoded bytes. A prefix
   alone never selects a protocol.
-- **Not all providers use literal keys:** canonical Standard Webhooks-family
-  providers decode Base64 after stripping `whsec_`. Do not assume every
-  provider uses the literal secret string.
 - **Canonical aliases do not prove unique vendor identity:** Dodo Payments,
   GitLab signing-token mode and Replicate reuse the Standard Webhooks header
   grammar. Reusing secrets across endpoints can allow cross-endpoint replay;
@@ -227,7 +224,6 @@ Do not treat anything in this section as advertised support.
 - No new public API, provider auto-detection, or `Provider` union changes.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 - No live-provider validation or exactly-once delivery claims.
-- No claim that every provider uses literal keys (see key form above).
 
 All four pending providers are **pending integration and qualification**.
 Run `npm run verify` to check the local implementation, runtime, package and
