@@ -14,7 +14,8 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
 ### Required flags
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
-  `shopify`, `standard-webhooks`, `clerk`, or `svix`. The list comes from the
+  `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`, or
+  `lemon-squeezy`. The list comes from the
   package's internal provider registry; pending providers are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
 
@@ -26,7 +27,9 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   signing secret from. Must match `/^[A-Za-z_][A-Za-z0-9_]*$/`. Defaults per
   provider: `STRIPE_WEBHOOK_SECRET`, `GITHUB_WEBHOOK_SECRET`,
   `SHOPIFY_WEBHOOK_SECRET`, `STANDARD_WEBHOOKS_SECRET`,
-  `CLERK_WEBHOOK_SIGNING_SECRET`, `SVIX_WEBHOOK_SECRET`.
+  `CLERK_WEBHOOK_SIGNING_SECRET`, `SVIX_WEBHOOK_SECRET`,
+  `RAZORPAY_WEBHOOK_SECRET`, `PADDLE_WEBHOOK_SECRET`,
+  `LEMON_SQUEEZY_WEBHOOK_SECRET`.
 - `--body-limit <bytes>` — positive safe integer body limit baked into the
   generated options. Default: `1048576`.
 - `--dry-run` — validate arguments and the target path, then print the

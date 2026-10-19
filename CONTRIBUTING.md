@@ -83,6 +83,13 @@ Provider-specific rules:
 - **Standard Webhooks** — signs `id.timestamp.body`; strips the `whsec_`
   prefix and Base64-decodes the key; signatures are space-delimited
   `v1,<base64>` tokens.
+- **Clerk / Svix** — use the same signed bytes and key derivation; Clerk
+  accepts branded headers only, while Svix requires complete, agreeing families.
+- **Razorpay / Lemon Squeezy** — sign the raw body with literal-key HMAC-SHA256
+  and a single hex digest. Metadata headers are not authenticated.
+- **Paddle Billing** — signs `ts:body` with literal-key HMAC-SHA256; repeated
+  valid `h1` values form an accept-set. Its default symmetric freshness window
+  is 5 seconds; existing timestamped providers retain 300 seconds.
 
 Before advertising provider support:
 

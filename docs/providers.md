@@ -1,15 +1,13 @@
 # Provider guide
 
-Reference for six supported provider IDs and three pending additions. Six are
-implemented and qualified on the Phase 2 baseline; three (razorpay, paddle
-Billing only, lemon-squeezy) are **pending integration and qualification** and
-are not yet advertised as supported.
+Reference for nine supported provider IDs. Paddle support covers Billing
+webhooks only. Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
-## Implemented providers (qualified on baseline)
+## Original provider protocols
 
-These six providers are implemented, tested, and part of the current baseline.
+These six providers retain their existing signing and freshness policies.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -34,11 +32,10 @@ and ID headers cannot stop replay on their own. A captured valid body and
 signature can be replayed. Applications need their own replay/idempotency policy;
 deduplicating an unsigned delivery header alone is not replay protection.
 
-## Pending providers (not yet integrated)
+## Additional providers
 
-The three descriptors are implemented and directly tested on the integration
-branch, but are not registered or publicly qualified. The API policies below
-remain pending combined integration and qualification.
+These providers use the same public verification APIs, diagnostics, scaffolding
+CLI, and framework adapters.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -79,7 +76,7 @@ remain pending combined integration and qualification.
 - **Signed content:** exact `ts` UTF-8 + `:` + raw body bytes.
 - `timestamp` is authenticated; `deliveryId`/`eventId` are `null`. Payload IDs
   are not parsed.
-- **Planned default tolerance: 5 seconds, symmetric inclusive Hooklatch
+- **Default tolerance: 5 seconds, symmetric inclusive Hooklatch
   policy** (not exact SDK millisecond-boundary parity). Explicit override
   allowed; zero remains zero-width. This is stricter than pinned SDK future
   handling. Descriptors never enforce clocks themselves.
@@ -100,7 +97,7 @@ remain pending combined integration and qualification.
   before any parsing or re-serialization. Empty, non-JSON, and invalid UTF-8
   bodies are preserved; never decode/re-encode the body to build signed
   content.
-- **Key form:** Stripe, GitHub, Shopify and the three pending providers use
+- **Key form:** Stripe, GitHub, Shopify, Razorpay, Paddle and Lemon Squeezy use
   literal nonempty untrimmed UTF-8 secrets. Standard Webhooks, Clerk and Svix
   strip an optional `whsec_` prefix and Base64-decode the key, requiring 24–64
   decoded bytes. A prefix alone never selects a protocol.
@@ -121,5 +118,5 @@ remain pending combined integration and qualification.
 - No new public API, provider auto-detection, or `Provider` union changes.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 
-The three new providers remain pending until combined integration and
-qualification pass. The existing six-provider baseline remains supported.
+Run `npm run verify` to check the local implementation, runtime, package and
+generated-template gates. These checks do not imply live-provider validation.

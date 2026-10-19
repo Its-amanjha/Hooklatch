@@ -6,7 +6,8 @@ Portable webhook signature verification with a zero-dependency core.
 
 Hooklatch checks incoming webhook signatures over the exact request bytes
 before your code parses or trusts the payload. It supports Stripe, GitHub,
-Shopify, Standard Webhooks, Clerk and Svix through one asynchronous API,
+Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing and Lemon
+Squeezy through one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Requirements
@@ -73,13 +74,18 @@ payload schemas.
 | Standard Webhooks | `id.timestamp.body` | Base64-decoded after `whsec_` strip | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
 | Clerk | `id.timestamp.body`, branded `svix-*` headers | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
 | Svix | `id.timestamp.body`, complete branded or canonical header family | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
+| Razorpay | Body only | Literal secret string | None signed | Optional unsigned event ID |
+| Paddle Billing | `ts:body` | Literal secret string | Signed; default 5 seconds | Signed timestamp only |
+| Lemon Squeezy | Body only | Literal secret string | None signed | None extracted |
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are
 never assembled together. Standard Webhooks, Clerk and Svix require decoded
 signing keys of 24–64 bytes; shorter reference-library examples are rejected.
+See the [provider guide](docs/providers.md) for exact headers, identity fields,
+and protocol-specific limits. Paddle support covers Billing webhooks only.
 
-> **Implementation status (2026-10-19):** The core, six provider descriptors,
+> **Implementation status (2026-10-19):** The core, nine provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
@@ -121,12 +127,17 @@ verify(
 
 - `rawBody` — the exact request bytes. Never a re-serialized object.
 - `headers` — Web `Headers`, a readonly tuple list, or a record with string
-  or string-array values. Lookup is case-insensitive; values are preserved.
+  or string-array values. Lookup is case-insensitive; repeated values are
+  comma-combined. Web `Headers` can normalize surrounding whitespace.
 - `secrets` — every active secret. During rotation include old and new.
-- `toleranceSeconds` — signed-timestamp freshness window. Default `300`.
+- `toleranceSeconds` — signed-timestamp freshness window. Default `5` for
+  Paddle Billing and `300` for the other timestamped providers.
   The boundary is inclusive: a timestamp exactly `toleranceSeconds` old is
   accepted. `0` means a zero-width window (only exact matches), **not** a
   skip of verification.
+  Paddle uses Hooklatch's symmetric window, including future rejection; this
+  does not promise exact SDK clock or parser parity. Body-only protocols have
+  no authenticated timestamp; signature verification alone does not stop replay.
 - `now` — clock injection for tests; returns epoch seconds.
 - `maxBodyBytes` — body size limit. Default `1048576` (1 MiB). Enforced
   while reading, not just from `Content-Length`.
