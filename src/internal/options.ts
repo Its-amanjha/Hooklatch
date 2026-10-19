@@ -34,7 +34,7 @@ export function normalizeOptions(options: VerifyOptions): NormalizedOptions {
   const secretSnapshot = [...secrets];
 
   if (secretSnapshot.some((secret) => !isNonEmptySecret(secret))) throw new HooklatchError('invalid-secret', 'Invalid signing secret.');
-  const toleranceSeconds = options.toleranceSeconds ?? 300;
+  const toleranceSeconds = options.toleranceSeconds ?? (provider === 'paddle' ? 5 : 300);
   const maxBodyBytes = options.maxBodyBytes ?? 1048576;
 
   if (!Number.isFinite(toleranceSeconds) || toleranceSeconds < 0

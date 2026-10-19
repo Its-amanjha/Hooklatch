@@ -30,7 +30,10 @@ const DEFAULT_SECRET_ENV = {
   'standard-webhooks': 'STANDARD_WEBHOOKS_SECRET',
   clerk: 'CLERK_WEBHOOK_SIGNING_SECRET',
   svix: 'SVIX_WEBHOOK_SECRET',
-} satisfies Readonly<Record<string, string>>;
+  razorpay: 'RAZORPAY_WEBHOOK_SECRET',
+  paddle: 'PADDLE_WEBHOOK_SECRET',
+  'lemon-squeezy': 'LEMON_SQUEEZY_WEBHOOK_SECRET',
+} satisfies Readonly<Record<Provider, string>>;
 
 export const HELP_TEXT = `Usage: hooklatch init webhook --provider <id> --framework <id> [options]
 

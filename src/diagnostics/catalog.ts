@@ -274,6 +274,18 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
     expectedHeaders: ['svix-id', 'svix-timestamp', 'svix-signature', 'webhook-id', 'webhook-timestamp', 'webhook-signature'],
     grammar: 'Space-delimited list of v1,<base64-signature> tokens (branded or canonical family)',
   },
+  razorpay: {
+    expectedHeaders: ['X-Razorpay-Signature'],
+    grammar: 'A single 64-digit hexadecimal HMAC-SHA256 signature over the raw body',
+  },
+  paddle: {
+    expectedHeaders: ['Paddle-Signature'],
+    grammar: 'Semicolon-separated ts=<unix-seconds>;h1=<64 hexadecimal digits>, with repeated h1 allowed',
+  },
+  'lemon-squeezy': {
+    expectedHeaders: ['X-Signature'],
+    grammar: 'A single 64-digit hexadecimal HMAC-SHA256 signature over the raw body',
+  },
 };
 
 export function getVerificationGuidance(reason: VerificationFailureReason): Guidance {

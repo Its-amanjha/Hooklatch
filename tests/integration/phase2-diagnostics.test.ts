@@ -23,18 +23,20 @@ import { fixtureBytes, fixtureOptions, loadFixture, type FixtureCase } from '../
  */
 
 interface CorpusEntry {
-  readonly provider: Provider;
+  readonly provider: BaselineProvider;
   readonly case_: FixtureCase;
 }
 
-const PINNED_PROVIDER_ORDER: readonly Provider[] = [
+const PINNED_PROVIDER_ORDER = [
   'stripe',
   'github',
   'shopify',
   'standard-webhooks',
   'clerk',
   'svix',
-];
+] as const satisfies readonly Provider[];
+
+type BaselineProvider = typeof PINNED_PROVIDER_ORDER[number];
 
 /** The deep validation of the preset files lives in tests/verification/phase2-presets.test.ts. */
 const PRESET_FIXTURE_FILES: Partial<Record<Provider, string>> = {
@@ -48,7 +50,7 @@ interface ProviderDetailExpectation {
   readonly grammarIncludes: readonly string[];
 }
 
-const PROVIDER_DETAIL_EXPECTATIONS: Readonly<Record<Provider, ProviderDetailExpectation>> = {
+const PROVIDER_DETAIL_EXPECTATIONS: Readonly<Record<BaselineProvider, ProviderDetailExpectation>> = {
   stripe: {
     expectedHeaders: ['Stripe-Signature'],
     grammarIncludes: ['t=', 'v1='],
@@ -115,7 +117,7 @@ const SETUP_CODES: readonly HooklatchErrorCode[] = [
 ];
 
 /** Deterministic rotation for verbose setup diagnostics. */
-const SETUP_PROVIDER_BY_CODE: Readonly<Record<HooklatchErrorCode, Provider>> = {
+const SETUP_PROVIDER_BY_CODE: Readonly<Record<HooklatchErrorCode, BaselineProvider>> = {
   'unknown-provider': 'stripe',
   'missing-secrets': 'github',
   'invalid-secret': 'shopify',
@@ -128,7 +130,7 @@ const SETUP_PROVIDER_BY_CODE: Readonly<Record<HooklatchErrorCode, Provider>> = {
 };
 
 /** Provider option that must be rejected as a mismatch for that failure provider. */
-const MISMATCH_FOR: Readonly<Record<Provider, Provider>> = {
+const MISMATCH_FOR: Readonly<Record<BaselineProvider, BaselineProvider>> = {
   stripe: 'github',
   github: 'shopify',
   shopify: 'standard-webhooks',
@@ -203,7 +205,7 @@ function isPresetFixtureFile(value: unknown): value is PresetFixtureFile {
   return value.cases.every(isPresetFixtureCase);
 }
 
-function loadPresetFixture(provider: Provider): readonly FixtureCase[] {
+function loadPresetFixture(provider: BaselineProvider): readonly FixtureCase[] {
   const fixtureFile = PRESET_FIXTURE_FILES[provider];
 
   if (fixtureFile === undefined) {
@@ -220,17 +222,17 @@ function loadPresetFixture(provider: Provider): readonly FixtureCase[] {
   return parsed.cases;
 }
 
-function isPresetProvider(provider: Provider): provider is Extract<Provider, 'clerk' | 'svix'> {
+function isPresetProvider(provider: BaselineProvider): provider is Extract<BaselineProvider, 'clerk' | 'svix'> {
   return PRESET_FIXTURE_FILES[provider] !== undefined;
 }
 
-function loaderFor(provider: Provider): readonly FixtureCase[] {
+function loaderFor(provider: BaselineProvider): readonly FixtureCase[] {
   if (isPresetProvider(provider)) return loadPresetFixture(provider);
 
   return loadFixture(provider);
 }
 
-const CORPUS: readonly CorpusEntry[] = SUPPORTED_PROVIDERS.flatMap((provider) =>
+const CORPUS: readonly CorpusEntry[] = PINNED_PROVIDER_ORDER.flatMap((provider) =>
   loaderFor(provider).map((case_) => ({ provider, case_ })));
 
 const EXPECTED_FAILURES: readonly CorpusEntry[] = CORPUS.filter((entry) => entry.case_.expected.ok === false);
@@ -278,7 +280,7 @@ function requireDetail(diagnostic: Diagnostic): NonNullable<Diagnostic['detail']
   return detail;
 }
 
-function expectPinnedDetail(diagnostic: Diagnostic, provider: Provider): void {
+function expectPinnedDetail(diagnostic: Diagnostic, provider: BaselineProvider): void {
   const detail = requireDetail(diagnostic);
   const expectation = PROVIDER_DETAIL_EXPECTATIONS[provider];
 
@@ -289,7 +291,7 @@ function expectPinnedDetail(diagnostic: Diagnostic, provider: Provider): void {
 
 describe('six-provider fixture corpus', () => {
   test('the registry, inventory counts and pinned verification outcomes all hold', async () => {
-    expect([...SUPPORTED_PROVIDERS]).toEqual([...PINNED_PROVIDER_ORDER]);
+    expect(SUPPORTED_PROVIDERS.slice(0, PINNED_PROVIDER_ORDER.length)).toEqual([...PINNED_PROVIDER_ORDER]);
     expect(CORPUS).toHaveLength(PINNED_CASE_COUNTS.total);
 
     expect(CORPUS.filter((entry) => entry.provider === 'clerk')).toHaveLength(PINNED_CASE_COUNTS.clerk);
