@@ -108,9 +108,3 @@ Before advertising provider support:
 ## Reporting vulnerabilities
 
 See `SECURITY.md`.
-
-## Development assistance
-
-OpenAI Codex assisted with implementation, code review, integration, and
-verification. Other AI tools also contributed through maintainer-coordinated
-assignments. The maintainer reviews and accepts the resulting changes.
