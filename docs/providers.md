@@ -104,6 +104,10 @@ Do not treat anything in this section as advertised support.
 | replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated | Pending |
 | workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs | Pending |
 
+For the three canonical presets, `eventId` contains the signed `webhook-id`
+message identifier. It is not a business-event or resource ID extracted from
+the payload. Retry consistency follows the provider's documented delivery rules.
+
 ### Dodo Payments
 
 - **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
@@ -123,7 +127,8 @@ Do not treat anything in this section as advertised support.
   `webhook-timestamp`, and `webhook-signature` headers only. Signing tokens
   were introduced in GitLab 19.0 behind a flag and became generally available
   in 19.1. No fallback to the legacy `X-Gitlab-Token`; the legacy token is not
-  authenticated-body support.
+  authenticated-body support. Endpoints configured with only a secret token
+  must migrate to a signing token before this provider can verify them.
 - **Identity:** `eventId` = `webhook-id`, `deliveryId` = `null`,
   `authenticatedFields` = `['eventId', 'timestamp']`. These headers
   authenticate protocol bytes, not a unique vendor identity. Reusing secrets
@@ -132,7 +137,7 @@ Do not treat anything in this section as advertised support.
   semantics.
 - **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
-- **Source:** https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens
+- **Source:** [GitLab signing tokens and version history](https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens).
 - **Status:** pending integration and qualification.
 
 ### Replicate
@@ -186,8 +191,11 @@ Do not treat anything in this section as advertised support.
   probes; Hooklatch does not claim mathematical sub-millisecond exactness.
 - **Receiver policy vs SDK parity:** repeated-`v1`, strict grammar, and
   two-sided freshness are documented Hooklatch receiver policies, not claims
-  of exact SDK millisecond-boundary parity. No raw-body decoding beyond the
-  byte-preservation policy above.
+  of exact SDK millisecond-boundary parity. Hooklatch rejects leading-zero
+  timestamps and accepts either hex case; the pinned Node SDK accepts leading
+  zeros and compares lowercase signature text. SDK object serialization can
+  also change whitespace or property order even for valid JSON, so retain the
+  original request bytes rather than passing a parsed object.
 - **Sources:** https://workos.com/docs/events/data-syncing/webhooks;
   pinned SDK https://raw.githubusercontent.com/workos/workos-node/ad8bff226e9b37435f0c62390318d4819f76b3d1/src/common/crypto/signature-provider.ts
 - **Status:** pending integration and qualification.
@@ -203,6 +211,9 @@ Do not treat anything in this section as advertised support.
   Clerk, Svix, Dodo Payments, GitLab and Replicate strip an optional `whsec_`
   prefix and Base64-decode the key, requiring 24–64 decoded bytes. A prefix
   alone never selects a protocol.
+- **Key-length compatibility:** the decoded-key range is a Hooklatch limit
+  based on Standard Webhooks guidance, not a guarantee about every vendor's
+  issued secrets. An out-of-range key fails with `invalid-secret`.
 - **Canonical aliases do not prove unique vendor identity:** Dodo Payments,
   GitLab signing-token mode and Replicate reuse the Standard Webhooks header
   grammar. Reusing secrets across endpoints can allow cross-endpoint replay;

@@ -85,6 +85,10 @@ signing keys of 24–64 bytes; shorter reference-library examples are rejected.
 See the [provider guide](docs/providers.md) for exact headers, identity fields,
 and protocol-specific limits. Paddle support covers Billing webhooks only.
 
+Use endpoint-specific secrets. Providers sharing a signing protocol can accept
+the same signed request when configured with the same key. The `provider`
+option selects verification rules; it does not add cryptographic vendor binding.
+
 > **Implementation status (2026-10-19):** The core, nine provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
