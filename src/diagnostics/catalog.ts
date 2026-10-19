@@ -286,6 +286,22 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
     expectedHeaders: ['X-Signature'],
     grammar: 'A single 64-digit hexadecimal HMAC-SHA256 signature over the raw body',
   },
+  'dodo-payments': {
+    expectedHeaders: ['webhook-id', 'webhook-timestamp', 'webhook-signature'],
+    grammar: 'Space-delimited list of v1,<base64-signature> tokens over id.timestamp.body',
+  },
+  gitlab: {
+    expectedHeaders: ['webhook-id', 'webhook-timestamp', 'webhook-signature'],
+    grammar: 'Signing-token mode: space-delimited v1,<base64-signature> tokens; no X-Gitlab-Token fallback',
+  },
+  replicate: {
+    expectedHeaders: ['webhook-id', 'webhook-timestamp', 'webhook-signature'],
+    grammar: 'Space-delimited list of v1,<base64-signature> tokens over id.timestamp.body',
+  },
+  workos: {
+    expectedHeaders: ['WorkOS-Signature'],
+    grammar: 'Comma-separated t=<unix-milliseconds>,v1=<64 hexadecimal digits>; one t, repeated valid v1 allowed',
+  },
 };
 
 export function getVerificationGuidance(reason: VerificationFailureReason): Guidance {

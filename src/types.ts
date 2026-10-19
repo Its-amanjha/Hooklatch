@@ -1,6 +1,7 @@
 /** Contract version 1. Verification never parses or validates payload schemas. */
 export type Provider = 'stripe' | 'github' | 'shopify' | 'standard-webhooks'
-  | 'clerk' | 'svix' | 'razorpay' | 'paddle' | 'lemon-squeezy';
+  | 'clerk' | 'svix' | 'razorpay' | 'paddle' | 'lemon-squeezy'
+  | 'dodo-payments' | 'gitlab' | 'replicate' | 'workos';
 
 export type HeaderInput = Headers
   | Readonly<Record<string, string | readonly string[] | undefined>>

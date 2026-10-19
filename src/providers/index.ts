@@ -10,6 +10,10 @@ import { svixDescriptor } from './svix.js';
 import { razorpayDescriptor } from './razorpay.js';
 import { paddleDescriptor } from './paddle.js';
 import { lemonSqueezyDescriptor } from './lemon-squeezy.js';
+import { dodoPaymentsDescriptor } from './dodo-payments.js';
+import { gitlabDescriptor } from './gitlab.js';
+import { replicateDescriptor } from './replicate.js';
+import { workosDescriptor } from './workos.js';
 
 /** Registry order is part of the internal contract; append new providers only. */
 export const SUPPORTED_PROVIDERS = [
@@ -22,6 +26,10 @@ export const SUPPORTED_PROVIDERS = [
   'razorpay',
   'paddle',
   'lemon-squeezy',
+  'dodo-payments',
+  'gitlab',
+  'replicate',
+  'workos',
 ] as const satisfies readonly Provider[];
 
 const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
@@ -34,6 +42,10 @@ const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
   razorpay: razorpayDescriptor,
   paddle: paddleDescriptor,
   'lemon-squeezy': lemonSqueezyDescriptor,
+  'dodo-payments': dodoPaymentsDescriptor,
+  gitlab: gitlabDescriptor,
+  replicate: replicateDescriptor,
+  workos: workosDescriptor,
 };
 
 /** Resolve the pure descriptor for a supported provider. */
@@ -57,4 +69,8 @@ export {
   razorpayDescriptor,
   paddleDescriptor,
   lemonSqueezyDescriptor,
+  dodoPaymentsDescriptor,
+  gitlabDescriptor,
+  replicateDescriptor,
+  workosDescriptor,
 };

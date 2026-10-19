@@ -28,7 +28,7 @@ import {
 import type { DeterministicCase } from './deterministic-cases.js';
 
 /**
- * Adversarial qualification of the nine shipped providers through the public
+ * Adversarial qualification of the thirteen integrated providers through the public
  * root only. All signatures are generated independently in
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
  * build expected values. Synthetic data only; not an official conformance run.
@@ -37,11 +37,16 @@ import type { DeterministicCase } from './deterministic-cases.js';
 type VerificationResult = Awaited<ReturnType<typeof verify>>;
 
 /** Providers with the shared 300-second default freshness window. */
-const TIMESTAMPED_PROVIDERS = ['stripe', 'standard-webhooks', 'clerk', 'svix'] as const;
+const TIMESTAMPED_PROVIDERS = [
+  'stripe', 'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate',
+] as const;
 
 /** Providers whose signature covers the raw body only (no timestamp). */
 const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy'] as const;
-const STANDARD_WEBHOOKS_PROVIDERS = ['standard-webhooks', 'clerk', 'svix'] as const;
+
+const STANDARD_WEBHOOKS_PROVIDERS = [
+  'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate',
+] as const;
 
 /** Original six-provider prefix pinned before the Phase 3 corpus extension. */
 const LEGACY_PROVIDERS = [
@@ -232,9 +237,9 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
   });
 
-  test('covers the exact shipped nine-provider registry with no unmapped branch', () => {
+  test('covers the exact integrated thirteen-provider registry with no unmapped branch', () => {
     expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
-    expect(SECURITY_PROVIDERS).toHaveLength(9);
+    expect(SECURITY_PROVIDERS).toHaveLength(13);
     expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
 
     for (const provider of SUPPORTED_PROVIDERS) {
@@ -256,8 +261,19 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
     expect(sha256(legacy.map(stableCaseRecord).join('\n'))).toBe(LEGACY_FULL_RECORD_SHA256);
   });
 
+  test('keeps the prior nine-provider corpus byte-identical', () => {
+    const prior = ALL_CASES.slice(0, 9 * CASES_PER_PROVIDER);
+
+    expect(sha256(corpusFingerprint(prior)))
+      .toBe('4864ef6a1864959c07ade5f4f217b31df269804d7dbe05f70967524768110fc3');
+    expect(sha256(prior.map(stableCaseRecord).join('\n')))
+      .toBe('88ee3a346728a32643ddb9a93481298b10c875f917bc34f3752eeb8027118673');
+  });
+
   test('keeps binary and nonzero-offset bodies for the added providers', () => {
-    for (const provider of ['razorpay', 'paddle', 'lemon-squeezy'] as const) {
+    for (const provider of [
+      'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab', 'replicate', 'workos',
+    ] as const) {
       const providerCases = casesFor(provider);
 
       expect(providerCases.some((entry) => entry.body.byteLength === 0)).toBe(true);
@@ -847,8 +863,7 @@ describe('lemon squeezy unsigned metadata', () => {
 
 describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) => {
   const case_ = representative(provider, 1);
-  const timestamp = case_.timestamp === null ? null : requiredTimestamp(case_);
-  const timestampText = timestamp === null ? null : String(timestamp);
+  const timestampText = case_.signatureTimestampText;
 
   test(`${case_.context} lowercased-and-tuple-representations`, async () => {
     expectSuccess(
@@ -1076,7 +1091,7 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
       const activeValue = headerValueFor(case_, case_.signatureToken, case_.signatureTimestampText);
       const retiredValue = headerValueFor(case_, case_.retiredToken, case_.signatureTimestampText);
 
-      const reversed = case_.provider === 'stripe'
+      const reversed = case_.provider === 'stripe' || case_.provider === 'workos'
         ? `t=${timestampText},v1=${case_.signatureToken},v1=${case_.retiredToken}`
         : case_.provider === 'paddle'
           ? `ts=${requiredTimestamp(case_)};h1=${case_.signatureToken};h1=${case_.retiredToken}`
@@ -1436,5 +1451,227 @@ describe('independent generator consistency', () => {
 
       expect(token).toBe(case_.signatureToken);
     }
+  });
+});
+
+
+describe('WorkOS millisecond timestamp policy', () => {
+  const case_ = representative('workos', 1);
+  const timestamp = requiredTimestamp(case_);
+  const timestampText = case_.signatureTimestampText;
+
+  test('retains fractional seconds in signed identity and custom clock', async () => {
+    const success = await expectValidCase(case_);
+
+    expect(timestamp % 1).toBe(0.125);
+    expect(Number(timestampText)).toBe(timestamp * 1000);
+    expect(success.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
+      timestamp,
+      authenticatedFields: ['timestamp'],
+    });
+  });
+
+  test('uses inclusive 180 seconds by default with millisecond outside probes', async () => {
+    for (const delta of [180, -180, 179.999, -179.999]) {
+      expectSuccess(
+        `workos default drift=${delta}`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+      );
+    }
+
+    for (const [delta, reason] of [
+      [180.001, 'timestamp-expired'],
+      [-180.001, 'timestamp-future'],
+    ] as const) {
+      expect(Math.abs(timestamp + delta - timestamp)).toBeGreaterThan(180);
+      expectReason(
+        `workos default drift=${delta}`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+        reason,
+      );
+    }
+  });
+
+  test('explicit zero is zero-width and HMAC failure precedes freshness', async () => {
+    expectSuccess(
+      'workos zero at the signed instant',
+      await verify(
+        { rawBody: case_.body, headers: case_.headers },
+        { ...optionsFor(case_), toleranceSeconds: 0 },
+      ),
+    );
+
+    for (const [delta, reason] of [
+      [0.001, 'timestamp-expired'],
+      [-0.001, 'timestamp-future'],
+    ] as const) {
+      expectReason(
+        `workos zero drift=${delta}`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), toleranceSeconds: 0, now: () => timestamp + delta },
+        ),
+        reason,
+      );
+    }
+
+    for (const delta of [180.001, -180.001]) {
+      expectReason(
+        `workos wrong MAC before drift=${delta}`,
+        await verify(
+          { rawBody: flipBodyByte(case_.body, 0), headers: case_.headers },
+          { ...optionsFor(case_), now: () => timestamp + delta },
+        ),
+        'invalid-signature',
+      );
+    }
+  });
+
+  test('authenticates original milliseconds, never seconds or unsigned ids', async () => {
+    const changed = String(Number(timestampText) + 1);
+
+    expectReason(
+      'workos signed millisecond mutation',
+      await verify(
+        {
+          rawBody: case_.body,
+          headers: { 'WorkOS-Signature': `t=${changed},v1=${case_.signatureToken}` },
+        },
+        optionsFor(case_),
+      ),
+      'invalid-signature',
+    );
+
+    const success = expectSuccess(
+      'workos ignored body-independent ids',
+      await verify(
+        {
+          rawBody: case_.body,
+          headers: { ...case_.headers, 'Webhook-Id': 'unsigned_id', 'WorkOS-Event-Id': 'unsigned_event' },
+        },
+        optionsFor(case_),
+      ),
+    );
+
+    expectIdentity(case_.context, success, case_.expectedIdentity);
+  });
+
+  test('accepts punctuation in opaque unknown fields but rejects poisoned recognized tokens', async () => {
+    const base = `t=${timestampText},v1=${case_.signatureToken}`;
+
+    for (const unknown of ['v0=opaque!+./:;[]{}~', 'v2=UNRECOGNIZED', 'v9=abc_def-123']) {
+      expectSuccess(
+        `workos opaque ${unknown}`,
+        await verify(
+          { rawBody: case_.body, headers: { 'WorkOS-Signature': `${base},${unknown}` } },
+          optionsFor(case_),
+        ),
+      );
+    }
+
+    for (const suffix of ['v1=zz', `v1=${'0'.repeat(62)}`, 'v2=space value', 'v2=a=b']) {
+      expectReason(
+        `workos poisoned ${suffix}`,
+        await verify(
+          { rawBody: case_.body, headers: { 'WorkOS-Signature': `${base},${suffix}` } },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
+    }
+  });
+});
+
+describe.each(['dodo-payments', 'gitlab', 'replicate'] as const)(
+  '%s canonical family and endpoint policy',
+  (provider) => {
+    const case_ = representative(provider, 1);
+
+    test('does not accept branded-only aliases or repair a missing canonical id', async () => {
+      const branded = {
+        'Svix-Id': case_.authenticatedId ?? '',
+        'Svix-Timestamp': String(requiredTimestamp(case_)),
+        'Svix-Signature': case_.signatureValue,
+      };
+
+      expectReason(
+        `${provider} branded-only`,
+        await verify({ rawBody: case_.body, headers: branded }, optionsFor(case_)),
+        'missing-signature',
+      );
+      expectReason(
+        `${provider} branded cannot repair id`,
+        await verify(
+          {
+            rawBody: case_.body,
+            headers: {
+              ...branded,
+              'Webhook-Signature': case_.signatureValue,
+              'Webhook-Timestamp': String(requiredTimestamp(case_)),
+            },
+          },
+          optionsFor(case_),
+        ),
+        'missing-identity',
+      );
+    });
+
+    test('binds authentication to endpoint key rather than a vendor label', async () => {
+      for (const other of ['dodo-payments', 'gitlab', 'replicate'] as const) {
+        expectSuccess(
+          `${provider} same-secret protocol compatibility with ${other}`,
+          await verify(
+            { rawBody: case_.body, headers: case_.headers },
+            { ...optionsFor(case_), provider: other },
+          ),
+        );
+        expectReason(
+          `${provider} separate-secret endpoint ${other}`,
+          await verify(
+            { rawBody: case_.body, headers: case_.headers },
+            { ...optionsFor(case_, [representative(other, 2).activeSecret]), provider: other },
+          ),
+          'invalid-signature',
+        );
+      }
+    });
+  },
+);
+
+describe('GitLab signing-token migration boundary', () => {
+  const case_ = representative('gitlab', 1);
+
+  test('never treats legacy token equality as body authentication', async () => {
+    expectReason(
+      'gitlab legacy token only',
+      await verify(
+        { rawBody: case_.body, headers: { 'X-Gitlab-Token': case_.activeSecret } },
+        optionsFor(case_),
+      ),
+      'missing-signature',
+    );
+    expectReason(
+      'gitlab valid legacy token cannot rescue wrong signature',
+      await verify(
+        {
+          rawBody: case_.body,
+          headers: {
+            ...case_.headers,
+            'Webhook-Signature': `v1,${flipDigestBit(case_.signatureToken, 'base64')}`,
+            'X-Gitlab-Token': case_.activeSecret,
+          },
+        },
+        optionsFor(case_),
+      ),
+      'invalid-signature',
+    );
   });
 });

@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import type { EventIdentity, Provider } from '../../src/types.js';
 
 /**
- * Deterministic, independently signed adversarial corpus for the nine shipped
+ * Deterministic, independently signed adversarial corpus for the thirteen integrated
  * public providers. Signing is implemented here from the documented recipes
  * with test-only `node:crypto`; it never calls production parse/decode or
  * signed-content helpers. Every value is synthetic and this corpus is not an
@@ -26,6 +26,10 @@ export const SECURITY_PROVIDERS = [
   'razorpay',
   'paddle',
   'lemon-squeezy',
+  'dodo-payments',
+  'gitlab',
+  'replicate',
+  'workos',
 ] as const satisfies readonly Provider[];
 
 export type SignatureEncoding = 'hex' | 'base64';
@@ -147,10 +151,12 @@ function bodyFor(index: number, random: Random): Uint8Array {
   return encoder.encode(`{"unicode":"héllo-秘密","nul":"\u0000","index":${index}}`);
 }
 
-type StandardWebhooksProvider = 'standard-webhooks' | 'clerk' | 'svix';
+type StandardWebhooksProvider = 'standard-webhooks' | 'clerk' | 'svix'
+  | 'dodo-payments' | 'gitlab' | 'replicate';
 
 function isStandardWebhooks(provider: Provider): provider is StandardWebhooksProvider {
-  return provider === 'standard-webhooks' || provider === 'clerk' || provider === 'svix';
+  return provider === 'standard-webhooks' || provider === 'clerk' || provider === 'svix'
+    || provider === 'dodo-payments' || provider === 'gitlab' || provider === 'replicate';
 }
 
 interface SigningRecipe {
@@ -230,6 +236,9 @@ const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
   'standard-webhooks': standardWebhooksRecipe,
   clerk: standardWebhooksRecipe,
   svix: standardWebhooksRecipe,
+  'dodo-payments': standardWebhooksRecipe,
+  gitlab: standardWebhooksRecipe,
+  replicate: standardWebhooksRecipe,
   razorpay: {
     encoding: 'hex',
     timestamped: false,
@@ -250,6 +259,21 @@ const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
       if (timestampText === null) throw new Error('A Paddle case requires a timestamp.');
 
       return `ts=${timestampText};h1=${token}`;
+    },
+  },
+  workos: {
+    encoding: 'hex',
+    timestamped: true,
+    key: literalKeyBytes,
+    signedContent: (body, timestampText) => {
+      if (timestampText === null) throw new Error('A WorkOS case requires a millisecond timestamp.');
+
+      return Buffer.concat([Buffer.from(`${timestampText}.`, 'utf8'), Buffer.from(body)]);
+    },
+    signatureValue: (token, timestampText) => {
+      if (timestampText === null) throw new Error('A WorkOS case requires a millisecond timestamp.');
+
+      return `t=${timestampText},v1=${token}`;
     },
   },
   'lemon-squeezy': {
@@ -334,8 +358,9 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
   const activeSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
   const retiredSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
   const wrongSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
-  const timestamp = BASE_TIMESTAMP + ((index * 37 + randomInt(random, 17)) % 1000);
-  const timestampText = String(timestamp);
+  const seconds = BASE_TIMESTAMP + ((index * 37 + randomInt(random, 17)) % 1000);
+  const timestamp = provider === 'workos' ? seconds + 0.125 : seconds;
+  const timestampText = String(provider === 'workos' ? timestamp * 1000 : timestamp);
   const recipe = SIGNING_RECIPES[provider];
   const signedTimestamp = recipe.timestamped ? timestampText : null;
   const id = `msg_${provider.replaceAll('-', '')}_${index}_${randomToken(random, 10)}`;
@@ -401,7 +426,10 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       break;
     case 'standard-webhooks':
     case 'clerk':
-    case 'svix': {
+    case 'svix':
+    case 'dodo-payments':
+    case 'gitlab':
+    case 'replicate': {
       const canonical = provider === 'svix' && index % 2 === 1;
 
       if (canonical) {
@@ -434,6 +462,10 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       }
 
       break;
+    case 'workos':
+      signatureHeader = 'WorkOS-Signature';
+      headers[signatureHeader] = signatureValue;
+      break;
     case 'paddle':
       signatureHeader = 'Paddle-Signature';
       headers[signatureHeader] = signatureValue;
@@ -448,7 +480,7 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
 
   let rotationHeader: string | null = null;
 
-  if (provider === 'stripe') {
+  if (provider === 'stripe' || provider === 'workos') {
     rotationHeader = `t=${timestampText},v1=${retiredToken},v1=${signatureToken}`;
   } else if (isStandardWebhooks(provider)) {
     rotationHeader = `v1,${retiredToken} v1,${signatureToken}`;
@@ -466,7 +498,7 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
 
   let expectedIdentity: EventIdentity;
 
-  if (provider === 'stripe' || provider === 'paddle') {
+  if (provider === 'stripe' || provider === 'paddle' || provider === 'workos') {
     expectedIdentity = {
       deliveryId: null, eventId: null, timestamp, authenticatedFields: ['timestamp'],
     };

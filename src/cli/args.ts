@@ -33,6 +33,10 @@ const DEFAULT_SECRET_ENV = {
   razorpay: 'RAZORPAY_WEBHOOK_SECRET',
   paddle: 'PADDLE_WEBHOOK_SECRET',
   'lemon-squeezy': 'LEMON_SQUEEZY_WEBHOOK_SECRET',
+  'dodo-payments': 'DODO_WEBHOOK_SECRET',
+  gitlab: 'GITLAB_WEBHOOK_SECRET',
+  replicate: 'REPLICATE_WEBHOOK_SECRET',
+  workos: 'WORKOS_WEBHOOK_SECRET',
 } satisfies Readonly<Record<Provider, string>>;
 
 export const HELP_TEXT = `Usage: hooklatch init webhook --provider <id> --framework <id> [options]

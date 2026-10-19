@@ -34,7 +34,8 @@ export function normalizeOptions(options: VerifyOptions): NormalizedOptions {
   const secretSnapshot = [...secrets];
 
   if (secretSnapshot.some((secret) => !isNonEmptySecret(secret))) throw new HooklatchError('invalid-secret', 'Invalid signing secret.');
-  const toleranceSeconds = options.toleranceSeconds ?? (provider === 'paddle' ? 5 : 300);
+  const defaultTolerance = provider === 'paddle' ? 5 : provider === 'workos' ? 180 : 300;
+  const toleranceSeconds = options.toleranceSeconds ?? defaultTolerance;
   const maxBodyBytes = options.maxBodyBytes ?? 1048576;
 
   if (!Number.isFinite(toleranceSeconds) || toleranceSeconds < 0
@@ -44,5 +45,5 @@ export function normalizeOptions(options: VerifyOptions): NormalizedOptions {
   }
 
   return { provider, secrets: secretSnapshot, toleranceSeconds, maxBodyBytes,
-    now: now ?? (() => Math.floor(Date.now() / 1000)) };
+    now: now ?? (() => provider === 'workos' ? Date.now() / 1000 : Math.floor(Date.now() / 1000)) };
 }
