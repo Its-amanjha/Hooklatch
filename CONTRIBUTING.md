@@ -31,7 +31,7 @@ npm install
 | `npm run lint:anti-slop` | Run vendored anti-slop checks on source, tests, scripts and examples |
 | `npm run test:workers` | Run the Workers runtime smoke harness |
 | `npm run test:package` | Pack and install offline without optional frameworks |
-| `npm run test:templates` | Generate and strictly type-check all 36 CLI handlers against the packed package (build first) |
+| `npm run test:templates` | Generate and strictly type-check all 52 CLI handlers against the packed package (build first) |
 
 All checks must pass before submitting a change. Do not commit code that
 skips or weakens tests.
@@ -89,7 +89,12 @@ Provider-specific rules:
   and a single hex digest. Metadata headers are not authenticated.
 - **Paddle Billing** — signs `ts:body` with literal-key HMAC-SHA256; repeated
   valid `h1` values form an accept-set. Its default symmetric freshness window
-  is 5 seconds; existing timestamped providers retain 300 seconds.
+  is 5 seconds.
+- **Dodo Payments / GitLab signing tokens / Replicate** — canonical Standard
+  Webhooks header/key recipe; no branded aliases or legacy-token fallback.
+- **WorkOS** — signs millisecond `t.body` with a literal key and hex `v1`;
+  default tolerance is 180 seconds with a fractional epoch-second clock.
+  Other timestamped providers retain their existing 300-second defaults.
 
 Before advertising provider support:
 

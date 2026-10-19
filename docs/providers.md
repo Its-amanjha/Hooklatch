@@ -1,7 +1,6 @@
 # Provider guide
 
-Reference for nine supported provider IDs plus four providers pending
-integration and qualification. Paddle support covers Billing webhooks only.
+Reference for thirteen supported provider IDs. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
@@ -91,18 +90,17 @@ CLI, and framework adapters.
   verification restriction; use a nonempty literal secret, untrimmed.
 - **Source:** https://docs.lemonsqueezy.com/help/webhooks/signing-requests
 
-## Providers pending integration and qualification
+## Dodo Payments, GitLab, Replicate and WorkOS
 
-The following four provider IDs are documented here only as planned protocol
-mappings. They are **not publicly registered or qualified**.
-Do not treat anything in this section as advertised support.
+These providers use the same verification APIs, diagnostics, CLI and four adapters.
+The three canonical presets use the existing 300-second default freshness window.
 
-| ID | Header | Signed content | Secret form | Identity | Status |
-|---|---|---|---|---|---|
-| dodo-payments | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated | Pending |
-| gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated | Pending |
-| replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated | Pending |
-| workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs | Pending |
+| ID | Header | Signed content | Secret form | Identity |
+|---|---|---|---|---|
+| dodo-payments | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs |
 
 For the three canonical presets, `eventId` contains the signed `webhook-id`
 message identifier. It is not a business-event or resource ID extracted from
@@ -119,7 +117,6 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** https://docs.dodopayments.com/developer-resources/webhooks
-- **Status:** pending integration and qualification.
 
 ### GitLab signing-token mode
 
@@ -138,7 +135,6 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** [GitLab signing tokens and version history](https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens).
-- **Status:** pending integration and qualification.
 
 ### Replicate
 
@@ -151,7 +147,6 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** https://replicate.com/docs/topics/webhooks/verify-webhook
-- **Status:** pending integration and qualification.
 
 ### WorkOS
 
@@ -186,7 +181,7 @@ the payload. Retry consistency follows the provider's documented delivery rules.
   existing defaults remain floored seconds. Custom `now` is always seconds
   and may be fractional. Explicit tolerance `0` is zero-width, never bypass.
   Symmetric inclusive boundaries.
-- **Planned precision qualification:** floating-point boundaries will be tested using exactly
+- **Precision qualification:** floating-point boundaries are tested using exactly
   representable fractional boundaries and integer-millisecond `Date.now`
   probes; Hooklatch does not claim mathematical sub-millisecond exactness.
 - **Receiver policy vs SDK parity:** repeated-`v1`, strict grammar, and
@@ -198,7 +193,6 @@ the payload. Retry consistency follows the provider's documented delivery rules.
   original request bytes rather than passing a parsed object.
 - **Sources:** https://workos.com/docs/events/data-syncing/webhooks;
   pinned SDK https://raw.githubusercontent.com/workos/workos-node/ad8bff226e9b37435f0c62390318d4819f76b3d1/src/common/crypto/signature-provider.ts
-- **Status:** pending integration and qualification.
 
 ## Cross-provider rules
 
@@ -236,6 +230,5 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 - No live-provider validation or exactly-once delivery claims.
 
-All four pending providers are **pending integration and qualification**.
 Run `npm run verify` to check the local implementation, runtime, package and
 generated-template gates. These checks do not imply live-provider validation.

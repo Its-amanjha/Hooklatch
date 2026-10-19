@@ -6,8 +6,8 @@ Portable webhook signature verification with a zero-dependency core.
 
 Hooklatch checks incoming webhook signatures over the exact request bytes
 before your code parses or trusts the payload. It supports Stripe, GitHub,
-Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing and Lemon
-Squeezy through one asynchronous API,
+Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing, Lemon
+Squeezy, Dodo Payments, GitLab signing tokens, Replicate and WorkOS through one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Requirements
@@ -77,11 +77,17 @@ payload schemas.
 | Razorpay | Body only | Literal secret string | None signed | Optional unsigned event ID |
 | Paddle Billing | `ts:body` | Literal secret string | Signed; default 5 seconds | Signed timestamp only |
 | Lemon Squeezy | Body only | Literal secret string | None signed | None extracted |
+| Dodo Payments | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
+| GitLab signing tokens | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
+| Replicate | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
+| WorkOS | `t.body`, with millisecond `t` | Literal secret string | Signed; default 180 seconds | Signed timestamp only |
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are
 never assembled together. Standard Webhooks, Clerk and Svix require decoded
-signing keys of 24–64 bytes; shorter reference-library examples are rejected.
+signing keys of 24–64 bytes, as do Dodo, GitLab and Replicate; shorter
+reference-library examples are rejected. GitLab requires a signing token;
+legacy `X-Gitlab-Token` alone is not accepted.
 See the [provider guide](docs/providers.md) for exact headers, identity fields,
 and protocol-specific limits. Paddle support covers Billing webhooks only.
 
@@ -89,7 +95,7 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-19):** The core, nine provider descriptors,
+> **Implementation status (2026-10-20):** The core, thirteen provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
@@ -135,14 +141,15 @@ verify(
   comma-combined. Web `Headers` can normalize surrounding whitespace.
 - `secrets` — every active secret. During rotation include old and new.
 - `toleranceSeconds` — signed-timestamp freshness window. Default `5` for
-  Paddle Billing and `300` for the other timestamped providers.
+  Paddle Billing, `180` for WorkOS and `300` for the other timestamped providers.
   The boundary is inclusive: a timestamp exactly `toleranceSeconds` old is
   accepted. `0` means a zero-width window (only exact matches), **not** a
   skip of verification.
   Paddle uses Hooklatch's symmetric window, including future rejection; this
   does not promise exact SDK clock or parser parity. Body-only protocols have
   no authenticated timestamp; signature verification alone does not stop replay.
-- `now` — clock injection for tests; returns epoch seconds.
+- `now` — clock injection for tests; returns epoch seconds and may be fractional.
+  WorkOS's default clock preserves milliseconds; other default clocks use whole seconds.
 - `maxBodyBytes` — body size limit. Default `1048576` (1 MiB). Enforced
   while reading, not just from `Content-Length`.
 
