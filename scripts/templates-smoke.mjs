@@ -46,6 +46,9 @@ const EXPECTED_SECRET_ENV = {
   gitlab: 'GITLAB_WEBHOOK_SECRET',
   replicate: 'REPLICATE_WEBHOOK_SECRET',
   workos: 'WORKOS_WEBHOOK_SECRET',
+  sentry: 'SENTRY_WEBHOOK_SECRET',
+  doppler: 'DOPPLER_WEBHOOK_SECRET',
+  sanity: 'SANITY_WEBHOOK_SECRET',
 };
 
 const PHASE4_PROVIDERS = ['dodo-payments', 'gitlab', 'replicate', 'workos'];

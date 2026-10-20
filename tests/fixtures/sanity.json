@@ -1299,7 +1299,19 @@
       "expected": {
         "ok": false,
         "reason": "malformed-signature"
-      }
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "WHATWG Headers trims outer whitespace before verification; the explicit Web-header expectation covers that normalized input."
     },
     {
       "id": "key-space-t-is-malformed",

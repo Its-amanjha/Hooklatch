@@ -217,19 +217,20 @@ try {
         const label = provider + ':' + fixture.id;
 
         const assertResult = (result, webTransport) => {
-          assert.equal(result.ok, fixture.expected.ok, label);
+          const expected = webTransport ? (fixture.webHeadersExpected ?? fixture.expected) : fixture.expected;
+          assert.equal(result.ok, expected.ok, label);
           assert.equal(result.provider, provider, label);
 
           if (!result.ok) {
-            assert.equal(result.reason, fixture.expected.reason, label);
+            assert.equal(result.reason, expected.reason, label);
             const failureDiagnostic = diagnose(result, { verbose: true });
             assert.equal(failureDiagnostic.provider, provider);
-            assert.equal(failureDiagnostic.code, fixture.expected.reason);
+            assert.equal(failureDiagnostic.code, expected.reason);
             assert(failureDiagnostic.detail.expectedHeaders.length > 0);
             return;
           }
 
-          const resolved = resolveIdentity(provider, fixture.expected.identity, headers, webTransport);
+          const resolved = resolveIdentity(provider, expected.identity, headers, webTransport);
           assert.deepEqual(result.identity, resolved, label);
           assert.deepEqual([...result.rawBody], [...rawBody], label);
         };
@@ -287,6 +288,9 @@ try {
     ['gitlab', 'GITLAB_WEBHOOK_SECRET'],
     ['replicate', 'REPLICATE_WEBHOOK_SECRET'],
     ['workos', 'WORKOS_WEBHOOK_SECRET'],
+    ['sentry', 'SENTRY_WEBHOOK_SECRET'],
+    ['doppler', 'DOPPLER_WEBHOOK_SECRET'],
+    ['sanity', 'SANITY_WEBHOOK_SECRET'],
   ]) {
     const output = `preview-${provider}`;
     const content = invoke(['init', 'webhook', '--provider', provider, '--framework', 'express', '--out', output, '--dry-run']);

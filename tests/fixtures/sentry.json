@@ -451,7 +451,17 @@
       "expected": {
         "ok": false,
         "reason": "malformed-signature"
-      }
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "WHATWG Headers trims outer whitespace before verification; the explicit Web-header expectation covers that normalized input."
     },
     {
       "id": "inner-whitespace-is-malformed",

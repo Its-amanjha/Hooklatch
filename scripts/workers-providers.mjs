@@ -99,7 +99,7 @@ function headerValue(headers, name) {
 }
 
 function resolveFixtureIdentity(provider, fixture) {
-  const expected = fixture.expected.identity;
+  const expected = (fixture.webHeadersExpected ?? fixture.expected).identity;
 
   if (expected === undefined) return undefined;
 
@@ -136,15 +136,17 @@ function fixtureRuntimeCases(provider, file) {
   const entries = [];
 
   for (const fixture of file.cases) {
+    const expected = fixture.webHeadersExpected ?? fixture.expected;
+
     entries.push({
       id: `${provider}: ${fixture.id}`,
       provider,
       headers: fixture.request.headers,
       bodyBase64: fixture.request.bodyBase64,
       options: fixture.options,
-      expected: fixture.expected.ok
+      expected: expected.ok
         ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
-        : { ok: false, reason: fixture.expected.reason },
+        : { ok: false, reason: expected.reason },
     });
   }
 

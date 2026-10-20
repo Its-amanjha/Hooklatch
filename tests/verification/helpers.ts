@@ -14,6 +14,17 @@ export interface FixtureProvenance {
   readonly fetched?: string;
 }
 
+export interface FixtureExpected {
+  readonly ok: boolean;
+  readonly reason?: string;
+  readonly identity?: {
+    readonly deliveryId: string | number | null;
+    readonly eventId: string | number | null;
+    readonly timestamp: number | null;
+    readonly authenticatedFields: readonly string[];
+  };
+}
+
 export interface FixtureCase {
   readonly id: string;
   readonly provenance: FixtureProvenance;
@@ -27,16 +38,9 @@ export interface FixtureCase {
     readonly now: number;
     readonly maxBodyBytes?: number;
   };
-  readonly expected: {
-    readonly ok: boolean;
-    readonly reason?: string;
-    readonly identity?: {
-      readonly deliveryId: string | number | null;
-      readonly eventId: string | number | null;
-      readonly timestamp: number | null;
-      readonly authenticatedFields: readonly string[];
-    };
-  };
+  readonly expected: FixtureExpected;
+  /** Explicit outcome after WHATWG Headers trims outer whitespace. */
+  readonly webHeadersExpected?: FixtureExpected;
   readonly notes?: string;
 }
 
@@ -53,6 +57,28 @@ function isString(value: unknown): value is string { return typeof value === 'st
 function isIdentityValue(value: unknown): value is string | number | null { return value === null || typeof value === 'string' || typeof value === 'number'; }
 
 function isHeaderValue(value: unknown): value is string | readonly string[] { return isString(value) || (Array.isArray(value) && value.every(isString)); }
+
+function isFixtureExpected(value: unknown): value is FixtureExpected {
+  if (typeof value !== 'object' || value === null || !('ok' in value) || typeof value.ok !== 'boolean') return false;
+
+  if ('reason' in value && typeof value.reason !== 'string') return false;
+
+  if ('identity' in value) {
+    const identity = value.identity;
+
+    if (typeof identity !== 'object' || identity === null) return false;
+
+    if (!('deliveryId' in identity) || !isIdentityValue(identity.deliveryId)) return false;
+
+    if (!('eventId' in identity) || !isIdentityValue(identity.eventId)) return false;
+
+    if (!('timestamp' in identity) || (identity.timestamp !== null && typeof identity.timestamp !== 'number')) return false;
+
+    if (!('authenticatedFields' in identity) || !Array.isArray(identity.authenticatedFields) || !identity.authenticatedFields.every(isString)) return false;
+  }
+
+  return true;
+}
 
 interface FixtureFile { readonly cases: readonly FixtureCase[] }
 
@@ -82,25 +108,9 @@ export function isFixtureFile(value: unknown): value is FixtureFile {
 
     if ('maxBodyBytes' in entry.options && typeof entry.options.maxBodyBytes !== 'number') return false;
 
-    if (!('expected' in entry) || typeof entry.expected !== 'object' || entry.expected === null) return false;
+    if (!('expected' in entry) || !isFixtureExpected(entry.expected)) return false;
 
-    if (!('ok' in entry.expected) || typeof entry.expected.ok !== 'boolean') return false;
-
-    if ('reason' in entry.expected && typeof entry.expected.reason !== 'string') return false;
-
-    if ('identity' in entry.expected) {
-      const identity = entry.expected.identity;
-
-      if (typeof identity !== 'object' || identity === null) return false;
-
-      if (!('deliveryId' in identity) || !isIdentityValue(identity.deliveryId)) return false;
-
-      if (!('eventId' in identity) || !isIdentityValue(identity.eventId)) return false;
-
-      if (!('timestamp' in identity) || (identity.timestamp !== null && typeof identity.timestamp !== 'number')) return false;
-
-      if (!('authenticatedFields' in identity) || !Array.isArray(identity.authenticatedFields) || !identity.authenticatedFields.every(isString)) return false;
-    }
+    if ('webHeadersExpected' in entry && !isFixtureExpected(entry.webHeadersExpected)) return false;
 
     if (!('provenance' in entry) || typeof entry.provenance !== 'object' || entry.provenance === null) return false;
 

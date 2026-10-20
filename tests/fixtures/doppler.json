@@ -502,7 +502,16 @@
         "ok": false,
         "reason": "malformed-signature"
       },
-      "notes": "Explicit contrast with trim-blank: nonempty content under surrounding whitespace is malformed, not missing."
+      "notes": "Explicit contrast with trim-blank: nonempty content under surrounding whitespace is malformed, not missing. WHATWG Headers trims outer whitespace before verification; the explicit Web-header expectation covers that normalized input.",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      }
     },
     {
       "id": "trailing-whitespace-is-malformed",
@@ -525,7 +534,17 @@
       "expected": {
         "ok": false,
         "reason": "malformed-signature"
-      }
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "WHATWG Headers trims outer whitespace before verification; the explicit Web-header expectation covers that normalized input."
     },
     {
       "id": "empty-digest-is-malformed",

@@ -31,6 +31,10 @@ Every case:
 - `expected.ok`, and for failures one exact `expected.reason` (contract v1 name).
   Editorial alternatives from the research phase were resolved during integration;
   tests must not accept multiple interchangeable failure codes.
+- `webHeadersExpected` — optional explicit outcome for a Web `Headers`/`Request`
+  input whose header values were normalized before reaching verification. The raw
+  record/tuple expectation stays in `expected`; no runtime result is used as its
+  own expected value.
 - `expected.identity` — pinned `deliveryId`, `eventId`, `timestamp`,
   `authenticatedFields`. The sentinel `unsigned-or-null` means the identity
   field equals the corresponding request header when present, or null when absent.
@@ -39,8 +43,8 @@ Every case:
 ## Rules
 
 Reference vectors are externally sourced, not Hooklatch inventions. See the
-[source and reference review](../../docs/PROVENANCE.md#reference-vectors-and-attribution)
-for source links and the unresolved Standard Webhooks license-metadata discrepancy.
+[source and reference review](../../CONTRIBUTING.md#source-and-history-notes)
+for source links and the bounded license-metadata review.
 
 - Synthetic data only; the secrets in this directory are literal fixture
   strings, not credentials.
