@@ -28,7 +28,7 @@ import {
 import type { DeterministicCase } from './deterministic-cases.js';
 
 /**
- * Adversarial qualification of the thirteen integrated providers through the public
+ * Adversarial qualification of the sixteen integrated providers through the public
  * root only. All signatures are generated independently in
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
  * build expected values. Synthetic data only; not an official conformance run.
@@ -42,7 +42,7 @@ const TIMESTAMPED_PROVIDERS = [
 ] as const;
 
 /** Providers whose signature covers the raw body only (no timestamp). */
-const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy'] as const;
+const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy', 'sentry', 'doppler'] as const;
 
 const STANDARD_WEBHOOKS_PROVIDERS = [
   'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate',
@@ -237,9 +237,9 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
   });
 
-  test('covers the exact integrated thirteen-provider registry with no unmapped branch', () => {
+  test('covers the exact integrated sixteen-provider registry with no unmapped branch', () => {
     expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
-    expect(SECURITY_PROVIDERS).toHaveLength(13);
+    expect(SECURITY_PROVIDERS).toHaveLength(16);
     expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
 
     for (const provider of SUPPORTED_PROVIDERS) {
@@ -270,9 +270,19 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBe('88ee3a346728a32643ddb9a93481298b10c875f917bc34f3752eeb8027118673');
   });
 
+  test('preserves all 468 prior cases including headers, keys and identity', () => {
+    const prior = ALL_CASES.slice(0, 468);
+
+    expect(sha256(corpusFingerprint(prior)))
+      .toBe('b263f77018f0e08d943b45cb42dc745d55abdd2998924ce5969b7c5c55919451');
+    expect(sha256(prior.map(stableCaseRecord).join('\n')))
+      .toBe('389edc9929a4688e4c85e2a113ce01a362ce7ce82b360c6290f52506516c64a9');
+  });
+
   test('keeps binary and nonzero-offset bodies for the added providers', () => {
     for (const provider of [
       'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab', 'replicate', 'workos',
+      'sentry', 'doppler', 'sanity',
     ] as const) {
       const providerCases = casesFor(provider);
 
@@ -1006,6 +1016,22 @@ describe.each(SECURITY_PROVIDERS)('%s header grammar adversaries', (provider) =>
   });
 
   test(`${case_.context} alternative-encoding`, async () => {
+    if (case_.encoding === 'base64url') {
+      expectReason(
+        `${case_.context} padded-base64url`,
+        await verify(
+          { rawBody: case_.body, headers: {
+            ...case_.headers,
+            [case_.signatureHeader]: headerValueFor(case_, `${case_.signatureToken}=`, timestampText),
+          } },
+          optionsFor(case_),
+        ),
+        'malformed-signature',
+      );
+
+      return;
+    }
+
     const alternative = case_.encoding === 'hex'
       ? case_.signatureToken.toUpperCase()
       : case_.signatureToken.replace(/=+$/, '');
@@ -1673,5 +1699,160 @@ describe('GitLab signing-token migration boundary', () => {
       ),
       'invalid-signature',
     );
+  });
+});
+
+
+describe('Sanity millisecond authentication and receiver freshness', () => {
+  const case_ = representative('sanity', 1);
+  const timestamp = requiredTimestamp(case_);
+  const timestampText = case_.signatureTimestampText;
+
+  test('retains the original milliseconds and independently signed fractional identity', async () => {
+    const success = await expectValidCase(case_);
+
+    expect(timestamp % 1).toBe(0.125);
+    expect(Number(timestampText)).toBe(timestamp * 1000);
+    expect(case_.signatureToken).toHaveLength(43);
+    expect(success.identity).toEqual({
+      deliveryId: null, eventId: null, timestamp, authenticatedFields: ['timestamp'],
+    });
+
+    const changed = String(Number(timestampText) + 1);
+
+    expectReason(
+      'sanity original timestamp is authenticated',
+      await verify({
+        rawBody: case_.body,
+        headers: { [case_.signatureHeader]: `t=${changed},v1=${case_.signatureToken}` },
+      }, optionsFor(case_)),
+      'invalid-signature',
+    );
+  });
+
+  test('enforces inclusive 300 seconds, fractional outside boundaries and explicit zero', async () => {
+    for (const drift of [-300, 300, -299.999, 299.999]) {
+      expectSuccess(
+        `sanity inclusive drift=${drift}`,
+        await verify({ rawBody: case_.body, headers: case_.headers }, {
+          ...optionsFor(case_), now: () => timestamp + drift,
+        }),
+      );
+    }
+
+    for (const [drift, reason] of [
+      [300.001, 'timestamp-expired'], [-300.001, 'timestamp-future'],
+    ] as const) {
+      expect(Math.abs(timestamp + drift - timestamp)).toBeGreaterThan(300);
+      expectReason(
+        `sanity outside drift=${drift}`,
+        await verify({ rawBody: case_.body, headers: case_.headers }, {
+          ...optionsFor(case_), now: () => timestamp + drift,
+        }),
+        reason,
+      );
+      expectReason(
+        `sanity bad MAC before age drift=${drift}`,
+        await verify({ rawBody: flipBodyByte(case_.body, 0), headers: case_.headers }, {
+          ...optionsFor(case_), now: () => timestamp + drift,
+        }),
+        'invalid-signature',
+      );
+    }
+
+    expectSuccess(
+      'sanity explicit zero at signed instant',
+      await verify({ rawBody: case_.body, headers: case_.headers }, {
+        ...optionsFor(case_), toleranceSeconds: 0,
+      }),
+    );
+
+    for (const [drift, reason] of [
+      [0.001, 'timestamp-expired'], [-0.001, 'timestamp-future'],
+    ] as const) {
+      expectReason(
+        `sanity zero width drift=${drift}`,
+        await verify({ rawBody: case_.body, headers: case_.headers }, {
+          ...optionsFor(case_), toleranceSeconds: 0, now: () => timestamp + drift,
+        }),
+        reason,
+      );
+    }
+  });
+
+  test('rejects nonzero unused bits even when a permissive decoder yields the valid MAC', async () => {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+    for (const entry of casesFor('sanity')) {
+      const token = entry.signatureToken;
+      const finalIndex = alphabet.indexOf(token.charAt(42));
+      const noncanonical = `${token.slice(0, 42)}${alphabet.charAt(finalIndex | 1)}`;
+
+      expect(finalIndex).toBeGreaterThanOrEqual(0);
+      expect(finalIndex & 3).toBe(0);
+      expect(noncanonical).not.toBe(token);
+      expect(Buffer.from(noncanonical, 'base64url')).toEqual(Buffer.from(token, 'base64url'));
+      expectReason(
+        `${entry.context} noncanonical unused bits`,
+        await verify({ rawBody: entry.body, headers: {
+          [entry.signatureHeader]: headerValueFor(entry, noncanonical, entry.signatureTimestampText),
+        } }, optionsFor(entry)),
+        'malformed-signature',
+      );
+    }
+  });
+
+  test('rejects structural repairs and pre-2021 timestamps before cryptographic freshness', async () => {
+    for (const header of [
+      `t=1609459199999,v1=${case_.signatureToken}`,
+      `t=1700000000,v1=${case_.signatureToken}`,
+      `t=${timestampText};v1=${case_.signatureToken}`,
+      `v1=${case_.signatureToken},t=${timestampText}`,
+      `t=${timestampText}, v1=${case_.signatureToken}`,
+      `t=${timestampText},v1=${case_.signatureToken},v1=${case_.signatureToken}`,
+      `t=${timestampText},v1=${case_.signatureToken},v2=unknown`,
+    ]) {
+      expectReason(
+        'sanity no grammar repair or pre-2021 acceptance',
+        await verify({ rawBody: case_.body, headers: { [case_.signatureHeader]: header } }, optionsFor(case_)),
+        'malformed-signature',
+      );
+    }
+  });
+});
+
+describe.each(['sentry', 'doppler'] as const)('%s literal body-only authentication boundary', (provider) => {
+  const case_ = representative(provider, 1);
+
+  test('cannot substitute a Base64-decoded key for the configured literal whsec_ string', async () => {
+    const decodedKeyToken = hmacToken(standardWebhooksKeyBytes(case_.activeSecret), case_.body, 'hex');
+
+    expect(decodedKeyToken).not.toBe(case_.signatureToken);
+    expectReason(
+      `${provider} decoded key is a different protocol`,
+      await verify({ rawBody: case_.body, headers: {
+        ...case_.headers,
+        [case_.signatureHeader]: headerValueFor(case_, decodedKeyToken, null),
+      } }, optionsFor(case_)),
+      'invalid-signature',
+    );
+  });
+
+  test('retains scheme-specific errors without accepting bearer or unsigned delivery metadata', async () => {
+    for (const [header, reason] of [
+      [`SHA256=${case_.signatureToken}`, provider === 'doppler' ? 'unsupported-scheme' : 'malformed-signature'],
+      [`sha1=${case_.signatureToken}`, provider === 'doppler' ? 'unsupported-scheme' : 'malformed-signature'],
+      [`sha1=${'a'.repeat(40)}`, 'malformed-signature'],
+    ] as const) {
+      expectReason(
+        `${provider} foreign scheme ${header.slice(0, 7)}`,
+        await verify({ rawBody: case_.body, headers: {
+          ...case_.headers,
+          [case_.signatureHeader]: header,
+          Authorization: `Bearer ${case_.activeSecret}`,
+        } }, optionsFor(case_)),
+        reason,
+      );
+    }
   });
 });

@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import type { EventIdentity, Provider } from '../../src/types.js';
 
 /**
- * Deterministic, independently signed adversarial corpus for the thirteen integrated
+ * Deterministic, independently signed adversarial corpus for the sixteen integrated
  * public providers. Signing is implemented here from the documented recipes
  * with test-only `node:crypto`; it never calls production parse/decode or
  * signed-content helpers. Every value is synthetic and this corpus is not an
@@ -30,9 +30,12 @@ export const SECURITY_PROVIDERS = [
   'gitlab',
   'replicate',
   'workos',
+  'sentry',
+  'doppler',
+  'sanity',
 ] as const satisfies readonly Provider[];
 
-export type SignatureEncoding = 'hex' | 'base64';
+export type SignatureEncoding = 'hex' | 'base64' | 'base64url';
 
 export interface DeterministicCase {
   readonly seed: number;
@@ -276,6 +279,35 @@ const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
       return `t=${timestampText},v1=${token}`;
     },
   },
+  sentry: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => token,
+  },
+  doppler: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => `sha256=${token}`,
+  },
+  sanity: {
+    encoding: 'base64url',
+    timestamped: true,
+    key: literalKeyBytes,
+    signedContent: (body, timestampText) => {
+      if (timestampText === null) throw new Error('A Sanity case requires original milliseconds.');
+
+      return Buffer.concat([Buffer.from(`${timestampText}.`, 'utf8'), Buffer.from(body)]);
+    },
+    signatureValue: (token, timestampText) => {
+      if (timestampText === null) throw new Error('A Sanity case requires original milliseconds.');
+
+      return `t=${timestampText},v1=${token}`;
+    },
+  },
   'lemon-squeezy': {
     encoding: 'hex',
     timestamped: false,
@@ -359,8 +391,9 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
   const retiredSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
   const wrongSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
   const seconds = BASE_TIMESTAMP + ((index * 37 + randomInt(random, 17)) % 1000);
-  const timestamp = provider === 'workos' ? seconds + 0.125 : seconds;
-  const timestampText = String(provider === 'workos' ? timestamp * 1000 : timestamp);
+  const millisecondProtocol = provider === 'workos' || provider === 'sanity';
+  const timestamp = millisecondProtocol ? seconds + 0.125 : seconds;
+  const timestampText = String(millisecondProtocol ? timestamp * 1000 : timestamp);
   const recipe = SIGNING_RECIPES[provider];
   const signedTimestamp = recipe.timestamped ? timestampText : null;
   const id = `msg_${provider.replaceAll('-', '')}_${index}_${randomToken(random, 10)}`;
@@ -462,6 +495,25 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       }
 
       break;
+    case 'sentry':
+      signatureHeader = 'Sentry-Hook-Signature';
+      headers[signatureHeader] = signatureValue;
+      unsignedHeaders['Sentry-Hook-Timestamp'] = '1600000000';
+      unsignedHeaders['Sentry-Hook-Resource'] = 'issue';
+      unsignedHeaders['Request-Id'] = id;
+      Object.assign(headers, unsignedHeaders);
+      break;
+    case 'doppler':
+      signatureHeader = 'X-Doppler-Signature';
+      headers[signatureHeader] = signatureValue;
+      unsignedHeaders['X-Doppler-Delivery-Id'] = id;
+      unsignedHeaders['Authorization'] = 'Bearer synthetic-untrusted-token';
+      Object.assign(headers, unsignedHeaders);
+      break;
+    case 'sanity':
+      signatureHeader = 'Sanity-Webhook-Signature';
+      headers[signatureHeader] = signatureValue;
+      break;
     case 'workos':
       signatureHeader = 'WorkOS-Signature';
       headers[signatureHeader] = signatureValue;
@@ -498,7 +550,7 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
 
   let expectedIdentity: EventIdentity;
 
-  if (provider === 'stripe' || provider === 'paddle' || provider === 'workos') {
+  if (provider === 'stripe' || provider === 'paddle' || provider === 'workos' || provider === 'sanity') {
     expectedIdentity = {
       deliveryId: null, eventId: null, timestamp, authenticatedFields: ['timestamp'],
     };
@@ -519,7 +571,7 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       deliveryId: null, eventId: razorpayEventId, timestamp: null, authenticatedFields: [],
     };
   } else {
-    // Lemon Squeezy documents no timestamp or signed identity.
+    // Body-only providers without mapped identity document no authenticated ids.
     expectedIdentity = {
       deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [],
     };
