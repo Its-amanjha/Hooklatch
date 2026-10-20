@@ -8,28 +8,31 @@ import { createWebhookHandler as createNextHandler } from '../../src/adapters/ne
 import { createWebhookHandler as createWorkerHandler } from '../../src/adapters/cloudflare.js';
 import { createWebhookMiddleware as createHonoMiddleware } from '../../src/adapters/hono.js';
 import { isTcpAddress } from './signing.js';
+import { verify } from '../../src/index.js';
+import type { Provider } from '../../src/types.js';
 
 /**
  * Phase 5 Stage A — header-confusion regressions on the shipped adapters.
  *
  * Uses shipped providers only (GitHub is the explicitly configured provider;
- * Stripe and Standard Webhooks supply independent, valid-looking alien headers).
+ * Stripe, Shopify and Standard Webhooks supply independently authenticated alien headers).
  * No module mocks, no casts to unregistered provider ids, no new providers,
  * no production code or shared helper changes.
  */
 
-const GITHUB_SECRET = 'phase5-header-isolation-canary-secret-7b3d2c';
+// Same configured text is valid for literal-key and Base64-key protocols.
+const GITHUB_SECRET = Buffer.from('phase5-header-isolation-canary-secret-7b3d2c', 'utf8').toString('base64');
 const GITHUB_BODY = 'phase5-header-isolation-canary-payload-9f2e1a';
 const GITHUB_DELIVERY_ID = 'phase5-header-isolation-canary-delivery-id-1e7b3c';
 
-const ALIEN_STRIPE_SECRET = 'phase5-alien-stripe-secret-1a2b3c';
-const ALIEN_SW_SECRET = 'whsec_phase5alienswsecret0123456789abcdef';
+const ALIEN_STRIPE_SECRET = GITHUB_SECRET;
+const ALIEN_SW_SECRET = GITHUB_SECRET;
 const ALIEN_SW_ID = 'msg_phase5alienstandardwebhooks';
 const ALIEN_SW_TS = '1700000000';
 
-const ALIEN_TOKEN = 'phase5-alien-authorization-bearer-token-xyz';
+const ALIEN_TOKEN = GITHUB_SECRET;
 
-const CANARY_TOKENS = [GITHUB_BODY, GITHUB_SECRET, GITHUB_DELIVERY_ID, ALIEN_TOKEN];
+
 
 function assertNoCanary(body: string): void {
   for (const token of CANARY_TOKENS) {
@@ -42,15 +45,15 @@ function githubSig(bytes: Uint8Array, secret: string): string {
 }
 
 function stripeSig(body: Uint8Array, secret: string, timestamp: string): string {
-  const signed = `${timestamp}.${new TextDecoder().decode(body)}`;
+  const signed = Buffer.concat([Buffer.from(`${timestamp}.`, 'utf8'), body]);
   const hex = createHmac('sha256', secret).update(signed).digest('hex');
 
   return `t=${timestamp},v1=${hex}`;
 }
 
 function standardWebhooksSig(body: Uint8Array, secret: string, id: string, timestamp: string): string {
-  const key = Buffer.from(secret.slice('whsec_'.length), 'base64');
-  const content = `${id}.${timestamp}.${new TextDecoder().decode(body)}`;
+  const key = Buffer.from(secret, 'base64');
+  const content = Buffer.concat([Buffer.from(`${id}.${timestamp}.`, 'utf8'), body]);
   const b64 = createHmac('sha256', key).update(content).digest('base64');
 
   return `v1,${b64}`;
@@ -74,10 +77,16 @@ const ALIEN_SW_HEADERS = {
 // Alien headers that are present alongside a valid GitHub request.
 const ALIEN_HEADERS = {
   'stripe-signature': ALIEN_STRIPE_HEADER,
-  'x-shopify-hmac-sha256': 'phase5-alien-shopify-hmac-base64=',
+  'x-shopify-hmac-sha256': createHmac('sha256', GITHUB_SECRET).update(GITHUB_BODY_BYTES).digest('base64'),
   'authorization': `Bearer ${ALIEN_TOKEN}`,
   ...ALIEN_SW_HEADERS,
 };
+
+const CANARY_TOKENS = [
+  GITHUB_BODY, GITHUB_SECRET, GITHUB_DELIVERY_ID, ALIEN_TOKEN,
+  GITHUB_SIG_HEADER, ALIEN_STRIPE_HEADER, ALIEN_SW_HEADERS['webhook-signature'],
+  ALIEN_HEADERS['x-shopify-hmac-sha256'],
+];
 
 function githubHeaders(extra: Record<string, string> = {}) {
   return {
@@ -95,12 +104,16 @@ function githubHeaders(extra: Record<string, string> = {}) {
 function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string, string> = {}): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const server = http.createServer(app);
-    server.listen(0, () => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
       const addr = server.address();
 
-      if (!isTcpAddress(addr)) { server.close(); reject(new Error('Expected TCP server address'));
+      if (!isTcpAddress(addr)) {
+        server.close();
+        reject(new Error('Expected TCP server address'));
 
- return; }
+        return;
+      }
 
       const port = addr.port;
 
@@ -124,20 +137,26 @@ function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string,
 // 1. Missing GitHub header is not rescued by alien headers
 // ---------------------------------------------------------------------------
 
-test('express: missing github header stays missing-signature despite alien headers', async () => {
+test('express: missing github header is rejected despite authenticated alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }));
-  app.use((_req, res) => res.status(200).send('ok'));
+  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }));
+  let called = false;
+  app.use((_req, res) => {
+    called = true;
+
+    res.status(200).send('ok');
+  });
   const r = await sendRaw(app, GITHUB_BODY_BYTES, { ...ALIEN_HEADERS });
   expect(r.status).toBe(400);
   expect(r.body).toBe('Bad Request');
+  expect(called).toBe(false);
   assertNoCanary(r.body);
 });
 
-test('hono: missing github header stays missing-signature despite alien headers', async () => {
+test('hono: missing github header is rejected despite authenticated alien headers', async () => {
   const app = new Hono();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -156,15 +175,17 @@ test('hono: missing github header stays missing-signature despite alien headers'
   assertNoCanary(text);
 });
 
-test('nextjs: missing github header stays missing-signature despite alien headers', async () => {
+test('nextjs: missing github header is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createNextHandler({
     provider: 'github',
-    secrets: [GITHUB_SECRET],
-    handler: async () => { called = true;
+    secrets: [GITHUB_SECRET], now: () => 1700000000,
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -180,14 +201,16 @@ test('nextjs: missing github header stays missing-signature despite alien header
   assertNoCanary(text);
 });
 
-test('cloudflare: missing github header stays missing-signature despite alien headers', async () => {
+test('cloudflare: missing github header is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET] }),
-    handler: async () => { called = true;
+    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }),
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -211,10 +234,15 @@ test('cloudflare: missing github header stays missing-signature despite alien he
 // 2. Malformed github header is not rescued by alien headers
 // ---------------------------------------------------------------------------
 
-test('express: malformed github header stays malformed despite alien headers', async () => {
+test('express: malformed github header is rejected despite authenticated alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }));
-  app.use((_req, res) => res.status(200).send('ok'));
+  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }));
+  let called = false;
+  app.use((_req, res) => {
+    called = true;
+
+    res.status(200).send('ok');
+  });
 
   const r = await sendRaw(app, GITHUB_BODY_BYTES, {
     'x-hub-signature-256': 'not-a-valid-signature',
@@ -223,13 +251,14 @@ test('express: malformed github header stays malformed despite alien headers', a
 
   expect(r.status).toBe(400);
   expect(r.body).toBe('Bad Request');
+  expect(called).toBe(false);
   assertNoCanary(r.body);
 });
 
-test('hono: malformed github header stays malformed despite alien headers', async () => {
+test('hono: malformed github header is rejected despite authenticated alien headers', async () => {
   const app = new Hono();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -246,15 +275,17 @@ test('hono: malformed github header stays malformed despite alien headers', asyn
   expect(called).toBe(false);
 });
 
-test('nextjs: malformed github header stays malformed despite alien headers', async () => {
+test('nextjs: malformed github header is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createNextHandler({
     provider: 'github',
-    secrets: [GITHUB_SECRET],
-    handler: async () => { called = true;
+    secrets: [GITHUB_SECRET], now: () => 1700000000,
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -270,14 +301,16 @@ test('nextjs: malformed github header stays malformed despite alien headers', as
   assertNoCanary(text);
 });
 
-test('cloudflare: malformed github header stays malformed despite alien headers', async () => {
+test('cloudflare: malformed github header is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET] }),
-    handler: async () => { called = true;
+    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }),
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -303,10 +336,15 @@ test('cloudflare: malformed github header stays malformed despite alien headers'
 
 const WRONG_MAC_HEADER = `sha256=${'0'.repeat(64)}`;
 
-test('express: invalid github MAC stays invalid despite alien headers', async () => {
+test('express: invalid github MAC is rejected despite authenticated alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }));
-  app.use((_req, res) => res.status(200).send('ok'));
+  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }));
+  let called = false;
+  app.use((_req, res) => {
+    called = true;
+
+    res.status(200).send('ok');
+  });
 
   const r = await sendRaw(app, GITHUB_BODY_BYTES, {
     'x-hub-signature-256': WRONG_MAC_HEADER,
@@ -315,13 +353,14 @@ test('express: invalid github MAC stays invalid despite alien headers', async ()
 
   expect(r.status).toBe(400);
   expect(r.body).toBe('Bad Request');
+  expect(called).toBe(false);
   assertNoCanary(r.body);
 });
 
-test('hono: invalid github MAC stays invalid despite alien headers', async () => {
+test('hono: invalid github MAC is rejected despite authenticated alien headers', async () => {
   const app = new Hono();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -338,15 +377,17 @@ test('hono: invalid github MAC stays invalid despite alien headers', async () =>
   expect(called).toBe(false);
 });
 
-test('nextjs: invalid github MAC stays invalid despite alien headers', async () => {
+test('nextjs: invalid github MAC is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createNextHandler({
     provider: 'github',
-    secrets: [GITHUB_SECRET],
-    handler: async () => { called = true;
+    secrets: [GITHUB_SECRET], now: () => 1700000000,
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -362,14 +403,16 @@ test('nextjs: invalid github MAC stays invalid despite alien headers', async () 
   assertNoCanary(text);
 });
 
-test('cloudflare: invalid github MAC stays invalid despite alien headers', async () => {
+test('cloudflare: invalid github MAC is rejected despite authenticated alien headers', async () => {
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET] }),
-    handler: async () => { called = true;
+    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }),
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -395,7 +438,7 @@ test('cloudflare: invalid github MAC stays invalid despite alien headers', async
 
 test('express: valid github verifies even with alien headers present', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }));
+  app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }));
   app.use((req, res) => res.status(200).send(String(req.webhook?.rawBody.byteLength)));
   const r = await sendRaw(app, GITHUB_BODY_BYTES, githubHeaders(ALIEN_HEADERS));
   expect(r.status).toBe(200);
@@ -404,7 +447,7 @@ test('express: valid github verifies even with alien headers present', async () 
 
 test('hono: valid github verifies even with alien headers present', async () => {
   const app = new Hono();
-  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }), (c) => {
     const w = c.get('webhook');
 
     if (!w) throw new Error('expected a verified webhook');
@@ -425,7 +468,7 @@ test('hono: valid github verifies even with alien headers present', async () => 
 test('nextjs: valid github verifies even with alien headers present', async () => {
   const handler = createNextHandler({
     provider: 'github',
-    secrets: [GITHUB_SECRET],
+    secrets: [GITHUB_SECRET], now: () => 1700000000,
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
   });
 
@@ -441,7 +484,7 @@ test('nextjs: valid github verifies even with alien headers present', async () =
 
 test('cloudflare: valid github verifies even with alien headers present', async () => {
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET] }),
+    options: () => ({ provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 }),
     handler: async (_req, _env, _ctx, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
   });
 
@@ -466,7 +509,7 @@ test('cloudflare: valid github verifies even with alien headers present', async 
 test('github signed identity fields stay null even with alien headers', async () => {
   const handler = createNextHandler({
     provider: 'github',
-    secrets: [GITHUB_SECRET],
+    secrets: [GITHUB_SECRET], now: () => 1700000000,
     handler: async (_req, success) => new Response(JSON.stringify(success.identity), { status: 200 }),
   });
 
@@ -477,10 +520,21 @@ test('github signed identity fields stay null even with alien headers', async ()
   }));
 
   expect(res.status).toBe(200);
-  // SAFETY: the response body is produced by this test's own handler as
-  // JSON.stringify(success.identity); the shape is fixed by the core contract.
-  const identity = JSON.parse(await res.text()) as { deliveryId: string | null; eventId: string | null; timestamp: number | null; authenticatedFields: readonly string[] };
-  expect(identity.eventId).toBeNull();
-  expect(identity.timestamp).toBeNull();
-  expect(identity.authenticatedFields).toEqual([]);
+  expect(await res.json()).toEqual({
+    deliveryId: GITHUB_DELIVERY_ID,
+    eventId: null,
+    timestamp: null,
+    authenticatedFields: [],
+  });
 });
+
+for (const provider of ['stripe', 'standard-webhooks', 'shopify'] as const satisfies readonly Provider[]) {
+  test(`${provider}: alien request authenticates with the configured GitHub key`, async () => {
+    const result = await verify(
+      { rawBody: GITHUB_BODY_BYTES, headers: ALIEN_HEADERS },
+      { provider, secrets: [GITHUB_SECRET], now: () => 1700000000 },
+    );
+
+    expect(result.ok).toBe(true);
+  });
+}
