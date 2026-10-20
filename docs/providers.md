@@ -1,13 +1,14 @@
 # Provider guide
 
-Reference for thirteen supported provider IDs. Paddle support covers Billing webhooks only.
+Reference for thirteen qualified provider IDs plus three providers pending
+integration and qualification. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
-## Original provider protocols
+## Qualified provider protocols
 
-These six providers retain their existing signing and freshness policies.
+These thirteen providers are integrated and qualified on the current release.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -17,6 +18,13 @@ These six providers retain their existing signing and freshness policies.
 | standard-webhooks | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
 | clerk | `svix-*` branded triplet only | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
 | svix | `svix-*` or `webhook-*` triplet | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
+| razorpay | `X-Razorpay-Signature` | body only | Literal string | optional `x-razorpay-event-id` (unsigned, eventId) |
+| paddle | `Paddle-Signature` (`ts=...;h1=...`) | `ts:body` | Literal string | timestamp authenticated; no IDs |
+| lemon-squeezy | `X-Signature` | body only | Literal string | all identity fields null |
+| dodo-payments | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
+| workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs |
 
 ### Authenticated vs unsigned identity
 
@@ -27,21 +35,11 @@ These six providers retain their existing signing and freshness policies.
   the header value was supplied by the provider. IDs inside signed payload bytes
   have integrity protection, but Hooklatch does not parse or extract them.
 
-Body-only protocols (GitHub, Shopify) sign no timestamp, so freshness checks
-and ID headers cannot stop replay on their own. A captured valid body and
-signature can be replayed. Applications need their own replay/idempotency policy;
-deduplicating an unsigned delivery header alone is not replay protection.
-
-## Additional providers (integrated, qualified)
-
-These providers use the same public verification APIs, diagnostics, scaffolding
-CLI, and framework adapters.
-
-| ID | Header | Signed content | Secret form | Identity |
-|---|---|---|---|---|
-| razorpay | `X-Razorpay-Signature` | body only | Literal string | optional `x-razorpay-event-id` (unsigned, eventId) |
-| paddle | `Paddle-Signature` (`ts=...;h1=...`) | `ts:body` | Literal string | timestamp authenticated; no IDs |
-| lemon-squeezy | `X-Signature` | body only | Literal string | all identity fields null |
+Body-only protocols (GitHub, Shopify, Razorpay, Lemon Squeezy) sign no
+timestamp, so freshness checks and ID headers cannot stop replay on their own.
+A captured valid body and signature can be replayed. Applications need their
+own replay/idempotency policy; deduplicating an unsigned delivery header alone
+is not replay protection.
 
 ### Razorpay
 
@@ -90,22 +88,6 @@ CLI, and framework adapters.
   verification restriction; use a nonempty literal secret, untrimmed.
 - **Source:** https://docs.lemonsqueezy.com/help/webhooks/signing-requests
 
-## Dodo Payments, GitLab, Replicate and WorkOS
-
-These providers use the same verification APIs, diagnostics, CLI and four adapters.
-The three canonical presets use the existing 300-second default freshness window.
-
-| ID | Header | Signed content | Secret form | Identity |
-|---|---|---|---|---|
-| dodo-payments | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs |
-
-For the three canonical presets, `eventId` contains the signed `webhook-id`
-message identifier. It is not a business-event or resource ID extracted from
-the payload. Retry consistency follows the provider's documented delivery rules.
-
 ### Dodo Payments
 
 - **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
@@ -134,7 +116,7 @@ the payload. Retry consistency follows the provider's documented delivery rules.
   semantics.
 - **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
-- **Source:** [GitLab signing tokens and version history](https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens).
+- **Source:** https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens
 
 ### Replicate
 
@@ -181,9 +163,10 @@ the payload. Retry consistency follows the provider's documented delivery rules.
   existing defaults remain floored seconds. Custom `now` is always seconds
   and may be fractional. Explicit tolerance `0` is zero-width, never bypass.
   Symmetric inclusive boundaries.
-- **Precision qualification:** floating-point boundaries are tested using exactly
-  representable fractional boundaries and integer-millisecond `Date.now`
-  probes; Hooklatch does not claim mathematical sub-millisecond exactness.
+- **Precision qualification:** floating-point boundaries are tested using
+  exactly representable fractional boundaries and integer-millisecond
+  `Date.now` probes; Hooklatch does not claim mathematical sub-millisecond
+  exactness.
 - **Receiver policy vs SDK parity:** repeated-`v1`, strict grammar, and
   two-sided freshness are documented Hooklatch receiver policies, not claims
   of exact SDK millisecond-boundary parity. Hooklatch rejects leading-zero
@@ -194,17 +177,97 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - **Sources:** https://workos.com/docs/events/data-syncing/webhooks;
   pinned SDK https://raw.githubusercontent.com/workos/workos-node/ad8bff226e9b37435f0c62390318d4819f76b3d1/src/common/crypto/signature-provider.ts
 
+## Providers pending integration and qualification
+
+The following three provider IDs are documented here only as planned protocol
+mappings. They are **not implemented, not registered, and not qualified**.
+Do not treat anything in this section as advertised support.
+
+| ID | Header | Signed content | Secret form | Identity | Status |
+|---|---|---|---|---|---|
+| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null | Pending |
+| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null | Pending |
+| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated | Pending |
+
+### Sentry App
+
+- **Provider id:** `sentry`.
+- **Header:** `sentry-hook-signature` — exactly 64 hex characters, either hex
+  case.
+- **Missing or trim-blank header** → `missing-signature`. Every other malformed
+  value → `malformed-signature`: prefixes, outer or inner whitespace,
+  comma-combined duplicates, wrong length, nonhex characters, lists.
+- **Signed content:** the exact raw body.
+- **Identity:** all identity fields null; `authenticatedFields` empty.
+- Ignore `request-id`, `sentry-hook-timestamp` and `sentry-hook-resource`; they
+  cannot establish freshness or trusted identity.
+- No claim is made for support of all Sentry webhook products.
+- **Sources:** https://docs.sentry.io/integrations/integration-platform/webhooks/;
+  https://github.com/getsentry/sentry/blob/72757dae9b6d527e564c81d4921dec0d62d7beca/src/sentry/sentry_apps/api/serializers/app_platform_event.py
+- **Status:** pending integration and qualification.
+
+### Doppler signed mode
+
+- **Provider id:** `doppler`.
+- **Header:** `x-doppler-signature`.
+- **Missing or trim-blank header** → `missing-signature`.
+- Require one case-sensitive `sha256=` prefix followed by exactly 64 hex, either
+  case. A scheme token accepted by `isSchemeToken`
+  (`/^[A-Za-z0-9_-]+$/`) plus `=` plus exactly 64 hex but another scheme
+  (e.g. `sha1=<64hex>`) → `unsupported-scheme`. All other nonconforming syntax
+  → `malformed-signature`, including `sha1=<40hex>`, bare hex, commas, extra
+  equals, leading/trailing whitespace and empty digest. Validate the whole value
+  first; no unknown-field tolerance.
+- **Signed content:** HMAC over the raw body.
+- **Identity:** all identity fields null/empty; `authenticatedFields` empty.
+- No Basic/Bearer fallback, unsigned acceptance, token auth, or replay-protection
+  claim.
+- **Source:** https://docs.doppler.com/docs/webhooks
+- **Status:** pending integration and qualification.
+
+### Sanity
+
+- **Provider id:** `sanity`.
+- **Header:** `sanity-webhook-signature`.
+- **HMAC input:** `UTF8(original millisecond timestamp text + '.')` concatenated
+  with the exact untouched raw body. Key: literal UTF-8.
+- **Accepted complete header is EXACTLY** `t=<ms>,v1=<digest>`: ordered fields,
+  one each, no whitespace anywhere or outer trimming, extra fields, duplicate
+  fields, semicolon separators, padding, or alternate versions.
+- **Missing or trim-blank header** → `missing-signature`. Any other nonmatching
+  structure → `malformed-signature` (including `t`-only, `v1`-only and
+  `v2`-only). Do not invent alternate reason precedence.
+- `ms` is a canonical nonnegative safe decimal integer (no leading zeros except
+  `0`), at least `1609459200000` (2021-01-01 UTC). Earlier values →
+  `malformed-signature`.
+- `digest` is EXACTLY 43 characters from `A-Z a-z 0-9 _ -`, canonical unpadded
+  Base64url decoding to 32 bytes. Re-encoding must match to reject nonzero
+  unused pad bits. Keep the decoder local to Sanity; do not loosen shared
+  standard-Base64 handling.
+- **Identity:** `timestamp` = `Number(ms)/1000`, `deliveryId`/`eventId` =
+  `null`, `authenticatedFields` = `['timestamp']`.
+- Accept empty, NUL, invalid UTF-8 and non-JSON bodies as opaque bytes; this
+  extends the string-oriented reference SDK. Do not claim exact SDK parity or
+  live interoperability.
+- Timestamp minimum/canonical spelling mirror bounded reference behavior; error
+  codes are Hooklatch policy. Reject duplicates even when equal. No signature
+  list or rotation within the header; configured multiple secrets still work in
+  core.
+- **Source:** https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/src/signature.ts
+- **Status:** pending integration and qualification.
+
 ## Cross-provider rules
 
 - **Exact bytes only:** verification runs over the raw request bytes captured
   before any parsing or re-serialization. Empty, non-JSON, and invalid UTF-8
   bodies are preserved; never decode/re-encode the body to build signed
   content.
-- **Key form:** Stripe, GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy and
-  WorkOS use literal nonempty untrimmed UTF-8 secrets. Standard Webhooks,
-  Clerk, Svix, Dodo Payments, GitLab and Replicate strip an optional `whsec_`
-  prefix and Base64-decode the key, requiring 24–64 decoded bytes. A prefix
-  alone never selects a protocol.
+- **Key form:** literal nonempty untrimmed UTF-8 secrets are used by Stripe,
+  GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy, WorkOS, Sentry App, Doppler
+  and Sanity. Standard Webhooks-family providers (standard-webhooks, Clerk,
+  Svix, Dodo Payments, GitLab, Replicate) strip an optional `whsec_` prefix and
+  Base64-decode the key, requiring 24–64 decoded bytes. A prefix alone never
+  selects a protocol.
 - **Key-length compatibility:** the decoded-key range is a Hooklatch limit
   based on Standard Webhooks guidance, not a guarantee about every vendor's
   issued secrets. An out-of-range key fails with `invalid-secret`.
@@ -229,6 +292,10 @@ the payload. Retry consistency follows the provider's documented delivery rules.
 - No new public API, provider auto-detection, or `Provider` union changes.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 - No live-provider validation or exactly-once delivery claims.
+- No Relay exists or is advertised: Relay is a future separately installed
+  package; its name, backend and API are not frozen. Do not add queue switches
+  or a Relay dependency to verification options. Never promise exactly-once
+  business effects or provider retry guarantees.
 
 Run `npm run verify` to check the local implementation, runtime, package and
 generated-template gates. These checks do not imply live-provider validation.
