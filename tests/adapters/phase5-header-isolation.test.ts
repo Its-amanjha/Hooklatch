@@ -538,3 +538,18 @@ for (const provider of ['stripe', 'standard-webhooks', 'shopify'] as const satis
     expect(result.ok).toBe(true);
   });
 }
+
+for (const { label, headers, reason } of [
+  { label: 'missing signature', headers: ALIEN_HEADERS, reason: 'missing-signature' },
+  { label: 'malformed signature', headers: { ...ALIEN_HEADERS, 'x-hub-signature-256': 'not-a-signature' }, reason: 'malformed-signature' },
+  { label: 'invalid MAC', headers: { ...ALIEN_HEADERS, 'x-hub-signature-256': WRONG_MAC_HEADER }, reason: 'invalid-signature' },
+] as const) {
+  test(`core: alien authentication leaves the GitHub ${label} reason unchanged`, async () => {
+    const result = await verify(
+      { rawBody: GITHUB_BODY_BYTES, headers },
+      { provider: 'github', secrets: [GITHUB_SECRET], now: () => 1700000000 },
+    );
+
+    expect(result).toMatchObject({ ok: false, provider: 'github', reason });
+  });
+}
