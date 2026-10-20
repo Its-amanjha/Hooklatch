@@ -45,5 +45,5 @@ export function normalizeOptions(options: VerifyOptions): NormalizedOptions {
   }
 
   return { provider, secrets: secretSnapshot, toleranceSeconds, maxBodyBytes,
-    now: now ?? (() => provider === 'workos' ? Date.now() / 1000 : Math.floor(Date.now() / 1000)) };
+    now: now ?? (() => (provider === 'workos' || provider === 'sanity') ? Date.now() / 1000 : Math.floor(Date.now() / 1000)) };
 }

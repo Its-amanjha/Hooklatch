@@ -302,6 +302,18 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
     expectedHeaders: ['WorkOS-Signature'],
     grammar: 'Comma-separated t=<unix-milliseconds>,v1=<64 hexadecimal digits>; one t, repeated valid v1 allowed',
   },
+  sentry: {
+    expectedHeaders: ['Sentry-Hook-Signature'],
+    grammar: 'Sentry App mode: a single bare 64-digit hexadecimal HMAC-SHA256 signature over the raw body',
+  },
+  doppler: {
+    expectedHeaders: ['X-Doppler-Signature'],
+    grammar: 'Signed mode: sha256=<64 hexadecimal digits> over the raw body; no Basic/Bearer fallback',
+  },
+  sanity: {
+    expectedHeaders: ['sanity-webhook-signature'],
+    grammar: 'Exactly t=<unix-milliseconds>,v1=<43 canonical unpadded Base64url characters>; one of each field, no whitespace',
+  },
 };
 
 export function getVerificationGuidance(reason: VerificationFailureReason): Guidance {

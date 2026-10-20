@@ -14,6 +14,9 @@ import { dodoPaymentsDescriptor } from './dodo-payments.js';
 import { gitlabDescriptor } from './gitlab.js';
 import { replicateDescriptor } from './replicate.js';
 import { workosDescriptor } from './workos.js';
+import { sentryDescriptor } from './sentry.js';
+import { dopplerDescriptor } from './doppler.js';
+import { sanityDescriptor } from './sanity.js';
 
 /** Registry order is part of the internal contract; append new providers only. */
 export const SUPPORTED_PROVIDERS = [
@@ -30,6 +33,9 @@ export const SUPPORTED_PROVIDERS = [
   'gitlab',
   'replicate',
   'workos',
+  'sentry',
+  'doppler',
+  'sanity',
 ] as const satisfies readonly Provider[];
 
 const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
@@ -46,6 +52,9 @@ const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
   gitlab: gitlabDescriptor,
   replicate: replicateDescriptor,
   workos: workosDescriptor,
+  sentry: sentryDescriptor,
+  doppler: dopplerDescriptor,
+  sanity: sanityDescriptor,
 };
 
 /** Resolve the pure descriptor for a supported provider. */
@@ -73,4 +82,7 @@ export {
   gitlabDescriptor,
   replicateDescriptor,
   workosDescriptor,
+  sentryDescriptor,
+  dopplerDescriptor,
+  sanityDescriptor,
 };

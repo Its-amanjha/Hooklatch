@@ -132,8 +132,9 @@ function decodeBase64UrlDigest(value: string): Uint8Array | null {
  * This descriptor accepts empty, NUL, invalid UTF-8, and non-JSON bodies as
  * opaque bytes, so it extends rather than matches that behavior, and it does
  * not claim exact SDK parity or live interoperability. The strict grammar
- * also differs from the reference header regex, which tolerates a space
- * separator and trims the header.
+ * is checked at parse time. The reference decoder regex accepts spaces and
+ * trimming, but full SDK verification compares the original header to canonical
+ * re-encoding and also rejects these noncanonical header variants.
  *
  * Sources:
  * - https://www.sanity.io/docs/content-lake/webhook-best-practices
