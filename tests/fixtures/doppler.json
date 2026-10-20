@@ -1,0 +1,601 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Baseline signed delivery: sha256=<64 hex> over the exact raw body; all identity fields null."
+    },
+    {
+      "id": "positive-uppercase-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02C89754000FD418389ABB1DF1FB24635DA892ACD18824A5E36032227CF872C1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Uppercase digest characters; hex decoding is case-insensitive while the sha256= prefix stays case-sensitive."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret",
+          "hooklatch_stage_a_doppler_rotated_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Both configured secrets form the core accept-set; the recorded signature is under the old (first) secret."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_rotated_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Same signature, old secret removed from the accept-set; fails closed with invalid-signature."
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-doppler-signature": "sha256=ce050d105d27d80555feefadeb8a14c11c5eebdcb89e7f2560c599f5bc5c7f64"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Zero-length raw body signed byte-exactly."
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "cGxhaW4gdGV4dCBib2R5LCBub3QgSlNPTiBhdCBhbGw=",
+        "headers": {
+          "x-doppler-signature": "sha256=4cbc59fd26da9c712b8a4ba4a622e2214ddb47778e4cdca05f65f62b76010a84"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Non-JSON body accepted as opaque bytes."
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aMMo",
+        "headers": {
+          "x-doppler-signature": "sha256=ee8adc77bd7de641d144c85668977c3ad3a2ebeca101bd382f50801e376b3c72"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Body bytes 0x68 0xC3 0x28 are not valid UTF-8; verification depends only on the exact bytes."
+    },
+    {
+      "id": "tampered-body",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQiJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Body changed (diff stage A -> stage B) with the baseline signature retained."
+    },
+    {
+      "id": "missing-x-doppler-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {}
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": " \t "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "empty-value-is-missing-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": ""
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Present but empty header value is trim-blank, hence missing-signature."
+    },
+    {
+      "id": "sha1-64-hex-is-unsupported-scheme",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha1=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "A recognized scheme-token shape (token + = + 64 hex) under another scheme is unsupported-scheme, never a silent downgrade."
+    },
+    {
+      "id": "md5-64-hex-is-unsupported-scheme",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "md5=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      }
+    },
+    {
+      "id": "uppercase-sha256-prefix-is-unsupported-scheme",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "SHA256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "Contract requires the exact lowercase sha256= prefix; SHA256 is a different scheme token. Classification flagged to the coordinator."
+    },
+    {
+      "id": "sha1-40-hex-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha1=02c89754000fd418389abb1df1fb24635da892ac"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A 40-hex digest no longer matches the 64-hex shape, so sha1=<40 hex> is malformed rather than unsupported."
+    },
+    {
+      "id": "bare-hex-no-prefix-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "The documented grammar requires the sha256= prefix; a bare 64-hex value is malformed."
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1, sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "The whole value must be exactly sha256=<64 hex>; HTTP comma combination is nonconforming syntax."
+    },
+    {
+      "id": "standard-webhooks-token-list-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "v1,AsiXVAAP1Bg4mrsd8fskY12okqzRiCSl42AyInz4csE="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "extra-equals-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256==02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "leading-whitespace-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": " sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Explicit contrast with trim-blank: nonempty content under surrounding whitespace is malformed, not missing."
+    },
+    {
+      "id": "trailing-whitespace-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1 "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "empty-digest-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "non-hex-digest-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=g2c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "First digest character replaced with g, keeping 64 characters after the prefix."
+    },
+    {
+      "id": "short-63-hex-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Doppler webhooks docs (https://docs.doppler.com/docs/webhooks, fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); signed sha256= mode only with case-sensitive prefix and literal secret; no Basic/Bearer fallback, unsigned acceptance, token auth or exactly-once/replay-protection claim; no official full tuple exists; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJ0eXBlIjogImNvbmZpZy5zZWNyZXRzLnVwZGF0ZSIsICJjb25maWciOiB7Im5hbWUiOiAiZGV2In0sICJwcm9qZWN0IjogImhvb2tsYXRjaF9hZzAiLCAid29ya3BsYWNlIjogIkdMTSBTdGFnZSBBIiwgImRpZmYiOiB7ImFkZGVkIjogWyJIT09LTEFUQ0hfU1RBR0VfQSJdfX0=",
+        "headers": {
+          "x-doppler-signature": "sha256=02c89754000fd418389abb1df1fb24635da892acd18824a5e36032227cf872c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_doppler_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1516 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Baseline canonical header over the exact raw body; identity timestamp is Number(t)/1000."
+    },
+    {
+      "id": "positive-fractional-identity-125",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000050.125
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Identity timestamp 1700000000.125 s is exactly binary-representable."
+    },
+    {
+      "id": "positive-fractional-identity-250",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000250,v1=QRvfFXVzBi301RyqfU8ypxf9mnzjxGqmYZkfGZKHPAc"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000050.25
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.25,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-fractional-identity-500",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000500,v1=0tNmzzcVMZYKlJ9BJzwrx0biZvHjrnzdVqHWtxNqRn8"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000050.5
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.5,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "positive-mixed-case-base64url-digest",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999950.125
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Recorded digest naturally exercises uppercase, lowercase and '_' characters over the exact raw body; identity timestamp Number(1700000000125)/1000."
+    },
+    {
+      "id": "positive-idempotency-key-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "idempotency-key": "glm_idem_001",
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "The toolkit documents idempotency-key as an unsigned header; it is ignored and never becomes identity."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret",
+          "hooklatch_stage_a_sanity_rotated_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Both configured secrets form the core accept-set; rotation is via options, since the header carries exactly one v1."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_rotated_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Same signed header, old secret removed; fails closed with invalid-signature."
+    },
+    {
+      "id": "empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=BMm13dl6Ytj48Zb1WOJGWdL3Zsr8YsCk8Vx9N9q7DX0"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Receiver-policy extension: the reference toolkit refuses empty payloads, Hooklatch accepts the empty opaque bytes after the signed 't.' prefix."
+    },
+    {
+      "id": "nul-byte-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "AAEC",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=nqWmHajlXXu9cRaO0KFrzGjmQHT_DIKpsDgcjnSjNdI"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Body bytes 0x00 0x01 0x02; opaque-byte extension over the string-oriented reference SDK."
+    },
+    {
+      "id": "non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "cGxhaW4gdGV4dCBib2R5LCBub3QgSlNPTiBhdCBhbGw=",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=tlkRM6unF6eucqRm2DSBgy7qiQbigS7zVsU5Xu2ZNVA"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Non-JSON body accepted as opaque bytes."
+    },
+    {
+      "id": "invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "aMMo",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=4xiTNHQ7GI2SvMwPCgjYt5uBDdZMmp18Gvm280KV3Ig"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Body bytes 0x68 0xC3 0x28 are not valid UTF-8; the MAC input is the UTF-8 timestamp-dot prefix followed by the exact bytes at the tail."
+    },
+    {
+      "id": "tampered-body",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEIifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Body changed (Stage A -> Stage B) with the baseline signature retained."
+    },
+    {
+      "id": "tampered-signed-timestamp-text",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000100,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Header keeps the baseline digest but the signed timestamp text changed to 1700000000100, so the recomputed MAC differs; MAC precedes any freshness reading."
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=r06ltlPb2MqlUDbu_Mf_0bNx6spufSn62eokcGuVFIs"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "301 s stale and the MAC is wrong; MAC-before-freshness makes this invalid-signature, not timestamp-expired."
+    },
+    {
+      "id": "boundary-plus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000300
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Default tolerance 300 s is two-sided inclusive; toleranceSeconds omitted."
+    },
+    {
+      "id": "boundary-plus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000301
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      }
+    },
+    {
+      "id": "boundary-minus300-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999700
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "boundary-minus301-omitted-tolerance",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999699
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      }
+    },
+    {
+      "id": "fractional-boundary-plus-300-125-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000300.125
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Fractional identity timestamp; past drift exactly 300 s stays inclusive."
+    },
+    {
+      "id": "fractional-boundary-plus-300-125-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000300.25
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Past drift exactly 300.125 s (both doubles exact) is past the window."
+    },
+    {
+      "id": "fractional-boundary-plus-300-001-mirrored-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000300.126
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "now is not binary-exact; anchors assert mirrored ranges only (phase-4 convention), never exact .001 equality."
+    },
+    {
+      "id": "fractional-inside-plus-299-875-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000300
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Fractional past drift 299.875 s stays inside the window."
+    },
+    {
+      "id": "fractional-boundary-minus-300-025-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000250,v1=QRvfFXVzBi301RyqfU8ypxf9mnzjxGqmYZkfGZKHPAc"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999700.25
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.25,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Fractional identity timestamp 1700000000.25; future drift exactly 300 s stays inclusive."
+    },
+    {
+      "id": "fractional-boundary-minus-300-025-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000250,v1=QRvfFXVzBi301RyqfU8ypxf9mnzjxGqmYZkfGZKHPAc"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999700.125
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "Future drift exactly 300.125 s (both doubles exact)."
+    },
+    {
+      "id": "fractional-boundary-minus-300-001-mirrored-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999700.124
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "Mirrored-range assertion; the fractional .001 drift is not binary-exact."
+    },
+    {
+      "id": "fractional-inside-minus-299-5-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000500,v1=0tNmzzcVMZYKlJ9BJzwrx0biZvHjrnzdVqHWtxNqRn8"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1699999701
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.5,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Fractional future drift 299.5 s stays inside the window."
+    },
+    {
+      "id": "explicit-zero-fractional-exact-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000125,v1=17XJ_wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000000.125,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000.125,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Zero-tolerance zero-width match against the fractional identity timestamp."
+    },
+    {
+      "id": "explicit-zero-drift-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000000.125,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Zero tolerance against the integral timestamp with an exact 0.125 s past drift."
+    },
+    {
+      "id": "override-tolerance-60-at-edge-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000060,
+        "toleranceSeconds": 60
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000000,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "override-tolerance-60-past-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000061,
+        "toleranceSeconds": 60
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      }
+    },
+    {
+      "id": "min-timestamp-inclusive-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1609459200000,v1=2LmqWsYZrFgyYFi4BFZweD4mTMA91TY0e16hHpnh5eI"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1609459200
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1609459200,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Exactly the 2021-01-01T00:00:00.000Z minimum; identity timestamp 1609459200."
+    },
+    {
+      "id": "below-min-timestamp-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1609459199999,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "One millisecond before the minimum is structurally shaped but violates the policy; contract maps earlier values to malformed-signature."
+    },
+    {
+      "id": "zero-timestamp-below-min-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=0,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Unlike WorkOS canonical-zero acceptance, Sanity policy rejects the 1970 timestamp via the minimum-date rule."
+    },
+    {
+      "id": "beyond-safe-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=9007199254740993,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "leading-zero-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=0170000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "negative-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=-1,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "plus-signed-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=+1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "decimal-point-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000.5,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {}
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": " \t "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      }
+    },
+    {
+      "id": "t-only-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Contract contrast with canonical providers: nonmatching structure is malformed-signature, not missing-timestamp."
+    },
+    {
+      "id": "v1-only-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Contract contrast with canonical providers: v1-only is malformed-signature, not missing-timestamp."
+    },
+    {
+      "id": "v2-only-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "v2=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "reversed-field-order-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw,t=1700000000000"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "space-separator-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000 v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "The toolkit regex tolerates space separators, but Hooklatch accepts only the exact canonical comma form."
+    },
+    {
+      "id": "space-after-comma-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000, v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "semicolon-separator-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000;v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "outer-whitespace-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": " t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "key-space-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t =1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "inner-space-t-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=17000000 0000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "duplicate-t-even-equal-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "duplicate-v1-even-equal-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Duplicates fail even when equal; the header never forms a signature list."
+    },
+    {
+      "id": "extra-v2-field-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw,v2=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "digest-42-chars-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5y"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      }
+    },
+    {
+      "id": "digest-with-equals-padding-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yw="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "44 characters ending with '='; the accepted digest is exactly 43 canonical unpadded base64url characters."
+    },
+    {
+      "id": "digest-standard-base64-chars-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=17XJ/wJE3SdjkhDaxDZwmihpKzWNNLrEp1sbvXUJwzU"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Digest characters '+' and '/' belong to standard base64, not the base64url alphabet."
+    },
+    {
+      "id": "digest-noncanonical-padbits-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per Sanity webhook docs (https://www.sanity.io/docs/content-lake/webhook-best-practices, fetched 2026-10-20 by phase-5 research) and pinned webhook-toolkit src/signature.ts at commit e0c211ed6cd80465a70829e335c9e219f37839ba; strict grammar and error codes are Hooklatch receiver policy, not toolkit parity; opaque-byte body handling extends the string-oriented reference SDK; node:crypto recomputation"
+      },
+      "request": {
+        "bodyBase64": "eyJfaWQiOiAiZ2xtX3Nhbml0eV9zdGFnZV9hIiwgIl90eXBlIjogInBvc3QiLCAidGl0bGUiOiAiSG9va2xhdGNoIFN0YWdlIEEifQ==",
+        "headers": {
+          "sanity-webhook-signature": "t=1700000000000,v1=51SYbu4cJM_tD1FoASceNZLnGnYAqRjuH5vKpAFA5yx"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_sanity_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Final character carries nonzero unused pad bits but decodes to the same 32 bytes; canonical re-encoding rejects it."
+    }
+  ]
+}
