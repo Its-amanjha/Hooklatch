@@ -47,6 +47,8 @@ test('reports absent and whitespace-only signatures as missing', () => {
     { [SIGNATURE_HEADER]: '' },
     { [SIGNATURE_HEADER]: '   ' },
     { [SIGNATURE_HEADER]: '\t ' },
+    { authorization: `Bearer ${SECRET}` },
+    { authorization: `Basic ${Buffer.from(`synthetic:${SECRET}`, 'utf8').toString('base64')}` },
   ]) {
     expect(expectFailure(dopplerDescriptor.parse(headerMap(headers), BODY)).reason).toBe('missing-signature');
   }
@@ -89,6 +91,8 @@ test('rejects every nonconforming signature shape as malformed', () => {
     `${SHA256_PREFIX}${digest.slice(0, 63)}g`,
     `${SHA256_PREFIX}${'z'.repeat(64)}`,
     'not-a-signature',
+    `sha.256=${digest}`,
+    `sha+256=${digest}`,
   ]) {
     expect(expectFailure(parse(value)).reason).toBe('malformed-signature');
   }
@@ -102,6 +106,8 @@ test('rejects duplicate digests instead of treating them as a rotation list', ()
     { [SIGNATURE_HEADER]: `${digest}, ${digest}` },
     { [SIGNATURE_HEADER]: [digest, digest] },
     { [SIGNATURE_HEADER]: [digest, digest.toUpperCase()] },
+    { [SIGNATURE_HEADER]: [signedValue(SECRET), signedValue(SECRET)] },
+    { 'X-Doppler-Signature': signedValue(SECRET), [SIGNATURE_HEADER]: signedValue(SECRET) },
   ]) {
     expect(expectFailure(dopplerDescriptor.parse(headerMap(headers), BODY)).reason).toBe('malformed-signature');
   }
@@ -211,7 +217,7 @@ test('signs the exact raw bytes, not an equivalent re-serialization', async () =
   const parsed = expectOk(parse(signedValue(SECRET)));
 
   const reSerialized = utf8('{"type": "config.updated","config":"staging","project":"synthetic"}');
-  const timestampPrefixed = utf8(`1700000000.${BODY}`);
+  const timestampPrefixed = Buffer.concat([Buffer.from('1700000000.', 'utf8'), BODY]);
 
   expect(parsed.signedContent).toEqual(BODY);
 

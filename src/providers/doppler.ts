@@ -20,8 +20,8 @@ const SIGNATURE_SCHEME = 'sha256';
  * never Base64-decoded and no `whsec_`-style prefix is inferred, so an empty
  * secret is an invalid configuration rather than an encoded empty key.
  *
- * The HMAC covers the exact raw body only. Doppler publishes no timestamp,
- * delivery ID or signed event identifier, so every identity field is null and
+ * The HMAC covers the exact raw body only; no timestamp or identifier is
+ * included in the MAC, so every identity field is null and
  * `authenticatedFields` is empty: this descriptor never establishes freshness and
  * offers no replay protection. Signing is optional on the Doppler side, so a
  * delivery without a configured secret carries no signature and cannot be
