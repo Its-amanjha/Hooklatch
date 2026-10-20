@@ -4,7 +4,7 @@
       "id": "positive-baseline",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -33,7 +33,7 @@
       "id": "positive-uppercase-hex-accepted",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -62,7 +62,7 @@
       "id": "positive-unsigned-headers-present",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -95,7 +95,7 @@
       "id": "positive-unsigned-headers-forged-still-ok",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -128,7 +128,7 @@
       "id": "rotation-both-secrets-accept-old",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -158,7 +158,7 @@
       "id": "rotation-old-secret-after-removal",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -182,7 +182,7 @@
       "id": "empty-body-signed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "",
@@ -211,7 +211,7 @@
       "id": "non-json-body-signed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "cGxhaW4gdGV4dCBib2R5LCBub3QgSlNPTiBhdCBhbGw=",
@@ -240,7 +240,7 @@
       "id": "invalid-utf8-body-signed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "aMMo",
@@ -269,7 +269,7 @@
       "id": "tampered-body",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMiIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -293,7 +293,7 @@
       "id": "missing-signature-header",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -314,7 +314,7 @@
       "id": "blank-signature-is-missing",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -338,7 +338,7 @@
       "id": "empty-value-is-missing-signature",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -362,7 +362,7 @@
       "id": "prefixed-sha256-64-hex-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -386,7 +386,7 @@
       "id": "sha1-prefixed-64-hex-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -410,7 +410,7 @@
       "id": "standard-webhooks-token-list-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -434,7 +434,7 @@
       "id": "outer-whitespace-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -457,7 +457,7 @@
       "id": "inner-whitespace-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -480,7 +480,7 @@
       "id": "comma-combined-duplicates-are-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -504,7 +504,7 @@
       "id": "short-63-hex-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -527,7 +527,7 @@
       "id": "long-65-hex-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -551,7 +551,7 @@
       "id": "non-hex-64-chars-are-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -575,7 +575,7 @@
       "id": "trailing-comma-is-malformed",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",
@@ -598,7 +598,7 @@
       "id": "other-sentry-headers-alone-is-missing",
       "provenance": {
         "class": "local",
-        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (sources fetched 2026-10-20 by phase-5 research, notes/phase-5/provider-batch-3.md); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no provider-published vector exists; node:crypto recomputation"
+        "source": "synthetic local vector; recipe per Sentry App integration-platform webhook docs (https://docs.sentry.io/integrations/integration-platform/webhooks) and pinned source app_platform_event.py at commit 72757dae9b6d527e564c81d4921dec0d62d7beca plus sentry_app.py at commit 9cca6d24b06f58bfccbda225aa543a6fd5319f59 (source documentation reviewed 2026-10-20); covers the integration-platform mode only, not a claim of support for every Sentry webhook product; exact raw-body HMAC with literal secret, unsigned context headers ignored; no complete provider-published tuple was located in the cited material; node:crypto recomputation"
       },
       "request": {
         "bodyBase64": "eyJhY3Rpb24iOiAiY3JlYXRlZCIsICJhY3RvciI6IHsiaWQiOiAiMTAwMSIsICJuYW1lIjogIkhvb2tsYXRjaCBTdGFnZSBBIiwgInR5cGUiOiAidXNlciJ9LCAiZGF0YSI6IHsiaXNzdWUiOiB7ImlkIjogIjEwMDEifX0sICJpbnN0YWxsYXRpb24iOiB7InV1aWQiOiAiZ2xtLXNlbnRyeS1hcHAtMDAwMSJ9fQ==",

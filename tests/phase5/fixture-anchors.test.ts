@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { combinedHeader, fixtureBytes } from '../verification/helpers.js';
+import { combinedHeader, fixtureBytes, isFixtureFile } from '../verification/helpers.js';
 import type { FixtureCase } from '../verification/helpers.js';
 
 /**
@@ -15,81 +15,6 @@ import type { FixtureCase } from '../verification/helpers.js';
  * .125-multiples are asserted with toBe, non-representable .001 drifts only
  * through range mirrors.
  */
-
-interface Phase5FixtureFile {
-  readonly cases: readonly FixtureCase[];
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
-}
-
-function isIdentityValue(value: unknown): value is string | number | null {
-  return value === null || typeof value === 'string' || typeof value === 'number';
-}
-
-function isHeaderValue(value: unknown): value is string | readonly string[] {
-  return isString(value) || (Array.isArray(value) && value.every(isString));
-}
-
-/** Mirrors the shared loader's schema guard; the shared loader is legacy-files-only and must stay unchanged. */
-function isFixtureFile(value: unknown): value is Phase5FixtureFile {
-  if (typeof value !== 'object' || value === null || !('cases' in value) || !Array.isArray(value.cases)) return false;
-
-  return value.cases.every((entry: unknown): entry is FixtureCase => {
-    if (typeof entry !== 'object' || entry === null) return false;
-
-    if (!('id' in entry) || typeof entry.id !== 'string') return false;
-
-    if (!('request' in entry) || typeof entry.request !== 'object' || entry.request === null) return false;
-
-    if (!('bodyBase64' in entry.request) || typeof entry.request.bodyBase64 !== 'string') return false;
-
-    if (!('headers' in entry.request) || typeof entry.request.headers !== 'object' || entry.request.headers === null) return false;
-
-    if (!Object.values(entry.request.headers).every(isHeaderValue)) return false;
-
-    if (!('options' in entry) || typeof entry.options !== 'object' || entry.options === null) return false;
-
-    if (!('secrets' in entry.options) || !Array.isArray(entry.options.secrets) || !entry.options.secrets.every(isString)) return false;
-
-    if (!('now' in entry.options) || typeof entry.options.now !== 'number') return false;
-
-    if ('toleranceSeconds' in entry.options && typeof entry.options.toleranceSeconds !== 'number') return false;
-
-    if (!('expected' in entry) || typeof entry.expected !== 'object' || entry.expected === null) return false;
-
-    if (!('ok' in entry.expected) || typeof entry.expected.ok !== 'boolean') return false;
-
-    if ('reason' in entry.expected && typeof entry.expected.reason !== 'string') return false;
-
-    if ('identity' in entry.expected) {
-      const identity = entry.expected.identity;
-
-      if (typeof identity !== 'object' || identity === null) return false;
-
-      if (!('deliveryId' in identity) || !isIdentityValue(identity.deliveryId)) return false;
-
-      if (!('eventId' in identity) || !isIdentityValue(identity.eventId)) return false;
-
-      if (!('timestamp' in identity) || (identity.timestamp !== null && typeof identity.timestamp !== 'number')) return false;
-
-      if (!('authenticatedFields' in identity) || !Array.isArray(identity.authenticatedFields) || !identity.authenticatedFields.every(isString)) return false;
-    }
-
-    if (!('provenance' in entry) || typeof entry.provenance !== 'object' || entry.provenance === null) return false;
-
-    if (!('class' in entry.provenance) || (entry.provenance.class !== 'reference' && entry.provenance.class !== 'local')) return false;
-
-    if ('commit' in entry.provenance && typeof entry.provenance.commit !== 'string') return false;
-
-    if ('fetched' in entry.provenance && typeof entry.provenance.fetched !== 'string') return false;
-
-    if ('notes' in entry && typeof entry.notes !== 'string') return false;
-
-    return 'source' in entry.provenance && typeof entry.provenance.source === 'string';
-  });
-}
 
 function loadPhase5FixtureFile(fileName: string): readonly FixtureCase[] {
   const raw = readFileSync(new URL(`../fixtures/${fileName}`, import.meta.url), 'utf8');
@@ -340,7 +265,7 @@ describe('phase 5 fixture inventory', () => {
     expect(SANITY_CASES.map((fixture) => fixture.id)).toEqual(SANITY_CASE_IDS);
   });
 
-  it('keeps every case fully local because no published vectors exist for the three', () => {
+  it('keeps every case locally generated rather than claiming reference-vector provenance', () => {
     const allCases = [...SENTRY_CASES, ...DOPPLER_CASES, ...SANITY_CASES];
 
     expect(allCases.every((fixture) => fixture.provenance.class === 'local')).toBe(true);
@@ -452,7 +377,7 @@ describe('sentry fixture anchors', () => {
     }
   });
 
-  it('rejects prefixed values as malformed even though the inner hex is a real MAC', () => {
+  it('pins malformed prefixed-value expectations whose inner hex authenticates', () => {
     const probes = [
       { id: 'prefixed-sha256-64-hex-is-malformed', pattern: /^sha256=([0-9a-f]{64})$/ },
       { id: 'sha1-prefixed-64-hex-is-malformed', pattern: /^sha1=([0-9a-f]{64})$/ },
@@ -540,7 +465,7 @@ describe('sentry fixture anchors', () => {
     expect(() => UTF8_STRICT.decode(fixtureBytes(findCase(SENTRY_CASES, 'invalid-utf8-body-signed')))).toThrow();
   });
 
-  it('exercises rotation through the configured secret accept-set', () => {
+  it('checks fixture MACs against retained and removed secret accept-sets', () => {
     const acceptCase = findCase(SENTRY_CASES, 'rotation-both-secrets-accept-old');
     const removalCase = findCase(SENTRY_CASES, 'rotation-old-secret-after-removal');
 
@@ -684,7 +609,7 @@ describe('doppler fixture anchors', () => {
     expect(() => UTF8_STRICT.decode(fixtureBytes(findCase(DOPPLER_CASES, 'invalid-utf8-body-signed')))).toThrow();
   });
 
-  it('exercises rotation through the configured secret accept-set', () => {
+  it('checks fixture MACs against retained and removed secret accept-sets', () => {
     const acceptCase = findCase(DOPPLER_CASES, 'rotation-both-secrets-accept-old');
     const removalCase = findCase(DOPPLER_CASES, 'rotation-old-secret-after-removal');
 
@@ -881,7 +806,7 @@ describe('sanity fixture anchors', () => {
     expect(pastExpired.expected.identity).toBeUndefined();
   });
 
-  it('checks the MAC before the clock on the wrong-before-stale inputs', () => {
+  it('pins stale bad-MAC fixture expectations without executing verification order', () => {
     const fixture = findCase(SANITY_CASES, 'wrong-signature-beats-stale');
     const anchorHeader = readSanitySignatureForAnchor(combinedHeader(fixture, SANITY_SIG_HEADER) ?? '');
     const identityTs = Number(anchorHeader?.msText ?? '') / 1000;
@@ -917,7 +842,7 @@ describe('sanity fixture anchors', () => {
     expect(sanitySignatureVerifies(tTamper, tTamperHeader?.msText ?? '', tTamperHeader?.digestText ?? '', fixtureBytes(tTamper))).toBe(false);
   });
 
-  it('pins the minimum-timestamp policy at both microsecond edges', () => {
+  it('pins the minimum-timestamp policy at millisecond edges', () => {
     const minOk = findCase(SANITY_CASES, 'min-timestamp-inclusive-ok');
     const minHeader = readSanitySignatureForAnchor(combinedHeader(minOk, SANITY_SIG_HEADER) ?? '');
 
@@ -1102,7 +1027,7 @@ describe('sanity fixture anchors', () => {
     expect(() => JSON.parse(UTF8_LOOSE.decode(fixtureBytes(findCase(SANITY_CASES, 'non-json-body-signed'))))).toThrow();
   });
 
-  it('exercises rotation through the configured secret accept-set', () => {
+  it('checks fixture MACs against retained and removed secret accept-sets', () => {
     const acceptCase = findCase(SANITY_CASES, 'rotation-both-secrets-accept-old');
     const removalCase = findCase(SANITY_CASES, 'rotation-old-secret-after-removal');
     const acceptHeader = readSanitySignatureForAnchor(combinedHeader(acceptCase, SANITY_SIG_HEADER) ?? '');
