@@ -9,8 +9,8 @@ const OLD_SECRET = 'synthetic.sentry.old.5b21';
 const ACTIVE_SECRET = 'synthetic.sentry.active.9c43';
 
 /**
- * Fixed synthetic body with the spaces and trailing newline Sentry's Python
- * serializer emits. Re-serializing this JSON changes the signed bytes.
+ * Synthetic JSON body with explicit spaces and a trailing newline.
+ * These are local test bytes, not claimed output of Sentry's serializer.
  */
 const BODY = utf8(
   '{"action": "created", "installation": {"uuid": "00000000-0000-4000-8000-000000000001"}, "data": {"issue": {"id": "1001"}}}\n',

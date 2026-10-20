@@ -13,7 +13,7 @@ const SIGNATURE_HEADER = 'sentry-hook-signature';
  *
  * `Request-Id`, `Sentry-Hook-Timestamp` and `Sentry-Hook-Resource` are outside
  * the MAC: they cannot establish freshness or trusted identity. Sentry's docs
- * examples re-serialize the parsed body, which changes the signed bytes; this
+ * examples re-serialize the parsed body, which can change the signed bytes; this
  * descriptor always returns the untouched `rawBody` as signed content.
  *
  * Scope is Sentry App integration-platform webhooks only, not every Sentry
