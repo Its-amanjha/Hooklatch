@@ -8,7 +8,8 @@ See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Qualified provider protocols
 
-These thirteen providers are integrated and qualified on the current release.
+These thirteen providers are integrated and qualified in the current codebase.
+The package has not yet been published to npm.
 
 | ID | Header | Signed content | Secret form | Identity |
 |---|---|---|---|---|
@@ -89,6 +90,11 @@ is not replay protection.
 - **Source:** https://docs.lemonsqueezy.com/help/webhooks/signing-requests
 
 ### Dodo Payments
+
+For Dodo Payments, GitLab signing-token mode and Replicate, the default
+freshness window is 300 seconds. Their authenticated `eventId` is the signed
+`webhook-id` message identifier, not a business-event or resource ID extracted
+from the payload. Retry consistency follows each provider's documented rules.
 
 - **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
   `webhook-timestamp`, and `webhook-signature` headers only. No `svix-*`
@@ -236,16 +242,22 @@ Do not treat anything in this section as advertised support.
   fields, semicolon separators, padding, or alternate versions.
 - **Missing or trim-blank header** → `missing-signature`. Any other nonmatching
   structure → `malformed-signature` (including `t`-only, `v1`-only and
-  `v2`-only). Do not invent alternate reason precedence.
+  `v2`-only).
 - `ms` is a canonical nonnegative safe decimal integer (no leading zeros except
   `0`), at least `1609459200000` (2021-01-01 UTC). Earlier values →
   `malformed-signature`.
 - `digest` is EXACTLY 43 characters from `A-Z a-z 0-9 _ -`, canonical unpadded
   Base64url decoding to 32 bytes. Re-encoding must match to reject nonzero
-  unused pad bits. Keep the decoder local to Sanity; do not loosen shared
-  standard-Base64 handling.
+  unused pad bits. This encoding is distinct from standard Base64 used by
+  Standard Webhooks-family protocols.
 - **Identity:** `timestamp` = `Number(ms)/1000`, `deliveryId`/`eventId` =
   `null`, `authenticatedFields` = `['timestamp']`.
+- **Planned freshness policy:** a two-sided, inclusive 300-second default
+  window, with fractional epoch seconds from `Date.now()/1000`. A custom
+  `now` returns epoch seconds; explicit tolerance `0` is zero-width and never
+  bypasses freshness. The MAC is checked before freshness. This is Hooklatch
+  receiver policy, not an established Sanity SDK recency default, and remains
+  pending implementation and qualification.
 - Accept empty, NUL, invalid UTF-8 and non-JSON bodies as opaque bytes; this
   extends the string-oriented reference SDK. Do not claim exact SDK parity or
   live interoperability.
