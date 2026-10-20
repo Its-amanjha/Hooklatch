@@ -94,6 +94,11 @@ Provider-specific rules:
   Webhooks header/key recipe; no branded aliases or legacy-token fallback.
 - **WorkOS** — signs millisecond `t.body` with a literal key and hex `v1`;
   default tolerance is 180 seconds with a fractional epoch-second clock.
+- **Sentry App / signed Doppler** — body-only literal-key HMAC-SHA256; bare
+  hex for Sentry App and `sha256=<hex>` for Doppler. No signed freshness/IDs.
+- **Sanity** — canonical `t=<ms>,v1=<unpadded Base64url>` over millisecond
+  timestamp text, dot and raw bytes. Local32-byte decoder; 300-second symmetric
+  freshness is receiver policy, with a fractional epoch-second clock.
   Other timestamped providers retain their existing 300-second defaults.
 
 Before advertising provider support:
@@ -149,6 +154,8 @@ A bounded review on 2026-10-19 compared Hooklatch at `544b09f` with
 and found no distinctive copied implementation block or documentation passage.
 That review does not prove independent authorship or establish rights.
 
+Two Sanity reference tuples are attributed to the [pinned toolkit test suite](https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/test/signature.test.ts).
+The separate Phase5 JSON corpora are locally generated synthetic cases.
 Published reference vectors retain their original source links in fixtures,
 tests, and the README. Standard Webhooks' pinned repository has an Apache-2.0
 root license and a nested [MIT notice attributed to Svix, copyright 2023](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE).

@@ -1,14 +1,13 @@
 # Provider guide
 
-Reference for thirteen qualified provider IDs plus three providers pending
-integration and qualification. Paddle support covers Billing webhooks only.
+Reference for sixteen qualified provider IDs. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Qualified provider protocols
 
-These thirteen providers are integrated and qualified in the current codebase.
+These sixteen providers are integrated and qualified in the current codebase.
 The package has not yet been published to npm.
 
 | ID | Header | Signed content | Secret form | Identity |
@@ -183,17 +182,17 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Sources:** https://workos.com/docs/events/data-syncing/webhooks;
   pinned SDK https://raw.githubusercontent.com/workos/workos-node/ad8bff226e9b37435f0c62390318d4819f76b3d1/src/common/crypto/signature-provider.ts
 
-## Providers pending integration and qualification
+## Sentry App, signed Doppler and Sanity
 
-The following three provider IDs are documented here only as planned protocol
-mappings. They are **not implemented, not registered, and not qualified**.
-Do not treat anything in this section as advertised support.
+These provider modes use the same verification APIs, diagnostics, CLI and adapters.
+Tests use synthetic signatures and pinned Sanity SDK reference tuples; no live
+provider delivery or account interoperability is claimed.
 
 | ID | Header | Signed content | Secret form | Identity | Status |
 |---|---|---|---|---|---|
-| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null | Pending |
-| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null | Pending |
-| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated | Pending |
+| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null | Qualified |
+| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null | Qualified |
+| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated | Qualified |
 
 ### Sentry App
 
@@ -210,7 +209,7 @@ Do not treat anything in this section as advertised support.
 - No claim is made for support of all Sentry webhook products.
 - **Sources:** https://docs.sentry.io/integrations/integration-platform/webhooks/;
   https://github.com/getsentry/sentry/blob/72757dae9b6d527e564c81d4921dec0d62d7beca/src/sentry/sentry_apps/api/serializers/app_platform_event.py
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ### Doppler signed mode
 
@@ -229,7 +228,7 @@ Do not treat anything in this section as advertised support.
 - No Basic/Bearer fallback, unsigned acceptance, token auth, or replay-protection
   claim.
 - **Source:** https://docs.doppler.com/docs/webhooks
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ### Sanity
 
@@ -252,12 +251,11 @@ Do not treat anything in this section as advertised support.
   Standard Webhooks-family protocols.
 - **Identity:** `timestamp` = `Number(ms)/1000`, `deliveryId`/`eventId` =
   `null`, `authenticatedFields` = `['timestamp']`.
-- **Planned freshness policy:** a two-sided, inclusive 300-second default
+- **Freshness policy:** a two-sided, inclusive 300-second default
   window, with fractional epoch seconds from `Date.now()/1000`. A custom
   `now` returns epoch seconds; explicit tolerance `0` is zero-width and never
   bypasses freshness. The MAC is checked before freshness. This is Hooklatch
-  receiver policy, not an established Sanity SDK recency default, and remains
-  pending implementation and qualification.
+  receiver policy, not an established Sanity SDK recency default.
 - Accept empty, NUL, invalid UTF-8 and non-JSON bodies as opaque bytes; this
   extends the string-oriented reference SDK. Do not claim exact SDK parity or
   live interoperability.
@@ -266,7 +264,7 @@ Do not treat anything in this section as advertised support.
   list or rotation within the header; configured multiple secrets still work in
   core.
 - **Source:** https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/src/signature.ts
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ## Cross-provider rules
 
@@ -294,14 +292,17 @@ Do not treat anything in this section as advertised support.
   during credential rotation but does not deduplicate business events.
 - **Case-insensitive headers** through the normalizer. Repeated names are
   comma-combined; Web `Headers` can normalize surrounding whitespace. These
-  transformations are distinct from preserving the signed body bytes.
+  transformations are distinct from preserving the signed body bytes. Record and
+  tuple inputs preserve literal outer whitespace; Web `Headers` and `Request`
+  remove it before verification. A strict raw-header rejection can therefore
+  become valid for the normalized input without changing the signed body.
 
 ## What this guide does not cover
 
 - No event extraction beyond the listed identity fields.
 - No queue guarantees, retry, DLQ, or delivery semantics.
 - No account setup, secret registration, or dashboard flows.
-- No new public API, provider auto-detection, or `Provider` union changes.
+- Provider selection is explicit; automatic detection is not implemented.
 - No Vercel/SHA-1, new algorithms, or dependency updates.
 - No live-provider validation or exactly-once delivery claims.
 - No Relay exists or is advertised: Relay is a future separately installed

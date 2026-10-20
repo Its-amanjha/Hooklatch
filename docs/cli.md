@@ -15,7 +15,7 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
   `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`,
-  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, or `workos`. The list comes from the
+  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, or `sanity`. The list comes from the
   package's internal provider registry; pending providers are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
 
@@ -30,7 +30,8 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   `CLERK_WEBHOOK_SIGNING_SECRET`, `SVIX_WEBHOOK_SECRET`,
   `RAZORPAY_WEBHOOK_SECRET`, `PADDLE_WEBHOOK_SECRET`,
   `LEMON_SQUEEZY_WEBHOOK_SECRET`, `DODO_WEBHOOK_SECRET`,
-  `GITLAB_WEBHOOK_SECRET`, `REPLICATE_WEBHOOK_SECRET`, `WORKOS_WEBHOOK_SECRET`.
+  `GITLAB_WEBHOOK_SECRET`, `REPLICATE_WEBHOOK_SECRET`, `WORKOS_WEBHOOK_SECRET`,
+  `SENTRY_WEBHOOK_SECRET`, `DOPPLER_WEBHOOK_SECRET`, `SANITY_WEBHOOK_SECRET`.
 - `--body-limit <bytes>` — positive safe integer body limit baked into the
   generated options. Default: `1048576`.
 - `--dry-run` — validate arguments and the target path, then print the

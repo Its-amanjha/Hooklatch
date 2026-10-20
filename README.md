@@ -7,7 +7,8 @@ Portable webhook signature verification with a zero-dependency core.
 Hooklatch checks incoming webhook signatures over the exact request bytes
 before your code parses or trusts the payload. It supports Stripe, GitHub,
 Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing, Lemon
-Squeezy, Dodo Payments, GitLab signing tokens, Replicate and WorkOS through one asynchronous API,
+Squeezy, Dodo Payments, GitLab signing tokens, Replicate, WorkOS, Sentry App,
+Doppler signed webhooks and Sanity through one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Requirements
@@ -81,6 +82,9 @@ payload schemas.
 | GitLab signing tokens | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
 | Replicate | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
 | WorkOS | `t.body`, with millisecond `t` | Literal secret string | Signed; default 180 seconds | Signed timestamp only |
+| Sentry App | Body only | Literal client secret | None signed | None extracted |
+| Doppler signed mode | Body only | Literal secret string | None signed | None extracted |
+| Sanity | `t.body`, with millisecond `t` | Literal secret string | Signed; default 300 seconds (receiver policy) | Signed timestamp only |
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are
@@ -95,7 +99,7 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-20):** The core, thirteen provider descriptors,
+> **Implementation status (2026-10-21):** The core, sixteen provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
@@ -149,7 +153,9 @@ verify(
   does not promise exact SDK clock or parser parity. Body-only protocols have
   no authenticated timestamp; signature verification alone does not stop replay.
 - `now` — clock injection for tests; returns epoch seconds and may be fractional.
-  WorkOS's default clock preserves milliseconds; other default clocks use whole seconds.
+  WorkOS and Sanity preserve milliseconds in their default clocks; other default
+  clocks use whole seconds. Sanity's 300-second freshness window is Hooklatch
+  receiver policy, not an established upstream SDK recency default.
 - `maxBodyBytes` — body size limit. Default `1048576` (1 MiB). Enforced
   while reading, not just from `Content-Length`.
 
@@ -343,7 +349,11 @@ MIT — see `LICENSE`.
 
 Reference test vectors come from [GitHub's webhook verification documentation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)
 and the [Standard Webhooks JavaScript test suite at a pinned revision](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/javascript/src/webhook.test.ts).
-They are external reference material. The latter repository includes an
+Additional reference tuples come from the [Sanity toolkit tests at a pinned revision](https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/test/signature.test.ts).
+The [Paddle Node SDK validator tests](https://github.com/PaddleHQ/paddle-node-sdk/blob/651261beddfc65ba5f861729dca17044cbeffb5f/src/__tests__/notifications/webhooks-validator.node.test.ts)
+also supply two published reference tuples. These are external reference material;
+locally generated cases are separately labelled synthetic.
+The Standard Webhooks repository includes an
 [MIT notice under `libraries/`](https://github.com/standard-webhooks/standard-webhooks/blob/7537d2a2d3d52d8f2e0ecd12527af4a9307fd81b/libraries/LICENSE).
 See [source and history notes](https://github.com/Its-amanjha/Hooklatch/blob/main/CONTRIBUTING.md#source-and-history-notes)
 for attribution and review limits.
