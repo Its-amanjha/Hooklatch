@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "grafana-provider-options-absent-is-invalid",
+      "provider": "grafana",
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Public API requires providerOptions for grafana; omission is invalid rather than defaulted."
+    },
+    {
+      "id": "grafana-provider-options-null-is-not-an-object",
+      "provider": "grafana",
+      "providerOptions": null,
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Non-null plain objects only."
+    },
+    {
+      "id": "grafana-mode-is-required",
+      "provider": "grafana",
+      "providerOptions": {},
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Explicit mode is always required."
+    },
+    {
+      "id": "grafana-unknown-mode-is-invalid",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "dual"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Only body and timestamped exist."
+    },
+    {
+      "id": "grafana-body-rejects-own-timestamp-header",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "timestampHeader": "x-ts"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Body mode forbids ANY own timestampHeader (JSON cannot carry undefined; null and named strings are expressed here)."
+    },
+    {
+      "id": "grafana-timestamped-requires-timestamp-header",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "timestamped"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Timestamped mode requires an own timestampHeader."
+    },
+    {
+      "id": "grafana-explicit-empty-signature-header",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "signatureHeader": ""
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Explicit empty is invalid; omission selects the default."
+    },
+    {
+      "id": "grafana-explicit-null-signature-header",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "signatureHeader": null
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Null is an invalid explicit value."
+    },
+    {
+      "id": "grafana-reserved-signature-header-is-rejected",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "signatureHeader": "Cookie"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Hooklatch reserved-name policy is case-insensitive."
+    },
+    {
+      "id": "grafana-reserved-timestamp-header-is-rejected",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "timestamped",
+        "timestampHeader": "Content-Length"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "The reserved list covers both fields."
+    },
+    {
+      "id": "grafana-colliding-names-are-invalid",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "timestamped",
+        "signatureHeader": "X-Sig",
+        "timestampHeader": "x-sig"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Signature and timestamp names must differ case-insensitively."
+    },
+    {
+      "id": "grafana-signature-header-not-a-token",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "signatureHeader": "not a token"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Nonempty RFC 9110 field-name tokens only; no trimming of configuration."
+    },
+    {
+      "id": "grafana-unexpected-own-key-is-rejected",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "body",
+        "note": "x"
+      },
+      "secrets": [
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Unexpected own enumerable keys are rejected."
+    },
+    {
+      "id": "grafana-secret-entry-beats-invalid-mode",
+      "provider": "grafana",
+      "providerOptions": {
+        "mode": "dual"
+      },
+      "secrets": [
+        "",
+        "hooklatch_stage_a_grafana_secret"
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "Basic secret-list validation precedes provider configuration."
+    },
+    {
+      "id": "polar-secret-entry-beats-invalid-mode",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "dual"
+      },
+      "secrets": [
+        ""
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "Ordering pin for polar as well."
+    },
+    {
+      "id": "polar-non-string-secret-entry-is-invalid-secret",
+      "provider": "polar",
+      "secrets": [
+        5
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "Non-string entries fail the basic list validation like empty strings."
+    },
+    {
+      "id": "polar-unknown-secret-mode-is-invalid",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "dual"
+      },
+      "secrets": [
+        "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Only current and legacy exist; omission defaults to current."
+    },
+    {
+      "id": "polar-null-secret-mode-is-invalid",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": null
+      },
+      "secrets": [
+        "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Null is an invalid explicit value."
+    },
+    {
+      "id": "polar-options-null-is-not-an-object",
+      "provider": "polar",
+      "providerOptions": null,
+      "secrets": [
+        "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "providerOptions null never means default."
+    },
+    {
+      "id": "polar-unexpected-own-key-is-rejected",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "current",
+        "dual": true
+      },
+      "secrets": [
+        "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Unexpected own enumerable keys are rejected."
+    },
+    {
+      "id": "polar-non-base64-secret-under-current",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "current"
+      },
+      "secrets": [
+        "hooklatch_polar_plain_not_base64"
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "Current mode decodes every secret strictly."
+    },
+    {
+      "id": "polar-too-short-canonical-key",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "current"
+      },
+      "secrets": [
+        "shortkey"
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "Decoded key bytes must be 24..64."
+    },
+    {
+      "id": "polar-mixed-era-list-decodes-per-mode",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "current"
+      },
+      "secrets": [
+        "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk",
+        "hooklatch_stage_a_polar_legacy_literal"
+      ],
+      "expectedError": "invalid-secret",
+      "notes": "One mode applies to every configured secret; a legacy literal fails current decoding."
+    },
+    {
+      "id": "polar-invalid-config-beats-bad-current-secret",
+      "provider": "polar",
+      "providerOptions": {
+        "secretMode": "dual"
+      },
+      "secrets": [
+        "hooklatch_polar_plain_not_base64"
+      ],
+      "expectedError": "invalid-options",
+      "notes": "Provider configuration validation precedes descriptor key decoding."
+    }
+  ]
+}
