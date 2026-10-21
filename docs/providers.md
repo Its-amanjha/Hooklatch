@@ -47,12 +47,12 @@ deduplicating an unsigned delivery header alone is not replay protection.
 
 ### Razorpay
 
-- **Header:** `X-Razorpay-Signature` â€” single 64-hex HMAC-SHA256 over the raw
+- **Header:** `X-Razorpay-Signature` — single 64-hex HMAC-SHA256 over the raw
   body.
-- **Missing / whitespace-only header** â†’ `missing-signature`. Other invalid
-  tokens, comma-combined duplicates, prefixes, or lists â†’ `malformed-signature`.
+- **Missing / whitespace-only header** → `missing-signature`. Other invalid
+  tokens, comma-combined duplicates, prefixes, or lists → `malformed-signature`.
 - **Identity:** optional `x-razorpay-event-id` maps to `eventId`, never
-  authenticated; absent or whitespace-only â†’ `null`, otherwise preserved
+  authenticated; absent or whitespace-only → `null`, otherwise preserved
   without further trim. `deliveryId` and `timestamp` are `null`;
   `authenticatedFields` is empty.
 - **Optional metadata does not affect signature acceptance.**
@@ -60,7 +60,7 @@ deduplicating an unsigned delivery header alone is not replay protection.
 
 ### Paddle Billing only
 
-- **Header:** `Paddle-Signature` â€” semicolon-delimited `key=value` fields.
+- **Header:** `Paddle-Signature` — semicolon-delimited `key=value` fields.
 - Exactly one canonical nonnegative safe decimal `ts`; at least one `h1`, each
   exactly 64 hex. Repeated `h1` values are a Hooklatch accept-set policy, not
   a claim of distinct-key SDK parity. Every `h1` must be valid; a malformed one
@@ -68,10 +68,10 @@ deduplicating an unsigned delivery header alone is not replay protection.
 - Unknown nonempty scheme-token fields (such as `h2`) may be ignored after
   validation. Their values must be nonempty printable ASCII without whitespace,
   commas, semicolons, or extra equals signs. Invalid key / empty value / empty
-  segment / commas â†’ `malformed-signature`. Duplicate `ts` is always malformed.
-- Missing/blank header â†’ `missing-signature`; no `h1` but other valid
-  signature versions â†’ `unsupported-scheme`; `ts`-only â†’ `missing-signature`;
-  valid `h1` but absent `ts` â†’ `missing-timestamp`; malformed present `ts` â†’
+  segment / commas → `malformed-signature`. Duplicate `ts` is always malformed.
+- Missing/blank header → `missing-signature`; no `h1` but other valid
+  signature versions → `unsupported-scheme`; `ts`-only → `missing-signature`;
+  valid `h1` but absent `ts` → `missing-timestamp`; malformed present `ts` →
   `malformed-signature`. Structure and all tokens are validated before
   required fields are checked.
 - **Signed content:** exact `ts` UTF-8 + `:` + raw body bytes.
@@ -85,7 +85,7 @@ deduplicating an unsigned delivery header alone is not replay protection.
 
 ### Lemon Squeezy
 
-- **Header:** `X-Signature` â€” single 64-hex HMAC-SHA256 over the raw body.
+- **Header:** `X-Signature` — single 64-hex HMAC-SHA256 over the raw body.
 - Same missing/malformed policy as Razorpay.
 - All identity fields null; `authenticatedFields` empty.
 - Provider UI secret-creation limits are not assumed to be a cryptographic
@@ -105,7 +105,7 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Identity:** `eventId` = `webhook-id`, `deliveryId` = `null`,
   `authenticatedFields` = `['eventId', 'timestamp']`. Does not infer resource
   IDs or exactly-once semantics.
-- **Secret:** canonical Standard Webhooks key handling; 24â€“64 decoded-byte
+- **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** https://docs.dodopayments.com/developer-resources/webhooks
 
@@ -123,7 +123,7 @@ from the payload. Retry consistency follows each provider's documented rules.
   across endpoints can allow cross-endpoint replay; use endpoint-specific
   secrets and route configuration. Do not infer resource IDs or exactly-once
   semantics.
-- **Secret:** canonical Standard Webhooks key handling; 24â€“64 decoded-byte
+- **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** https://docs.gitlab.com/user/project/integrations/webhooks/#signing-tokens
 
@@ -135,13 +135,13 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Identity:** `eventId` = `webhook-id`, `deliveryId` = `null`,
   `authenticatedFields` = `['eventId', 'timestamp']`. Does not infer resource
   IDs or exactly-once semantics.
-- **Secret:** canonical Standard Webhooks key handling; 24â€“64 decoded-byte
+- **Secret:** canonical Standard Webhooks key handling; 24–64 decoded-byte
   limits apply.
 - **Source:** https://replicate.com/docs/topics/webhooks/verify-webhook
 
 ### WorkOS
 
-- **Header:** `workos-signature` â€” comma-separated `key=value` fields with outer
+- **Header:** `workos-signature` — comma-separated `key=value` fields with outer
   segment whitespace trimmed. Field names are case-sensitive; whitespace around
   `=` is rejected (segments are trimmed only, not interior whitespace).
 - **Secret:** literal nonempty untrimmed UTF-8 string. HMAC-SHA256 over
@@ -159,10 +159,10 @@ from the payload. Retry consistency follows each provider's documented rules.
   and equals signs. Empty segments / missing `=` / empty value / extra `=`
   fail `malformed-signature`. Whole structure is validated before required
   fields are checked.
-- **Missing/blank whole header** â†’ `missing-signature`. No `v1` after
-  structure validation â†’ `unsupported-scheme` if unknown fields are present,
-  otherwise `missing-signature`. Valid `v1` but absent `t` â†’
-  `missing-timestamp`. Bad present `t` â†’ `malformed-signature`.
+- **Missing/blank whole header** → `missing-signature`. No `v1` after
+  structure validation → `unsupported-scheme` if unknown fields are present,
+  otherwise `missing-signature`. Valid `v1` but absent `t` →
+  `missing-timestamp`. Bad present `t` → `malformed-signature`.
 - **Identity:** `timestamp` = `Number(t)/1000`, `deliveryId`/`eventId` =
   `null`, `authenticatedFields` = `['timestamp']`. Payload IDs are not parsed.
 - **Freshness:** no freshness logic in the descriptor; core verifies HMAC
@@ -189,10 +189,10 @@ from the payload. Retry consistency follows each provider's documented rules.
 ### Sentry App
 
 - **Provider id:** `sentry`.
-- **Header:** `sentry-hook-signature` â€” exactly 64 hex characters, either hex
+- **Header:** `sentry-hook-signature` — exactly 64 hex characters, either hex
   case.
-- **Missing or trim-blank header** â†’ `missing-signature`. Every other malformed
-  value â†’ `malformed-signature`: prefixes, outer or inner whitespace,
+- **Missing or trim-blank header** → `missing-signature`. Every other malformed
+  value → `malformed-signature`: prefixes, outer or inner whitespace,
   comma-combined duplicates, wrong length, nonhex characters, lists.
 - **Signed content:** the exact raw body.
 - **Identity:** all identity fields null; `authenticatedFields` empty.
@@ -207,12 +207,12 @@ from the payload. Retry consistency follows each provider's documented rules.
 
 - **Provider id:** `doppler`.
 - **Header:** `x-doppler-signature`.
-- **Missing or trim-blank header** â†’ `missing-signature`.
+- **Missing or trim-blank header** → `missing-signature`.
 - Require one case-sensitive `sha256=` prefix followed by exactly 64 hex, either
   case. A scheme token accepted by `isSchemeToken`
   (`/^[A-Za-z0-9_-]+$/`) plus `=` plus exactly 64 hex but another scheme
-  (e.g. `sha1=<64hex>`) â†’ `unsupported-scheme`. All other nonconforming syntax
-  â†’ `malformed-signature`, including `sha1=<40hex>`, bare hex, commas, extra
+  (e.g. `sha1=<64hex>`) → `unsupported-scheme`. All other nonconforming syntax
+  → `malformed-signature`, including `sha1=<40hex>`, bare hex, commas, extra
   equals, leading/trailing whitespace and empty digest. Validate the whole value
   first; no unknown-field tolerance.
 - **Signed content:** HMAC over the raw body.
@@ -231,11 +231,11 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Accepted complete header is EXACTLY** `t=<ms>,v1=<digest>`: ordered fields,
   one each, no whitespace anywhere or outer trimming, extra fields, duplicate
   fields, semicolon separators, padding, or alternate versions.
-- **Missing or trim-blank header** â†’ `missing-signature`. Any other nonmatching
-  structure â†’ `malformed-signature` (including `t`-only, `v1`-only and
+- **Missing or trim-blank header** → `missing-signature`. Any other nonmatching
+  structure → `malformed-signature` (including `t`-only, `v1`-only and
   `v2`-only).
 - `ms` is a canonical nonnegative safe decimal integer (no leading zeros except
-  `0`), at least `1609459200000` (2021-01-01 UTC). Earlier values â†’
+  `0`), at least `1609459200000` (2021-01-01 UTC). Earlier values →
   `malformed-signature`.
 - `digest` is EXACTLY 43 characters from `A-Z a-z 0-9 _ -`, canonical unpadded
   Base64url decoding to 32 bytes. Re-encoding must match to reject nonzero
@@ -290,14 +290,14 @@ Do not treat anything in this section as advertised support.
   `authenticatedFields` is empty; timestamp headers are ignored. In timestamped
   mode, the signature covers `UTF8(timestamp + ':')` then the untouched raw
   body; `timestamp` is authenticated; `eventId` and `deliveryId` are null.
-- **Signature value:** absent or trim-blank â†’ `missing-signature`; otherwise
-  exactly 64 hex characters, either hex case â†’ 32 bytes; all whitespace,
-  prefixes, commas, duplicates, lists, nonhex, or wrong length â†’
+- **Signature value:** absent or trim-blank → `missing-signature`; otherwise
+  exactly 64 hex characters, either hex case → 32 bytes; all whitespace,
+  prefixes, commas, duplicates, lists, nonhex, or wrong length →
   `malformed-signature`. Signature structure is validated first.
 - **Timestamped mode:** a present `timestampHeader` is required; missing or
-  trim-blank â†’ `missing-timestamp`; present text must be a canonical
+  trim-blank → `missing-timestamp`; present text must be a canonical
   nonnegative safe integer in seconds (`0` valid; no sign, fraction, leading
-  zero, whitespace, or comma) â†’ noncanonical is `malformed-signature`.
+  zero, whitespace, or comma) → noncanonical is `malformed-signature`.
 - **Body mode forbids** any supplied `timestampHeader`, including an empty or
   explicitly undefined value.
 - **Secret:** literal nonempty untrimmed UTF-8 string via the existing literal
@@ -315,15 +315,15 @@ Do not treat anything in this section as advertised support.
 
 - **Provider id:** `polar`.
 - **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
-  `webhook-timestamp`, and `webhook-signature` headers only â€” no `svix-*`
+  `webhook-timestamp`, and `webhook-signature` headers only — no `svix-*`
   aliases, no legacy fallback, no JSON parsing, no event extraction.
 - **Signed bytes:** `id.timestamp.body`; identity `deliveryId` = `null`,
   `eventId` = `webhook-id`, `timestamp` authenticated.
 - **Secret mode (`current`, default):** existing strict canonical Base64
-  decoding with the 24â€“64 decoded-byte limit.
+  decoding with the 24–64 decoded-byte limit.
 - **Secret mode (`legacy`):** existing literal nonempty UTF-8 policy (full
   string as the HMAC key, including `whsec_` if present); no prefix
-  requirement, inference, strip, or decode; no invented 24â€“256 bound.
+  requirement, inference, strip, or decode; no invented 24–256 bound.
 - **One mode applies to all configured secrets; mixed-era accept sets are
   unsupported in this release.** No dual/auto mode; never silently try another
   key.
@@ -333,7 +333,7 @@ Do not treat anything in this section as advertised support.
   explicit tolerance `0` stays zero-width.
 - **SDK differences (not parity):** the Polar SDK tries both keys, floors
   fractional timestamps, skips malformed tokens, and decodes byte bodies as
-  text; Hooklatch does none of these. The 24â€“64 bound is Hooklatch's Standard
+  text; Hooklatch does none of these. The 24–64 bound is Hooklatch's Standard
   Webhooks receiver policy, not a Polar guarantee.
 - **Source:** https://raw.githubusercontent.com/polarsource/polar/89917ad4fe752b06ff84bd31c313d2a53a6085f1/sdk/typescript/src/webhooks.ts
 - **Status:** pending integration and qualification.
@@ -346,9 +346,9 @@ Do not treat anything in this section as advertised support.
   content.
 - **Key form:** literal nonempty untrimmed UTF-8 secrets are used by Stripe,
   GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy, WorkOS, Sentry App,
-  Doppler and Sanity. Standard Webhooks-family
-  providers (standard-webhooks, Clerk, Svix, Dodo Payments, GitLab, Replicate) strip an optional `whsec_` prefix and Base64-decode
-  the key, requiring 24â€“64 decoded bytes. A prefix alone never selects a
+  Doppler and Sanity. Standard Webhooks-family providers (standard-webhooks,
+  Clerk, Svix, Dodo Payments, GitLab, Replicate) strip an optional `whsec_`
+  prefix and Base64-decode the key, requiring 24–64 decoded bytes. A prefix alone never selects a
   protocol.
 - **Key-length compatibility:** the decoded-key range is a Hooklatch limit
   based on Standard Webhooks guidance, not a guarantee about every vendor's
@@ -356,8 +356,8 @@ Do not treat anything in this section as advertised support.
 - **Canonical aliases do not prove unique vendor identity:** Dodo Payments,
   GitLab signing-token mode and Replicate reuse the Standard Webhooks header
   grammar, as does the planned Polar current mode. Reusing secrets across
-  endpoints can allow cross-endpoint replay; use endpoint-specific secrets and route
-  configuration.
+  endpoints can allow cross-endpoint replay; use endpoint-specific secrets and
+  route configuration.
 - **No payload parsing:** verification never parses or validates the payload
   schema.
 - **Rotation:** accept-set, not business idempotency. Multiple active secrets
