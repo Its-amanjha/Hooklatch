@@ -25,7 +25,9 @@ function buildVerifyOptions(specOptions) {
   }
 
   if (specOptions.now !== undefined) {
-    options.now = () => specOptions.now;
+    const rawNow = specOptions.now;
+
+    options.now = isCallable(rawNow) ? rawNow : () => rawNow;
   }
 
   if (specOptions.providerOptions !== undefined) {
@@ -59,6 +61,25 @@ export default {
       return Response.json({ status: 'healthy', environment: 'workerd' });
     }
 
+    let sdkModule;
+
+    try {
+      sdkModule = await import('../../dist/index.js');
+    } catch {
+      return Response.json({
+        ok: false,
+        errorCategory: 'module-load-failure',
+        errorCode: 'dist-import-failed',
+      }, { status: 500 });
+    }
+
+    if (url.pathname === '/sdk-info') {
+      return Response.json({
+        loaded: isCallable(sdkModule.verify),
+        providers: sdkModule.SUPPORTED_PROVIDERS ?? [],
+      });
+    }
+
     const isVerifyRequest = url.pathname.startsWith('/verify-request');
 
     const isVerify = url.pathname.startsWith('/verify');
@@ -69,25 +90,31 @@ export default {
       const caseHeader = request.headers.get('x-test-case');
 
       if (!caseHeader) {
-        return Response.json({ error: 'Missing x-test-case header' }, { status: 400 });
+        return Response.json({
+          ok: false,
+          errorCategory: 'request-error',
+          errorCode: 'missing-case-header',
+        }, { status: 400 });
       }
 
       let spec;
 
       try {
         spec = JSON.parse(caseHeader);
-      } catch (err) {
-        return Response.json({ error: `Malformed x-test-case: ${err.message}` }, { status: 400 });
+      } catch {
+        return Response.json({
+          ok: false,
+          errorCategory: 'request-error',
+          errorCode: 'malformed-case-header',
+        }, { status: 400 });
       }
 
       try {
-        const sdk = await import('../../src/index.js').catch(() => null);
-
-        if (!sdk || !isCallable(sdk.verify)) {
+        if (!isCallable(sdkModule.verify)) {
           return Response.json({
             ok: false,
-            status: 'blocked',
-            message: 'SDK verify is unavailable or does not support 18 providers yet.',
+            errorCategory: 'system',
+            errorCode: 'sdk-verify-not-callable',
           }, { status: 501 });
         }
 
@@ -96,18 +123,18 @@ export default {
         let result;
 
         if (isVerifyRequest) {
-          // Tests setup-before-body-pull: pass request directly without reading body first
-          result = await sdk.verifyRequest(request, verifyOptions);
+          // Tests setup-before-body-pull directly through public API without pre-reading body
+          result = await sdkModule.verifyRequest(request, verifyOptions);
         } else if (isCreateVerifier) {
           const rawBody = new Uint8Array(await request.arrayBuffer());
 
-          const verifier = sdk.createVerifier(verifyOptions);
+          const verifier = sdkModule.createVerifier(verifyOptions);
 
           result = await verifier({ rawBody, headers: request.headers });
         } else {
           const rawBody = new Uint8Array(await request.arrayBuffer());
 
-          result = await sdk.verify({ rawBody, headers: request.headers }, verifyOptions);
+          result = await sdkModule.verify({ rawBody, headers: request.headers }, verifyOptions);
         }
 
         return Response.json({
@@ -124,8 +151,8 @@ export default {
         return Response.json({
           ok: false,
           isHooklatchError: isHooklatch,
-          errorCode: err.code ?? err.name,
-          message: err.message,
+          errorCode: isHooklatch ? err.code : 'internal-error',
+          errorCategory: isHooklatch ? 'verification' : 'system',
         }, { status: 200 });
       }
     }
