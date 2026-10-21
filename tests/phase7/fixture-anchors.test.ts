@@ -642,6 +642,8 @@ function grafanaConfigModel(case_: GpFixtureCase): ValidGrafanaConfig | null {
 
   let timestamp = '';
 
+  if (mode === 'body' && Object.hasOwn(providerOptions, 'timestampHeader')) return null;
+
   if (mode === 'timestamped') {
     if (providerOptions.timestampHeader === undefined) return null;
 
@@ -997,7 +999,7 @@ function invalidRowOutcome(row: InvalidOptionsRow): 'invalid-options' | 'invalid
 
     if (mode === 'body' && providerOptions.timestampHeader !== undefined) return 'invalid-options';
 
-    let signature: string | undefined;
+    let signature = GRAFANA_DEFAULT_SIGNATURE;
 
     if (providerOptions.signatureHeader !== undefined) {
       const configured: unknown = providerOptions.signatureHeader;
@@ -1018,7 +1020,7 @@ function invalidRowOutcome(row: InvalidOptionsRow): 'invalid-options' | 'invalid
 
       if (GRAFANA_RESERVED_NAMES.has(configured.toLowerCase())) return 'invalid-options';
 
-      if (signature !== undefined && signature.toLowerCase() === configured.toLowerCase()) return 'invalid-options';
+      if (signature.toLowerCase() === configured.toLowerCase()) return 'invalid-options';
     }
 
     return 'valid';
@@ -1640,5 +1642,31 @@ describe('owned guard negative controls', () => {
     const broken: unknown = JSON.parse(brokenText);
 
     expect(isGpFixtureCase(broken)).toBe(false);
+  });
+});
+
+
+describe('coordinator configuration-model regressions', () => {
+  it('rejects a timestamp header added to a body-mode positive fixture', () => {
+    const original = loadedCaseById(GRAFANA_CASES, 'positive-body-default-header');
+
+    const changed = {
+      ...original,
+      options: { ...original.options, providerOptions: { mode: 'body', timestampHeader: 'x-unexpected-timestamp' } },
+    };
+
+    expect(gpCaseDefects(changed, 'grafana').length).toBeGreaterThan(0);
+  });
+
+  it('rejects a timestamp header colliding with the omitted default signature header', () => {
+    const outcome = invalidRowOutcome({
+      id: 'coordinator-default-header-collision',
+      provider: 'grafana',
+      providerOptions: { mode: 'timestamped', timestampHeader: 'X-Grafana-Alerting-Signature' },
+      secrets: ['synthetic coordinator secret'],
+      expectedError: 'invalid-options',
+    });
+
+    expect(outcome).toBe('invalid-options');
   });
 });

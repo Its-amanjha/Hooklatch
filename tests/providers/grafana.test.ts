@@ -1,4 +1,3 @@
-import { concatBytes, utf8 } from '../../src/internal/bytes.js';
 import { verifyHmac } from '../../src/internal/crypto.js';
 import { HooklatchError } from '../../src/errors.js';
 import { createGrafanaDescriptor } from '../../src/providers/grafana.js';
@@ -31,7 +30,7 @@ const sign = (
   key: string | Uint8Array = SECRET,
 ): string => hmacHex(
   key,
-  timestamp === undefined ? body : concatBytes(utf8(`${timestamp}:`), body),
+  timestamp === undefined ? body : Buffer.concat([Buffer.from(`${timestamp}:`, 'utf8'), Buffer.from(body)]),
 );
 
 const bodyDescriptor = createGrafanaDescriptor({ mode: 'body' });
@@ -85,7 +84,7 @@ test('verifies a timestamped signature over the timestamp, colon and exact raw b
   ));
 
   expect(Buffer.from(parsed.signedContent)
-    .equals(concatBytes(utf8(`${TIMESTAMP}:`), BODY))).toBe(true);
+    .equals(Buffer.concat([Buffer.from(`${TIMESTAMP}:`, 'utf8'), BODY]))).toBe(true);
   expect(parsed.identity).toEqual({
     deliveryId: null,
     eventId: null,
@@ -150,7 +149,7 @@ test('accepts canonical timestamp seconds including zero', () => {
 
     expect(parsed.identity.timestamp).toBe(Number(timestamp));
     expect(Buffer.from(parsed.signedContent)
-      .equals(concatBytes(utf8(`${timestamp}:`), BODY))).toBe(true);
+      .equals(Buffer.concat([Buffer.from(`${timestamp}:`, 'utf8'), BODY]))).toBe(true);
   }
 });
 
@@ -319,7 +318,7 @@ test('signs distinct bytes for the body and timestamped layouts of the same body
 
   expect(Buffer.from(bodyParsed.signedContent).equals(Buffer.from(BODY))).toBe(true);
   expect(Buffer.from(timestampedParsed.signedContent)
-    .equals(concatBytes(utf8(`${TIMESTAMP}:`), BODY))).toBe(true);
+    .equals(Buffer.concat([Buffer.from(`${TIMESTAMP}:`, 'utf8'), BODY]))).toBe(true);
   expect(Buffer.from(bodyParsed.signedContent)
     .equals(Buffer.from(timestampedParsed.signedContent))).toBe(false);
   expect(await verifyHmac(
@@ -497,4 +496,13 @@ test('leaves freshness and MAC verification to the core', async () => {
     wrongMac.signatures,
     wrongMac.signedContent,
   )).toBe(false);
+});
+
+
+test('rejects own enumerable symbol settings without echoing their contents', () => {
+  const options: GrafanaDescriptorOptions = { mode: 'body' };
+
+  Object.defineProperty(options, Symbol('synthetic configuration canary'), { value: 'not configuration', enumerable: true });
+
+  expect(errorMessage(() => createGrafanaDescriptor(options))).toBe('Invalid Grafana provider options.');
 });
