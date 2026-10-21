@@ -1,6 +1,7 @@
 # Provider guide
 
-Reference for sixteen qualified provider IDs. Paddle support covers Billing webhooks only.
+Reference for sixteen supported provider IDs plus two providers pending
+integration and qualification. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
@@ -25,6 +26,9 @@ The package has not yet been published to npm.
 | gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
 | replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
 | workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs |
+| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null |
+| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null |
+| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated |
 
 ### Authenticated vs unsigned identity
 
@@ -35,11 +39,11 @@ The package has not yet been published to npm.
   the header value was supplied by the provider. IDs inside signed payload bytes
   have integrity protection, but Hooklatch does not parse or extract them.
 
-Body-only protocols (GitHub, Shopify, Razorpay, Lemon Squeezy) sign no
-timestamp, so freshness checks and ID headers cannot stop replay on their own.
-A captured valid body and signature can be replayed. Applications need their
-own replay/idempotency policy; deduplicating an unsigned delivery header alone
-is not replay protection.
+Body-only protocols (GitHub, Shopify, Razorpay, Lemon Squeezy, Sentry App,
+Doppler signed mode) sign no timestamp, so freshness checks and ID headers
+cannot stop replay on their own. A captured valid body and signature can be
+replayed. Applications need their own replay/idempotency policy;
+deduplicating an unsigned delivery header alone is not replay protection.
 
 ### Razorpay
 
@@ -89,11 +93,6 @@ is not replay protection.
 - **Source:** https://docs.lemonsqueezy.com/help/webhooks/signing-requests
 
 ### Dodo Payments
-
-For Dodo Payments, GitLab signing-token mode and Replicate, the default
-freshness window is 300 seconds. Their authenticated `eventId` is the signed
-`webhook-id` message identifier, not a business-event or resource ID extracted
-from the payload. Retry consistency follows each provider's documented rules.
 
 - **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
   `webhook-timestamp`, and `webhook-signature` headers only. No `svix-*`
@@ -182,18 +181,6 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Sources:** https://workos.com/docs/events/data-syncing/webhooks;
   pinned SDK https://raw.githubusercontent.com/workos/workos-node/ad8bff226e9b37435f0c62390318d4819f76b3d1/src/common/crypto/signature-provider.ts
 
-## Sentry App, signed Doppler and Sanity
-
-These provider modes use the same verification APIs, diagnostics, CLI and adapters.
-Tests use synthetic signatures and pinned Sanity SDK reference tuples; no live
-provider delivery or account interoperability is claimed.
-
-| ID | Header | Signed content | Secret form | Identity | Status |
-|---|---|---|---|---|---|
-| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null | Qualified |
-| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null | Qualified |
-| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated | Qualified |
-
 ### Sentry App
 
 - **Provider id:** `sentry`.
@@ -266,6 +253,85 @@ provider delivery or account interoperability is claimed.
 - **Source:** https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/src/signature.ts
 - **Status:** implemented and locally qualified.
 
+## Providers pending integration and qualification
+
+The following two provider IDs are documented here only as planned protocol
+mappings. They are **not implemented, not registered, and not qualified**.
+Do not treat anything in this section as advertised support.
+
+| ID | Header | Signed content | Secret form | Identity | Status |
+|---|---|---|---|---|---|
+| grafana | `x-grafana-alerting-signature` (default name) | `UTF8(timestamp + ':') + rawBody` (timestamped mode); raw body (body mode) | Literal string | all identity fields null | Pending |
+| polar | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Literal string (`current`) or literal full UTF-8 (`legacy`) | eventId + timestamp authenticated | Pending |
+
+### Grafana
+
+- **Provider id:** `grafana`.
+- **Header names:** Grafana header names are lookup configuration, not
+  authenticated bytes. The same key, body, and timestamp layout produce the
+  same MAC regardless of the signature-header name; a MAC placed in the
+  selected header may verify, and rescue from an unselected header is
+  forbidden.
+- **Signature header:** `x-grafana-alerting-signature` by default when none is
+  configured; an explicit configured name may be used instead. Header names are
+  nonempty RFC 9110 field-name tokens, with no whitespace trimming and
+  case-insensitive lookup. Reserved names are rejected for either field:
+  `host`, `content-length`, `transfer-encoding`, `connection`, `upgrade`,
+  `trailer`, `te`, `proxy-authorization`, `proxy-authenticate`,
+  `authorization`, `cookie`, `set-cookie`. This reserved list is Hooklatch
+  configuration policy, not Grafana law.
+- **Explicit mode required:** `body` or `timestamped`. In body mode, the
+  signature covers the exact raw body; all identity fields are null and
+  `authenticatedFields` is empty; timestamp headers are ignored. In timestamped
+  mode, the signature covers `UTF8(timestamp + ':')` then the untouched raw
+  body; `timestamp` is authenticated; `eventId` and `deliveryId` are null.
+- **Signature value:** absent or trim-blank → `missing-signature`; otherwise
+  exactly 64 hex characters, either hex case → 32 bytes; all whitespace,
+  prefixes, commas, duplicates, lists, nonhex, or wrong length →
+  `malformed-signature`. Signature structure is validated first.
+- **Timestamped mode:** a present `timestampHeader` is required; missing or
+  trim-blank → `missing-timestamp`; present text must be a canonical
+  nonnegative safe integer in seconds (`0` valid; no sign, fraction, leading
+  zero, whitespace, or comma) → noncanonical is `malformed-signature`.
+- **Timestamped mode forbids** `timestampHeader` in body mode, even empty.
+- **Secret:** literal nonempty untrimmed UTF-8 string via the existing literal
+  secret decoder.
+- **Freshness:** the descriptor never checks freshness or HMAC; default
+  inclusive symmetric 300s where a signed timestamp exists; explicit tolerance
+  `0` stays zero-width; MAC precedes freshness. This is Hooklatch receiver
+  policy.
+- **No fallback** to a default header when custom missing, other layout,
+  Basic/Bearer, unsigned headers, or alien providers.
+- **Source:** https://raw.githubusercontent.com/grafana/alerting/2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e/http/hmac.go
+- **Status:** pending integration and qualification.
+
+### Polar
+
+- **Provider id:** `polar`.
+- **Protocol:** canonical Standard Webhooks recipe using `webhook-id`,
+  `webhook-timestamp`, and `webhook-signature` headers only — no `svix-*`
+  aliases, no legacy fallback, no JSON parsing, no event extraction.
+- **Signed bytes:** `id.timestamp.body`; identity `deliveryId` = `null`,
+  `eventId` = `webhook-id`, `timestamp` authenticated.
+- **Secret mode (`current`, default):** existing strict canonical Base64
+  decoding with the 24–64 decoded-byte limit.
+- **Secret mode (`legacy`):** existing literal nonempty UTF-8 policy (full
+  string as the HMAC key, including `whsec_` if present); no prefix
+  requirement, inference, strip, or decode; no invented 24–256 bound.
+- **One mode applies to all configured secrets; mixed-era accept sets are
+  unsupported in this release.** No dual/auto mode; never silently try another
+  key.
+- **Timestamp:** canonical nonnegative safe decimal seconds (0 valid, no
+  leading zeros except `0`); duplicate timestamp fails `malformed-signature`
+  even when equal; MAC precedes freshness; default inclusive symmetric 300s;
+  explicit tolerance `0` stays zero-width.
+- **SDK differences (not parity):** the Polar SDK tries both keys, floors
+  fractional timestamps, skips malformed tokens, and decodes byte bodies as
+  text; Hooklatch does none of these. The 24–64 bound is Hooklatch's Standard
+  Webhooks receiver policy, not a Polar guarantee.
+- **Source:** https://raw.githubusercontent.com/polarsource/polar/89917ad4fe752b06ff84bd31c313d2a53a6085f1/sdk/typescript/src/webhooks.ts
+- **Status:** pending integration and qualification.
+
 ## Cross-provider rules
 
 - **Exact bytes only:** verification runs over the raw request bytes captured
@@ -273,18 +339,20 @@ provider delivery or account interoperability is claimed.
   bodies are preserved; never decode/re-encode the body to build signed
   content.
 - **Key form:** literal nonempty untrimmed UTF-8 secrets are used by Stripe,
-  GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy, WorkOS, Sentry App, Doppler
-  and Sanity. Standard Webhooks-family providers (standard-webhooks, Clerk,
-  Svix, Dodo Payments, GitLab, Replicate) strip an optional `whsec_` prefix and
-  Base64-decode the key, requiring 24–64 decoded bytes. A prefix alone never
-  selects a protocol.
+  GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy, WorkOS, Sentry App,
+  Doppler, Sanity, and Polar (`legacy` mode). Standard Webhooks-family
+  providers (standard-webhooks, Clerk, Svix, Dodo Payments, GitLab, Replicate,
+  and Polar `current` mode) strip an optional `whsec_` prefix and Base64-decode
+  the key, requiring 24–64 decoded bytes. A prefix alone never selects a
+  protocol.
 - **Key-length compatibility:** the decoded-key range is a Hooklatch limit
   based on Standard Webhooks guidance, not a guarantee about every vendor's
   issued secrets. An out-of-range key fails with `invalid-secret`.
 - **Canonical aliases do not prove unique vendor identity:** Dodo Payments,
-  GitLab signing-token mode and Replicate reuse the Standard Webhooks header
-  grammar. Reusing secrets across endpoints can allow cross-endpoint replay;
-  use endpoint-specific secrets and route configuration.
+  GitLab signing-token mode, Replicate, Grafana, and Polar `current` mode
+  reuse the Standard Webhooks header grammar. Reusing secrets across endpoints
+  can allow cross-endpoint replay; use endpoint-specific secrets and route
+  configuration.
 - **No payload parsing:** verification never parses or validates the payload
   schema.
 - **Rotation:** accept-set, not business idempotency. Multiple active secrets
