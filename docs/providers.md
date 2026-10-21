@@ -305,7 +305,9 @@ Do not treat anything in this section as advertised support.
 - **Freshness:** timestamped mode uses an inclusive symmetric 300-second
   default window after signature authentication; explicit tolerance `0` is
   zero-width. Body mode has no signed timestamp and provides no freshness check.
-  These are Hooklatch receiver policies, not a replay cache.
+  These are Hooklatch receiver policies, not a replay cache. A captured body-mode
+  delivery can be replayed while its signing key remains accepted; timestamped
+  mode limits freshness but does not deduplicate requests.
 - **No fallback** to a default header when custom missing, other layout,
   Basic/Bearer, unsigned headers, or alien providers.
 - **Source:** https://raw.githubusercontent.com/grafana/alerting/2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e/http/hmac.go
@@ -326,7 +328,9 @@ Do not treat anything in this section as advertised support.
   requirement, inference, strip, or decode; no invented 24–256 bound.
 - **One mode applies to all configured secrets; mixed-era accept sets are
   unsupported in this release.** No dual/auto mode; never silently try another
-  key.
+  key. Changing the mode changes how every configured secret is interpreted;
+  adding both-era secrets to one array does not enable mixed-era migration.
+  Plan a coordinated mode/secret cutover.
 - **Timestamp:** canonical nonnegative safe decimal seconds (0 valid, no
   leading zeros except `0`); duplicate timestamp fails `malformed-signature`
   even when equal; MAC precedes freshness; default inclusive symmetric 300s;
