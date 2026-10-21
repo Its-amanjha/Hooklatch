@@ -1,0 +1,1556 @@
+{
+  "cases": [
+    {
+      "id": "positive-body-default-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "content-type": "application/json",
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Body mode with the default signature header signs exact raw body; identity all null."
+    },
+    {
+      "id": "positive-uppercase-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "D51444E75F143D82404D1FEE9D2C5BB0AC250CDE1671D5E32C391EABCE56B17C"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Hex decoding is case-insensitive."
+    },
+    {
+      "id": "positive-custom-header-and-decoy-default",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "content-type": "application/json",
+          "x-acme-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c",
+          "x-grafana-alerting-signature": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body",
+          "signatureHeader": "x-acme-signature"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Only the configured header is consulted; the default-name decoy is never probed."
+    },
+    {
+      "id": "positive-config-casing-is-lookup-only",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body",
+          "signatureHeader": "X-GRAFANA-ALERTING-SIGNATURE"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Name casing is a case-insensitive lookup concern, not an authenticated byte."
+    },
+    {
+      "id": "positive-request-header-casing-variant",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "X-Grafana-Alerting-Signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Request-side casing still resolves to the configured header."
+    },
+    {
+      "id": "positive-unsigned-context-headers-present",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "content-type": "application/json",
+          "x-delivery-trace": "trace_glm7_grafana_0001",
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Unsigned context headers never contribute to authentication."
+    },
+    {
+      "id": "positive-empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-grafana-alerting-signature": "c6d31559a0c8350582ef29247063f50498fa30c41919d7bf7581d223014839ba"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Empty body is signable; zero-length content is exact."
+    },
+    {
+      "id": "positive-non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "Z3JhZmFuYS1vcGFxdWUtZGVsaXZlcnktbWFya2VyLW5vdC1qc29u",
+        "headers": {
+          "x-grafana-alerting-signature": "3b3ef4b0c8b6cdd64cb3afca056d42c606ca9988abc70a74323ca3c045f5fa02"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Verification never parses the body."
+    },
+    {
+      "id": "positive-invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6Iv/+fyJ9",
+        "headers": {
+          "x-grafana-alerting-signature": "49e0fd7ab50d38543909338c1f5264eab8a9f439d036042b4a7f01fa6b6aab65"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Invalid UTF-8 bytes prove raw-body verification, not text decoding."
+    },
+    {
+      "id": "body-mode-ignores-timestamp-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1699900100",
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Body mode runs no freshness window; timestamp-like headers are ignored metadata."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret",
+          "hooklatch_stage_a_grafana_rotated_new_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Old secret still accepted while the new one is configured (any-key HMAC)."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_rotated_new_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Old secret removed from configuration; same request now fails closed."
+    },
+    {
+      "id": "tampered-body-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoicmVzb2x2ZWQifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Signature covers the original body; delivered body differs."
+    },
+    {
+      "id": "wrong-key-valid-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "171d4e2119685908bde974b7da15025e9a0ea44191109e79a18dc8a8e6aa3892"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Well-formed 64-hex digest from an unconfigured key matches no secret."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "content-type": "application/json"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Configured signature header entirely absent."
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Trim-blank value is missing-signature, not malformed."
+    },
+    {
+      "id": "signature-inner-whitespace-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0 ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Inner space breaks the exact-hex grammar in both views alike."
+    },
+    {
+      "id": "signature-led-prefix-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "sha256=d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Scheme prefixes belong to other providers; here they are nonhex characters."
+    },
+    {
+      "id": "hex-63-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Wrong hex length."
+    },
+    {
+      "id": "hex-65-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17cf"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Wrong hex length the other way."
+    },
+    {
+      "id": "non-hex-character-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "g51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Exactly one non-hex character in an otherwise 64-character value."
+    },
+    {
+      "id": "standard-webhooks-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "v1,enp6enp6enp6enp6enp6enp6enp6enp6enp6enp6eg=="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "The comma/scheme token grammar is never accepted here."
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": [
+            "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c",
+            "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+          ]
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Repeated names combine into a comma/space list; the grammar never accepts lists."
+    },
+    {
+      "id": "signature-outer-whitespace-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": " d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Record/tuple preserve the outer space (nonempty, so not trim-blank); WHATWG Headers trims it and the canonical digest then verifies."
+    },
+    {
+      "id": "signature-trailing-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Same trim boundary as the leading-space row, trailing side."
+    },
+    {
+      "id": "positive-timestamped-default-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "content-type": "application/json",
+          "x-grafana-alerting-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Timestamped mode signs UTF8(`${ts}:`)+raw body; only the timestamp is authenticated identity."
+    },
+    {
+      "id": "positive-timestamped-custom-headers",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-acme-timestamp": "1700000100",
+          "x-acme-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "signatureHeader": "x-acme-signature",
+          "timestampHeader": "x-acme-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Custom names in both positions; lookup configuration only."
+    },
+    {
+      "id": "timestamped-zero-timestamp-canonical-but-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "0",
+          "x-grafana-alerting-signature": "c843f13c6e1afe9d56d00672d934acbc4e474e4d2052e50b411ee4710f071489"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Canonical zero seconds passes the timestamp grammar (malformed would be the reason otherwise) but the valid MAC still lands outside the default symmetric window, so the core reports timestamp-expired."
+    },
+    {
+      "id": "timestamped-docs-casing-config",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "signatureHeader": "X-Grafana-Alerting-Signature",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Docs-style casing of the configured signature name resolves to the same header."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old-timestamped",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret",
+          "hooklatch_stage_a_grafana_rotated_new_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Rotation applies to timestamped mode too."
+    },
+    {
+      "id": "timestamped-missing-timestamp-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      },
+      "notes": "Valid-grammar signature present but the configured timestamp header is absent; signature came first."
+    },
+    {
+      "id": "timestamped-blank-timestamp-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "   ",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      },
+      "notes": "Trim-blank timestamp behaves as missing."
+    },
+    {
+      "id": "timestamped-noncanonical-leading-zero",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "01700000100",
+          "x-grafana-alerting-signature": "93928bc0e48af7e49e5259faed14589ec977dc8e1d69413eda0b2ac5df91ff3c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Leading zero breaks canonical seconds even with a self-consistent MAC."
+    },
+    {
+      "id": "timestamped-negative-timestamp-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "-5",
+          "x-grafana-alerting-signature": "d331eab2f43995e3d96933461a7a93619c61b30171281dee13b93405eba14b49"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Self-consistent signed negative timestamp is still noncanonical; MAC is never reached."
+    },
+    {
+      "id": "timestamped-fractional-timestamp-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100.5",
+          "x-grafana-alerting-signature": "450c132472d0d78fc85e030ffdff21f3327c86ff3b19f031302689a2c6f20532"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Fractional seconds are noncanonical; no flooring-parity behavior exists."
+    },
+    {
+      "id": "timestamped-comma-joined-timestamp-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": [
+            "1700000100",
+            "1700000100"
+          ],
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Comma-combined repeated timestamp names never form canonical seconds."
+    },
+    {
+      "id": "timestamped-missing-signature-beats-timestamp-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Signature structure is validated before timestamp presence."
+    },
+    {
+      "id": "timestamped-custom-header-absent-no-default-fallback",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-acme-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "signatureHeader": "x-acme-signature",
+          "timestampHeader": "x-acme-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Custom signature header missing; the default-name header is never probed as fallback."
+    },
+    {
+      "id": "timestamped-body-layout-signature-no-downgrade",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "d51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Body-layout digest delivered under timestamped config; there is no alternate-layout retry."
+    },
+    {
+      "id": "body-mode-timestamped-layout-signature-no-upgrade",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "body"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Timestamped-layout digest delivered under body config; wrong layout never verifies."
+    },
+    {
+      "id": "tampered-signed-timestamp-text",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000101",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Timestamp participates in the MAC; a one-second header mutation fails HMAC."
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1699999701",
+          "x-grafana-alerting-signature": "b15f2243a71f708ff02485d5b3b9b45c0359eb092dd10472420b88ee3738dddc"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "MAC precedes freshness: wrong digest fails as invalid-signature even though also stale."
+    },
+    {
+      "id": "boundary-plus300-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000400",
+          "x-grafana-alerting-signature": "ca6d69c84b772e16d087769af3c41b62a70c48c56a2cc13a85e1602ceb88a969"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive outer boundary of the default symmetric window."
+    },
+    {
+      "id": "boundary-plus301-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000401",
+          "x-grafana-alerting-signature": "d245447d9f4180feeddfbabc2d5f8688b104809faffe624862295adce45a5481"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "One step beyond on the future side."
+    },
+    {
+      "id": "boundary-minus300-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1699999800",
+          "x-grafana-alerting-signature": "5c9672e8fa8efb38aaeafdd648cb6d5bb553873704fcd769bf9adc13e700c52a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1699999800,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive past boundary."
+    },
+    {
+      "id": "boundary-minus301-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1699999799",
+          "x-grafana-alerting-signature": "ebd959588076a9b828ed858f6aff271604ffd69a9e17ccf1761864ebdec2a2b7"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "One step beyond on the past side."
+    },
+    {
+      "id": "tolerance-zero-same-second-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000100",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Zero-width window accepts the same second only."
+    },
+    {
+      "id": "tolerance-zero-old-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000099",
+          "x-grafana-alerting-signature": "783d5bd8a00eea842704c068941cbbce57ac648681f3359275e28f3723b52208"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Zero-width window rejects one second old."
+    },
+    {
+      "id": "tolerance-zero-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": "1700000101",
+          "x-grafana-alerting-signature": "849b0a6a5b0fabfbacdf45931ca97613f52e8df85efb330aee374a1902971f53"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "Zero-width window rejects one second ahead."
+    },
+    {
+      "id": "timestamped-timestamp-outer-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: grafana/alerting http/hmac.go at commit 2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e; HMAC-SHA256 with literal UTF-8 secret, exact raw-body bytes or UTF8(`${timestamp}:`)+body, 64-hex signature (either case); Hooklatch body mode and named headers are receiver policy covered by the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJhbGVydCI6IkdMTS1HUkYtMDAwMSIsInN0YXRlIjoiYWxlcnRpbmcifQ==",
+        "headers": {
+          "x-grafana-alerting-timestamp": " 1700000100",
+          "x-grafana-alerting-signature": "8a6b2f26fe35576edc4749eb9c99ebf79a87aefa36330cc714421bffd5920599"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_grafana_secret"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "mode": "timestamped",
+          "timestampHeader": "x-grafana-alerting-timestamp"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Record/tuple preserve the leading space (noncanonical there); the signature covers the canonical text, so the WHATWG view verifies."
+    }
+  ]
+}

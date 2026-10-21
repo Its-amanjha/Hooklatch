@@ -1,0 +1,1334 @@
+{
+  "cases": [
+    {
+      "id": "positive-current-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Current mode baseline: key is strict canonical Base64 of the whsec_ payload."
+    },
+    {
+      "id": "positive-request-casing-variants",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "Webhook-Id": "msg_glm7_polar_0001",
+          "Webhook-Timestamp": "1700000100",
+          "Webhook-Signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Canonical names resolve under any casing."
+    },
+    {
+      "id": "positive-legacy-literal-key",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,vTAmT+4rHn7IBosIL2umYbH6C5v+0U/okGl+kH/Bjh0="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_a_polar_legacy_literal"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "legacy"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Legacy mode baseline: key is the complete literal secret UTF-8."
+    },
+    {
+      "id": "positive-legacy-keeps-whsec-prefix-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,9IKqheZTiIseSXfutFARDslmHBUrY4zVdijkGzLrfsU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "legacy"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Legacy mode never strips or decodes an whsec-prefixed secret; the MAC covers utf8 of the whole string."
+    },
+    {
+      "id": "positive-multi-token-space-list",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M= v1,++dgD47bbaCnFDazXf5q5IVXI9/M0T/+J5kbG5X823Q="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk",
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfbmV3"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Space-separated v1 list; the matching token wins and the unconfigured one never rescues."
+    },
+    {
+      "id": "positive-trailing-whitespace-tolerated",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M= "
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Whitespace splitting accepts a trailing space; WHATWG trimming gives the same view outcome."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk",
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfbmV3"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Rotation within one mode: old key accepted while the new key is configured."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfbmV3"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Old key removed; fails closed."
+    },
+    {
+      "id": "positive-unsigned-extra-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M=",
+          "x-delivery-trace": "trace_glm7_polar_0001"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Unsigned extra headers are ignored."
+    },
+    {
+      "id": "positive-empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,T97QK0+cfy0hlrKbH90Sq/wj0RLvsitU1DzIMa4owaU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Signed content ends at the trailing dot for an empty body."
+    },
+    {
+      "id": "positive-non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "cG9sYXItb3BhcXVlLWRlbGl2ZXJ5LW1hcmtlci1ub3QtanNvbg==",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,J/H93PODpqbQjY5Vz0xEiWHhHHNmldcGiUu7QWzxb4A="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Verification never parses or re-serializes the body."
+    },
+    {
+      "id": "positive-invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlciI6Iv/+fyJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,2KXouhAMhfgFCIh7R5TSxm3U/oG9UnozgcfXakX6b78="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Opaque bytes prove raw-body verification; the Polar-SDK text-decoding behavior is intentionally absent."
+    },
+    {
+      "id": "id-with-dot-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg.009",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,qT52KuEzsl8Y2DRu3ebot++VEL+7AgjNBhtqspJp63s="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A webhook-id containing a dot is rejected even with a consistent MAC."
+    },
+    {
+      "id": "id-with-comma-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg,009",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,gfZoK6Ie4AxVMuZjwaS2SMv22FFoFup+SngqHG+mrxQ="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Comma inside the id cannot be confused with token boundaries."
+    },
+    {
+      "id": "missing-identity-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "webhook-id absence is a distinct reason after the signature grammar."
+    },
+    {
+      "id": "missing-timestamp-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      },
+      "notes": "webhook-timestamp absence precedes canonical checks."
+    },
+    {
+      "id": "timestamp-leading-zero-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "01700000100",
+          "webhook-signature": "v1,vnv6aA1ES+82MFMzEXs3fsSurT3xJGwfvaafh5ZTyJg="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Noncanonical timestamp even under a fully consistent MAC."
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Trim-blank rule mirrors the canonical grammar."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "webhook-signature absent while id and timestamp remain."
+    },
+    {
+      "id": "bare-value-without-comma-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "The scheme prefix is never inferable from a bare digest."
+    },
+    {
+      "id": "trailing-comma-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,"
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Trailing separator produces an empty value."
+    },
+    {
+      "id": "unknown-scheme-only-is-unsupported",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1a,YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE= v2,YmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmI="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "unsupported-scheme"
+      },
+      "notes": "No supported v1 token among recognized scheme names."
+    },
+    {
+      "id": "malformed-token-fails-closed-despite-valid",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M= v1,YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ=="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A malformed v1 fails closed even when another v1 would verify."
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": [
+            "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M=",
+            "v1,++dgD47bbaCnFDazXf5q5IVXI9/M0T/+J5kbG5X823Q="
+          ]
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "HTTP comma combination never forms valid tokens."
+    },
+    {
+      "id": "wrong-key-valid-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,++dgD47bbaCnFDazXf5q5IVXI9/M0T/+J5kbG5X823Q="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Well-formed token from an unconfigured key matches no secret."
+    },
+    {
+      "id": "tampered-body-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMiIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Byte-level content change fails verification."
+    },
+    {
+      "id": "tampered-signed-timestamp-text",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000101",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "One-second timestamp mutation fails HMAC before any freshness window."
+    },
+    {
+      "id": "wrong-signature-beats-stale",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1699999701",
+          "webhook-signature": "v1,lhGoq3VZE4y3I3NEccCK8NjSKgllJQADpvdh8xcFCls="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "MAC precedence over the freshness window."
+    },
+    {
+      "id": "legacy-signed-is-not-rescued-under-current",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,9IKqheZTiIseSXfutFARDslmHBUrY4zVdijkGzLrfsU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "The legacy literal derivation never verifies under current mode for the same string."
+    },
+    {
+      "id": "current-signed-is-not-rescued-under-legacy-mode",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "legacy"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "The current Base64 derivation never verifies under legacy mode."
+    },
+    {
+      "id": "svix-family-cannot-repair-canonical-fields",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "svix-id": "msg_glm7_polar_0001",
+          "svix-timestamp": "1700000100",
+          "svix-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Branded aliases are not consulted by canonical configuration."
+    },
+    {
+      "id": "svix-alias-does-not-rescue-canonical-mismatch",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,++dgD47bbaCnFDazXf5q5IVXI9/M0T/+J5kbG5X823Q=",
+          "svix-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Only the configured canonical header participates in the MAC decision."
+    },
+    {
+      "id": "boundary-plus300-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000400",
+          "webhook-signature": "v1,w9lYF1YDWr/bMm8bngizy0A5xtxHDT7zdvBc4gegoRI="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000400,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive outer boundary of the default symmetric window."
+    },
+    {
+      "id": "boundary-plus301-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000401",
+          "webhook-signature": "v1,527pdgEjzzQV9vF+ECzFZcyukxD9RoEnn+fLS/vUbgI="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "One step beyond on the future side."
+    },
+    {
+      "id": "boundary-minus300-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1699999800",
+          "webhook-signature": "v1,aThkYkjylDjuwkxdzWnEASF1I1OueR2icpgIBZ6fV/0="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1699999800,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive past boundary."
+    },
+    {
+      "id": "boundary-minus301-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1699999799",
+          "webhook-signature": "v1,xzWsnqvR+4UrZyFh0r6LIE/ThyM0syRe4e9n+rESmY8="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "One step beyond on the past side."
+    },
+    {
+      "id": "tolerance-zero-same-second-ok",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Zero-width window accepts the same second only."
+    },
+    {
+      "id": "tolerance-zero-old-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000099",
+          "webhook-signature": "v1,wZ2iEjIvjvb2aacawIIzSUW6wZKhpEVXqEhdmSKQALQ="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Zero-width window rejects one second old."
+    },
+    {
+      "id": "tolerance-zero-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": "1700000101",
+          "webhook-signature": "v1,PJOwwhFU7RZo/eECcV20qx7wuSxY4HwMn397Gj2yAbU="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        },
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "Zero-width window rejects one second ahead."
+    },
+    {
+      "id": "timestamp-outer-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-7 contract (2026-10-21) quoting pinned vendor material: polarsource/polar sdk/typescript/src/webhooks.ts at commit 89917ad4fe752b06ff84bd31c313d2a53a6085f1 and Standard Webhooks canonical v1 grammar; current mode key is strict canonical Base64 of the whsec_ payload (24..64 bytes), legacy mode key is the complete literal string UTF-8; signed content `${id}.${timestamp}.${raw body}`, space lists of v1,<base64(32B)> tokens; svix-* aliases cannot repair canonical fields; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJvcmRlcklkIjoib3JkX2dsbTdfMDAwMSIsIml0ZW1zIjoyLCJ0b3RhbCI6IjE0OS45MCJ9",
+        "headers": {
+          "content-type": "application/json",
+          "webhook-id": "msg_glm7_polar_0001",
+          "webhook-timestamp": " 1700000100",
+          "webhook-signature": "v1,NoO4L9z4GUpAAMWnCGHj56/reHnvkI2fdphBYnNcc4M="
+        }
+      },
+      "options": {
+        "secrets": [
+          "whsec_aG9va2xhdGNoX3N0YWdlX2FfcG9sYXJfY3VycmVudF9rZXlfb2xk"
+        ],
+        "now": 1700000100,
+        "providerOptions": {
+          "secretMode": "current"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_glm7_polar_0001",
+          "timestamp": 1700000100,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Record/tuple keep the leading space (noncanonical there); the token covers the canonical text, so the WHATWG view verifies."
+    }
+  ]
+}
