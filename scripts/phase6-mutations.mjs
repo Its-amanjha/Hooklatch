@@ -7,8 +7,8 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
+  readlinkSync,
   rmdirSync,
   rmSync,
   symlinkSync,
@@ -27,6 +27,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
 const IS_WINDOWS = process.platform === 'win32';
+const MAX_CAPTURE_BYTES = 50000;
+const TEMP_DIR_PREFIX = 'hooklatch-gemini-mutations-';
 
 /**
  * Standard mutation catalogue covering visible slices, secret trimming,
@@ -345,43 +347,36 @@ export const stripeDescriptor: ProviderDescriptor = {
 ];
 
 /**
- * Compute SHA-256 hash of a file or buffer.
+ * Compute SHA-256 hash of a buffer.
  */
 function sha256(content) {
   return createHash('sha256').update(content).digest('hex');
 }
 
 /**
- * Scan directory recursively and return map of relative paths to SHA-256 hashes.
+ * Scan all tracked files in repository and return map of relative paths to SHA-256 hashes.
  */
-function scanHashes(folder, subdirs = ['src', 'tests']) {
+function scanTrackedHashes(repoPath) {
   const result = {};
+  const res = spawnSync('git', ['ls-files'], {
+    cwd: repoPath,
+    shell: false,
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 30000,
+  });
 
-  for (const subdir of subdirs) {
-    const fullSubdir = path.join(folder, subdir);
+  if (res.status !== 0) {
+    throw new Error(`git ls-files failed: ${res.stderr}`);
+  }
 
-    if (!existsSync(fullSubdir)) continue;
+  const files = res.stdout.split(/\r?\n/).filter(Boolean);
 
-    const stack = [fullSubdir];
+  for (const file of files) {
+    const fullPath = path.resolve(repoPath, file);
 
-    while (stack.length > 0) {
-      const current = stack.pop();
-
-      if (!current) continue;
-
-      const entries = readdirSync(current, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(current, entry.name);
-
-        if (entry.isDirectory()) {
-          stack.push(fullPath);
-        } else if (entry.isFile()) {
-          const relPath = path.relative(folder, fullPath).replace(/\\/g, '/');
-
-          result[relPath] = sha256(readFileSync(fullPath));
-        }
-      }
+    if (existsSync(fullPath)) {
+      result[file.replace(/\\/g, '/')] = sha256(readFileSync(fullPath));
     }
   }
 
@@ -389,7 +384,7 @@ function scanHashes(folder, subdirs = ['src', 'tests']) {
 }
 
 /**
- * Check whether two hash maps are identical.
+ * Compare two hash maps for exact byte equality.
  */
 function hashesEqual(first, second) {
   const firstKeys = Object.keys(first).sort();
@@ -407,13 +402,16 @@ function hashesEqual(first, second) {
 }
 
 /**
- * Check git status in repository.
+ * Check git status in repository. Allows only exact scripts/phase6-mutations.mjs
+ * and ignored notes/ files.
  */
 function checkGitStatus(repoPath) {
   const res = spawnSync('git', ['status', '--porcelain'], {
     cwd: repoPath,
     shell: false,
     encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 30000,
   });
 
   if (res.status !== 0) {
@@ -424,7 +422,7 @@ function checkGitStatus(repoPath) {
   const dirty = lines.filter((line) => {
     const file = line.slice(3).trim();
 
-    return !file.startsWith('scripts/phase6-mutations.mjs') && !file.startsWith('notes/');
+    return file !== 'scripts/phase6-mutations.mjs' && !file.startsWith('notes/');
   });
 
   return {
@@ -441,6 +439,7 @@ function getCurrentSha(repoPath) {
     cwd: repoPath,
     shell: false,
     encoding: 'utf8',
+    timeout: 30000,
   });
 
   return res.status === 0 ? res.stdout.trim() : 'unknown';
@@ -448,8 +447,8 @@ function getCurrentSha(repoPath) {
 
 /**
  * Terminate a spawned child process and all its descendants.
- * Windows: taskkill /PID <pid> /T /F (targets only this pid and descendants).
- * POSIX: SIGKILL to process or process group.
+ * Windows: taskkill /PID <pid> /T /F (strictly targets only child pid and descendants).
+ * POSIX: SIGKILL to process group (-pid), falling back to child pid.
  */
 function terminateChildTree(pid) {
   if (!pid) return;
@@ -459,6 +458,7 @@ function terminateChildTree(pid) {
       spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
         shell: false,
         windowsHide: true,
+        timeout: 10000,
       });
     } catch {
       // Ignore if process already exited
@@ -477,7 +477,8 @@ function terminateChildTree(pid) {
 }
 
 /**
- * Run a child process with shell: false and bounded execution time.
+ * Run a child process with shell: false, detached process group on POSIX,
+ * strictly bounded stdout/stderr buffers, and enforced execution timeout.
  */
 function runProcess(command, args, options = {}) {
   const timeoutMs = options.timeoutMs ?? 180000;
@@ -492,6 +493,7 @@ function runProcess(command, args, options = {}) {
       cwd: options.cwd,
       env: options.env ?? process.env,
       shell: false,
+      detached: !IS_WINDOWS,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
@@ -500,11 +502,19 @@ function runProcess(command, args, options = {}) {
     child.stderr.setEncoding('utf8');
 
     child.stdout.on('data', (chunk) => {
-      if (stdout.length < 50000) stdout += chunk;
+      if (stdout.length < MAX_CAPTURE_BYTES) {
+        const remaining = MAX_CAPTURE_BYTES - stdout.length;
+
+        stdout += chunk.slice(0, remaining);
+      }
     });
 
     child.stderr.on('data', (chunk) => {
-      if (stderr.length < 50000) stderr += chunk;
+      if (stderr.length < MAX_CAPTURE_BYTES) {
+        const remaining = MAX_CAPTURE_BYTES - stderr.length;
+
+        stderr += chunk.slice(0, remaining);
+      }
     });
 
     const cleanup = () => {
@@ -523,6 +533,7 @@ function runProcess(command, args, options = {}) {
       cleanup();
       resolve({
         exitCode: -1,
+        signal: null,
         stdout,
         stderr: `${stderr}\n${String(err)}`.slice(-4000),
         timedOut: false,
@@ -530,10 +541,17 @@ function runProcess(command, args, options = {}) {
       });
     });
 
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       cleanup();
+      let exitCode = code;
+
+      if (exitCode === null) {
+        exitCode = timedOut ? -1 : (signal ? 128 + 15 : -1);
+      }
+
       resolve({
-        exitCode: code ?? (timedOut ? -1 : 0),
+        exitCode,
+        signal,
         stdout,
         stderr: stderr.slice(-4000),
         timedOut,
@@ -543,18 +561,60 @@ function runProcess(command, args, options = {}) {
 }
 
 /**
- * Sanitize error message excerpts boundedly and suppress synthetic signature literals.
+ * Sanitize and redact sensitive tokens, keys, signatures, and byte dumps from error excerpts.
  */
 function sanitizeMessage(raw) {
   if (typeof raw !== 'string') return '';
 
   let sanitized = raw;
 
-  if (sanitized.length > 1500) {
-    sanitized = `${sanitized.slice(0, 1500)}... [truncated]`;
+  // Redact synthetic and standard webhook secret keys
+  sanitized = sanitized.replace(/whsec_[A-Za-z0-9_.-]+/g, 'whsec_[REDACTED]');
+  sanitized = sanitized.replace(/secret_[A-Za-z0-9_.-]+/g, 'secret_[REDACTED]');
+  sanitized = sanitized.replace(/CANARY_SECRET_[A-Za-z0-9_]+/g, '[REDACTED_CANARY_SECRET]');
+  sanitized = sanitized.replace(/CANARY_PAYLOAD_[A-Za-z0-9_]+/g, '[REDACTED_CANARY_PAYLOAD]');
+
+  // Redact 64-char hex digests
+  sanitized = sanitized.replace(/\b[a-f0-9]{64}\b/gi, '[REDACTED_HEX_64]');
+
+  // Redact Base64 and Base64url signatures
+  sanitized = sanitized.replace(/v1,[A-Za-z0-9+/=]+/g, 'v1,[REDACTED_SIG]');
+  sanitized = sanitized.replace(/v1=[A-Za-z0-9_-]+/g, 'v1=[REDACTED_SIG]');
+
+  // Redact Bearer authorization tokens
+  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9_.-]+/g, 'Bearer [REDACTED_TOKEN]');
+
+  // Redact massive Uint8Array byte dumps in expect diffs
+  sanitized = sanitized.replace(/Uint8Array\s*\[[\s\d,]+\]/g, 'Uint8Array [ [REDACTED_BYTES] ]');
+
+  // Bound excerpt length
+  if (sanitized.length > 600) {
+    sanitized = `${sanitized.slice(0, 600)}... [truncated]`;
   }
 
   return sanitized;
+}
+
+/**
+ * Determine whether a test failure message represents a genuine executed assertion matcher failure,
+ * rather than an unhandled runtime error (such as a ReferenceError or TypeError thrown inside test body).
+ */
+function isGenuineAssertionFailure(message) {
+  if (typeof message !== 'string') return false;
+
+  const hasMatcher = message.includes('expect(') ||
+    message.includes('Expected:') ||
+    message.includes('Expected a verification failure') ||
+    message.includes('MatcherError') ||
+    message.includes('AssertionError') ||
+    message.includes('JestAssertionError') ||
+    message.includes('HooklatchError');
+
+  const isUnhandledRuntimeError = (message.includes('ReferenceError:') ||
+    message.includes('TypeError:') ||
+    message.includes('SyntaxError:')) && !message.includes('expect(');
+
+  return hasMatcher && !isUnhandledRuntimeError;
 }
 
 /**
@@ -570,14 +630,15 @@ function extractFailures(reportData) {
 
     for (const assertion of suite.assertionResults) {
       if (assertion.status === 'failed') {
-        const messages = Array.isArray(assertion.failureMessages)
-          ? assertion.failureMessages.slice(0, 1).map(sanitizeMessage)
-          : [];
+        const rawMessages = Array.isArray(assertion.failureMessages) ? assertion.failureMessages : [];
+        const matcherMessages = rawMessages.filter(isGenuineAssertionFailure);
 
-        failures.push({
-          name: assertion.fullName ?? assertion.title ?? 'unnamed assertion',
-          messages,
-        });
+        if (matcherMessages.length > 0) {
+          failures.push({
+            name: assertion.fullName ?? assertion.title ?? 'unnamed assertion',
+            messages: matcherMessages.slice(0, 1).map(sanitizeMessage),
+          });
+        }
       }
     }
   }
@@ -587,9 +648,10 @@ function extractFailures(reportData) {
 
 /**
  * Classify a test execution using strict evidence rules:
- * - Assertion killed: requires Jest JSON report, testsFailed > 0, and executed assertion failures.
+ * - Assertion killed: requires Jest JSON report, testsFailed > 0, and executed genuine assertion failures.
  * - Survived: Jest exitCode 0, testsPassed > 0, testsFailed 0.
- * - Compile/Runtime error: Jest crashed, compilation failure, runtimeErrorSuites > 0, or nonzero exit without assertion failures.
+ * - Compile/Runtime error: Jest crashed, compilation failure, runtimeErrorSuites > 0, unhandled test throw,
+ *   or nonzero exit without genuine assertion failures.
  * - Timeout: child process timed out.
  * - Invalid patch: target text not matched exactly once, or no-op mutation.
  */
@@ -610,6 +672,11 @@ function classifyExecution({ exitCode, timedOut, reportData, matchCount, isNoOp 
     return 'compile-or-runtime-error';
   }
 
+  // Reject impossible combinations (e.g. exit 0 with failed tests)
+  if (exitCode === 0 && reportData.numFailedTests > 0) {
+    return 'compile-or-runtime-error';
+  }
+
   if (exitCode === 0 && reportData.numPassedTests > 0 && reportData.numFailedTests === 0) {
     return 'survived';
   }
@@ -627,6 +694,7 @@ function classifyExecution({ exitCode, timedOut, reportData, matchCount, isNoOp 
 
 /**
  * Safely unlink dependency junction or symlink.
+ * Fails closed if the path is an ordinary directory or if unlinking fails.
  */
 function safeUnlinkJunction(linkPath, expectedParent) {
   const resolved = path.resolve(linkPath);
@@ -637,23 +705,54 @@ function safeUnlinkJunction(linkPath, expectedParent) {
     throw new Error(`Refusing to remove link outside expected parent: ${resolved}`);
   }
 
-  try {
-    const stat = lstatSync(resolved);
+  let stat;
 
-    if (stat.isSymbolicLink() || (IS_WINDOWS && stat.isDirectory())) {
-      try {
-        unlinkSync(resolved);
-      } catch {
-        rmdirSync(resolved);
-      }
+  try {
+    stat = lstatSync(resolved);
+  } catch (err) {
+    if (err.code === 'ENOENT') return;
+
+    throw err;
+  }
+
+  let isLink = stat.isSymbolicLink();
+
+  if (!isLink && IS_WINDOWS && stat.isDirectory()) {
+    try {
+      readlinkSync(resolved);
+      isLink = true;
+    } catch {
+      isLink = false;
     }
+  }
+
+  if (!isLink) {
+    throw new Error(`Expected junction or symlink at ${resolved}, but found ordinary directory. Refusing to remove.`);
+  }
+
+  try {
+    unlinkSync(resolved);
   } catch {
-    // If not existing, ignore
+    rmdirSync(resolved);
+  }
+
+  let remaining = false;
+
+  try {
+    lstatSync(resolved);
+    remaining = true;
+  } catch {
+    remaining = false;
+  }
+
+  if (remaining) {
+    throw new Error(`Failed to unlink junction at ${resolved}; link still exists.`);
   }
 }
 
 /**
- * Safely delete temp directory. Validates that it is inside os.tmpdir().
+ * Safely delete temp directory. Validates that it is strictly inside os.tmpdir()
+ * with the authorized prefix.
  */
 function safeDeleteTempDir(tempDir) {
   const tempParent = path.resolve(os.tmpdir());
@@ -664,8 +763,16 @@ function safeDeleteTempDir(tempDir) {
     throw new Error(`Refusing to delete directory outside OS temp: ${resolvedTemp}`);
   }
 
+  if (!path.basename(resolvedTemp).startsWith(TEMP_DIR_PREFIX)) {
+    throw new Error(`Refusing to delete temp directory without expected prefix: ${resolvedTemp}`);
+  }
+
   if (existsSync(resolvedTemp)) {
     rmSync(resolvedTemp, { recursive: true, force: true });
+  }
+
+  if (existsSync(resolvedTemp)) {
+    throw new Error(`Failed to remove temp directory: ${resolvedTemp}`);
   }
 }
 
@@ -690,6 +797,8 @@ function createSnapshot(repoPath, scratchDir) {
     cwd: repoPath,
     shell: false,
     encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 30000,
   });
 
   if (trackedFilesRes.status !== 0) {
@@ -777,6 +886,7 @@ async function runJestInSnapshot(snapshotDir, suites, label) {
   return {
     command: ['node', ...args],
     exitCode: exec.exitCode,
+    signal: exec.signal,
     timedOut: exec.timedOut,
     testsPassed,
     testsFailed,
@@ -789,12 +899,7 @@ async function runJestInSnapshot(snapshotDir, suites, label) {
 }
 
 /**
- * Validate the runner classifier with controlled examples:
- * 1. Harmless control must survive.
- * 2. Infrastructure failure must not count as killed.
- * 3. Real assertion failure must be assertion-killed.
- * 4. Timeout must not count as killed.
- * 5. Invalid patch must not count as killed.
+ * Validate pure classifier logic with synthetic fixtures.
  */
 function validateClassifierDirect() {
   const controlPassed = classifyExecution({
@@ -828,7 +933,11 @@ function validateClassifierDirect() {
       testResults: [
         {
           assertionResults: [
-            { status: 'failed', fullName: 'sample assertion', failureMessages: ['Expected true, received false'] },
+            {
+              status: 'failed',
+              fullName: 'sample assertion',
+              failureMessages: ['Error: expect(received).toBe(expected)\n\nExpected: true\nReceived: false'],
+            },
           ],
         },
       ],
@@ -838,6 +947,33 @@ function validateClassifierDirect() {
   });
 
   assert.equal(controlAssertionFailed, 'assertion-killed', 'Real assertion failure must be classified as assertion-killed.');
+
+  // Distinguish unhandled runtime throw from assertion failure
+  const controlRuntimeThrow = classifyExecution({
+    exitCode: 1,
+    timedOut: false,
+    reportData: {
+      numPassedTests: 5,
+      numFailedTests: 1,
+      numRuntimeErrorTestSuites: 0,
+      testResults: [
+        {
+          assertionResults: [
+            {
+              status: 'failed',
+              fullName: 'runtime throw test',
+              failureMessages: ['ReferenceError: unhandledIdentifier is not defined\n    at Object.<anonymous>'],
+            },
+          ],
+        },
+      ],
+    },
+    matchCount: 1,
+    isNoOp: false,
+  });
+
+  assert.equal(controlRuntimeThrow, 'compile-or-runtime-error', 'Unhandled ReferenceError must classify as compile-or-runtime-error.');
+  assert.notEqual(controlRuntimeThrow, 'assertion-killed', 'Unhandled ReferenceError must never count as assertion-killed.');
 
   const controlTimeout = classifyExecution({
     exitCode: -1,
@@ -862,7 +998,11 @@ function validateClassifierDirect() {
 }
 
 /**
- * Validate classifier against real Jest in snapshot using controlled temporary examples.
+ * Validate classifier against real Jest in snapshot using controlled temporary examples:
+ * 1. Harmless comment edit -> survived
+ * 2. Syntax / startup error -> compile-or-runtime-error (not killed)
+ * 3. Runtime throw inside test body -> compile-or-runtime-error (not killed)
+ * 4. Real matcher failure -> assertion-killed
  */
 async function validateClassifierWithRealJest(snapshotDir) {
   const targetPath = path.join(snapshotDir, 'src', 'internal', 'verification.ts');
@@ -870,7 +1010,7 @@ async function validateClassifierWithRealJest(snapshotDir) {
   const targetSuite = 'tests/internal/verification.test.ts';
 
   try {
-    // Control A: harmless comment mutation -> must survive
+    // Control 1: harmless comment mutation -> must survive
     const harmlessMutated = `// runner harmless control comment\n${original}`;
 
     writeFileSync(targetPath, harmlessMutated, 'utf8');
@@ -886,7 +1026,7 @@ async function validateClassifierWithRealJest(snapshotDir) {
 
     assert.equal(harmlessClass, 'survived', 'Real Jest harmless control must survive.');
 
-    // Control B: syntax/compilation error -> must not count as killed
+    // Control 2: syntax / compile error -> must not count as killed
     const syntaxMutated = `const __SYNTAX_ERROR__ = %%%;\n${original}`;
 
     writeFileSync(targetPath, syntaxMutated, 'utf8');
@@ -903,30 +1043,90 @@ async function validateClassifierWithRealJest(snapshotDir) {
     assert.notEqual(syntaxClass, 'assertion-killed', 'Real Jest syntax error must never count as assertion-killed.');
     assert.equal(syntaxClass, 'compile-or-runtime-error', 'Real Jest syntax error must classify as compile-or-runtime-error.');
 
-    return { harmlessClass, syntaxClass, verified: true };
+    // Control 3: runtime ReferenceError throw inside test function -> must classify as compile-or-runtime-error, never killed
+    const testPath = path.join(snapshotDir, targetSuite);
+    const originalTest = readFileSync(testPath, 'utf8');
+
+    try {
+      const runtimeThrowMutated = originalTest.replace(
+        "test('orchestration snapshots caller bytes and secret configuration before awaits',",
+        "test('orchestration snapshots caller bytes and secret configuration before awaits', () => { throw new ReferenceError('canary_unhandled_reference_error'); },",
+      );
+
+      writeFileSync(testPath, runtimeThrowMutated, 'utf8');
+      writeFileSync(targetPath, original, 'utf8');
+
+      const runtimeThrowRun = await runJestInSnapshot(snapshotDir, [targetSuite], 'control-runtime-throw');
+      const runtimeThrowClass = classifyExecution({
+        exitCode: runtimeThrowRun.exitCode,
+        timedOut: runtimeThrowRun.timedOut,
+        reportData: runtimeThrowRun.reportData,
+        matchCount: 1,
+        isNoOp: false,
+      });
+
+      assert.notEqual(runtimeThrowClass, 'assertion-killed', 'Runtime throw inside test body must never count as assertion-killed.');
+      assert.equal(runtimeThrowClass, 'compile-or-runtime-error', 'Runtime throw inside test body must classify as compile-or-runtime-error.');
+    } finally {
+      writeFileSync(testPath, originalTest, 'utf8');
+    }
+
+    return {
+      harmlessClass,
+      syntaxClass,
+      verified: true,
+    };
   } finally {
     writeFileSync(targetPath, original, 'utf8');
   }
 }
 
 /**
- * Parse command line arguments.
+ * Validate output redaction of synthetic canaries across message sanitization.
+ */
+function validateRedactionCanaries() {
+  const canaryInput = 'Error: expect(received).toBe(expected)\n' +
+    'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw secret_abcdef123456 ' +
+    'CANARY_SECRET_TEST123 CANARY_PAYLOAD_DATA456 ' +
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef ' +
+    'Bearer eyJhbGciOiJIUzI1NiJ9.test v1,dGVzdF9zaWduYXR1cmU= ' +
+    'Uint8Array [ 10, 20, 30, 40, 50 ]';
+
+  const sanitized = sanitizeMessage(canaryInput);
+
+  assert(!sanitized.includes('MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw'), 'Standard Webhooks secret was not redacted.');
+  assert(!sanitized.includes('abcdef123456'), 'Provider secret was not redacted.');
+  assert(!sanitized.includes('CANARY_SECRET_TEST123'), 'Canary secret was not redacted.');
+  assert(!sanitized.includes('CANARY_PAYLOAD_DATA456'), 'Canary payload was not redacted.');
+  assert(!sanitized.includes('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'), 'Hex signature was not redacted.');
+  assert(!sanitized.includes('dGVzdF9zaWduYXR1cmU='), 'Base64 signature was not redacted.');
+  assert(!sanitized.includes('eyJhbGciOiJIUzI1NiJ9'), 'Bearer token was not redacted.');
+}
+
+/**
+ * Parse and validate CLI arguments upfront before any resources are allocated.
+ * Rejects unknown options, partial IDs, unknown IDs, and duplicate IDs with code 2.
  */
 function parseArgs(argv) {
   const options = {
     selectedIds: null,
     validateClassifierOnly: false,
     includeControls: false,
+    selfTest: false,
     help: false,
   };
+
+  const knownIds = new Set(MUTANT_CATALOGUE.map((m) => m.id));
 
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
 
     if (arg === '--help' || arg === '-h') {
       options.help = true;
-    } else if (arg === '--validate-classifier' || arg === '--self-test') {
+    } else if (arg === '--validate-classifier') {
       options.validateClassifierOnly = true;
+    } else if (arg === '--self-test') {
+      options.selfTest = true;
     } else if (arg === '--include-controls') {
       options.includeControls = true;
     } else if (arg === '--id' || arg === '--mutant') {
@@ -935,11 +1135,11 @@ function parseArgs(argv) {
         throw new Error(`Missing value for argument: ${arg}`);
       }
 
-      options.selectedIds = argv[i].split(',').map((val) => Number.parseInt(val.trim(), 10));
+      options.selectedIds = parseAndValidateIds(argv[i], knownIds);
     } else if (arg.startsWith('--id=') || arg.startsWith('--mutant=')) {
       const val = arg.split('=')[1];
 
-      options.selectedIds = val.split(',').map((v) => Number.parseInt(v.trim(), 10));
+      options.selectedIds = parseAndValidateIds(val, knownIds);
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -949,7 +1149,44 @@ function parseArgs(argv) {
 }
 
 /**
- * Main execution driver.
+ * Parse and strictly validate mutant IDs.
+ */
+function parseAndValidateIds(raw, knownIds) {
+  if (!raw || raw.trim() === '') {
+    throw new Error('Mutant ID list cannot be empty.');
+  }
+
+  const pieces = raw.split(',');
+  const parsedIds = [];
+  const seen = new Set();
+
+  for (const piece of pieces) {
+    const trimmed = piece.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+      throw new Error(`Invalid mutant ID format: "${trimmed}". IDs must be canonical integers without junk.`);
+    }
+
+    const id = Number.parseInt(trimmed, 10);
+
+    if (seen.has(id)) {
+      throw new Error(`Duplicate mutant ID: ${id}`);
+    }
+
+    seen.add(id);
+
+    if (!knownIds.has(id)) {
+      throw new Error(`Unknown mutant ID: ${id}. Available IDs: ${[...knownIds].sort((a, b) => a - b).join(', ')}`);
+    }
+
+    parsedIds.push(id);
+  }
+
+  return parsedIds;
+}
+
+/**
+ * Main execution driver. Returns integer exit code. Does not invoke process.exit internally.
  */
 async function main() {
   const startTime = Date.now();
@@ -959,7 +1196,8 @@ async function main() {
     cliOptions = parseArgs(process.argv);
   } catch (err) {
     console.error(`Invalid invocation: ${err.message}`);
-    process.exit(2);
+
+    return 2;
   }
 
   if (cliOptions.help) {
@@ -968,8 +1206,9 @@ Hooklatch Phase 6 Isolated Mutation Runner
 Usage: node scripts/phase6-mutations.mjs [options]
 
 Options:
-  --id, --mutant <id>      Comma-separated list of mutant IDs to run (default: all)
-  --validate-classifier    Run classifier self-test validation only and exit
+  --id, --mutant <ids>     Comma-separated list of mutant IDs to run (e.g. 1,10)
+  --validate-classifier    Run classifier validation against real Jest in isolated snapshot
+  --self-test              Run full self-test suite (argument errors, classifiers, canaries, cleanup)
   --include-controls       Include controlled temporary examples in qualification
   --help, -h               Show this help message
 
@@ -979,33 +1218,63 @@ Exit codes:
   2 = Invalid invocation
   3 = Cleanup or original-tree integrity failure (takes precedence)
 `);
-    process.exit(0);
-  }
 
-  // Pre-run checkout integrity recording
-  const initialHashes = scanHashes(REPO_ROOT, ['src', 'tests']);
-  const initialGitStatus = checkGitStatus(REPO_ROOT);
-  const currentSha = getCurrentSha(REPO_ROOT);
-
-  if (!initialGitStatus.clean) {
-    console.error(`Preflight failure: Real checkout is not clean:\n${initialGitStatus.output}`);
-    process.exit(1);
+    return 0;
   }
 
   // Pure logic classifier unit check
   validateClassifierDirect();
 
+  // Validate output redaction of synthetic canaries
+  validateRedactionCanaries();
+
+  // Pre-run checkout integrity recording
+  const initialHashes = scanTrackedHashes(REPO_ROOT);
+  const initialGitStatus = checkGitStatus(REPO_ROOT);
+  const currentSha = getCurrentSha(REPO_ROOT);
+
+  if (!initialGitStatus.clean) {
+    console.error(`Preflight failure: Real checkout is not clean:\n${initialGitStatus.output}`);
+
+    return 1;
+  }
+
   let tempDir = null;
   let snapshotNodeModules = null;
   let qualificationFailed = false;
+  let runError = null;
   let reportOutput = null;
 
   try {
-    tempDir = mkdtempSync(path.join(os.tmpdir(), 'hooklatch-gemini-mutations-'));
+    tempDir = mkdtempSync(path.join(os.tmpdir(), TEMP_DIR_PREFIX));
 
     const { snapshotDir, snapshotNodeModules: modulesLink } = createSnapshot(REPO_ROOT, tempDir);
 
     snapshotNodeModules = modulesLink;
+
+    if (cliOptions.selfTest) {
+      console.error('Running self-test suite (arguments, classifiers, redaction, lifecycle)...');
+      const realControls = await validateClassifierWithRealJest(snapshotDir);
+
+      reportOutput = {
+        schemaVersion: SCHEMA_VERSION,
+        baseSha: PINNED_BASE_SHA,
+        currentSha,
+        mode: 'self-test',
+        metadata: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+          tool: 'jest',
+        },
+        controls: realControls,
+        redactionVerified: true,
+        durationMs: Date.now() - startTime,
+        status: 'validated',
+      };
+
+      return 0;
+    }
 
     if (cliOptions.validateClassifierOnly) {
       console.error('Running classifier validation against real Jest in isolated snapshot...');
@@ -1016,14 +1285,18 @@ Exit codes:
         baseSha: PINNED_BASE_SHA,
         currentSha,
         mode: 'classifier-validation-only',
+        metadata: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+          tool: 'jest',
+        },
         controls: realControls,
         durationMs: Date.now() - startTime,
         status: 'validated',
       };
 
-      console.log(JSON.stringify(reportOutput, null, 2));
-
-      return;
+      return 0;
     }
 
     const mutantsToRun = MUTANT_CATALOGUE.filter((m) => {
@@ -1031,11 +1304,6 @@ Exit codes:
 
       return cliOptions.selectedIds.includes(m.id);
     });
-
-    if (mutantsToRun.length === 0) {
-      console.error('No mutants matched the selected criteria.');
-      process.exit(2);
-    }
 
     // Collect unique suites for unmodified baseline run
     const baselineSuites = [...new Set(mutantsToRun.flatMap((m) => m.selectedSuites))].sort();
@@ -1053,6 +1321,12 @@ Exit codes:
         schemaVersion: SCHEMA_VERSION,
         baseSha: PINNED_BASE_SHA,
         currentSha,
+        metadata: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+          tool: 'jest',
+        },
         baseline: {
           command: baselineResult.command,
           status: baselineResult.status,
@@ -1067,9 +1341,7 @@ Exit codes:
         durationMs: Date.now() - startTime,
       };
 
-      console.log(JSON.stringify(reportOutput, null, 2));
-
-      return;
+      return 1;
     }
 
     console.error(`Baseline PASS: ${baselineResult.testsPassed} tests passed across ${baselineSuites.length} suites.`);
@@ -1186,6 +1458,12 @@ Exit codes:
       baseSha: PINNED_BASE_SHA,
       historicalReviewBase: HISTORICAL_REVIEW_BASE,
       currentSha,
+      metadata: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        pid: process.pid,
+        tool: 'jest',
+      },
       baseline: {
         command: baselineResult.command,
         status: baselineResult.status,
@@ -1200,80 +1478,107 @@ Exit codes:
       summary,
       durationMs: Date.now() - startTime,
     };
-
-    console.log(JSON.stringify(reportOutput, null, 2));
+  } catch (err) {
+    runError = err;
+    qualificationFailed = true;
+    console.error(`Execution error: ${err.message}`);
   } finally {
+    let junctionUnlinked = false;
+    let tempDirDeleted = false;
     let cleanupOk = true;
     let integrityOk = true;
 
+    // Cleanup junction first
     try {
-      if (snapshotNodeModules && tempDir) {
-        safeUnlinkJunction(snapshotNodeModules, path.join(tempDir, 'snapshot'));
-      }
-
       if (tempDir) {
-        safeDeleteTempDir(tempDir);
-      }
+        const linkPath = snapshotNodeModules ?? path.join(tempDir, 'snapshot', 'node_modules');
 
-      if (tempDir && existsSync(tempDir)) {
-        cleanupOk = false;
+        safeUnlinkJunction(linkPath, path.join(tempDir, 'snapshot'));
+        junctionUnlinked = true;
       }
     } catch (err) {
-      console.error(`Cleanup error: ${err.message}`);
+      console.error(`Junction unlink error: ${err.message}`);
       cleanupOk = false;
     }
 
+    // Only recursively delete temp directory if junction unlink succeeded
     try {
-      const finalHashes = scanHashes(REPO_ROOT, ['src', 'tests']);
+      if (junctionUnlinked && tempDir) {
+        safeDeleteTempDir(tempDir);
+        tempDirDeleted = !existsSync(tempDir);
+
+        if (!tempDirDeleted) {
+          cleanupOk = false;
+        }
+      }
+    } catch (err) {
+      console.error(`Temp directory deletion error: ${err.message}`);
+      cleanupOk = false;
+    }
+
+    // Verify tracked checkout integrity
+    try {
+      const finalHashes = scanTrackedHashes(REPO_ROOT);
 
       if (!hashesEqual(initialHashes, finalHashes)) {
-        console.error('Integrity failure: Source or test file hashes modified in real checkout!');
+        console.error('Integrity failure: Tracked file hashes modified in real checkout!');
         integrityOk = false;
       }
 
       const finalGitStatus = checkGitStatus(REPO_ROOT);
 
       if (!finalGitStatus.clean) {
-        // Only untracked scripts/phase6-mutations.mjs or notes are expected if not committed yet
-        const lines = finalGitStatus.output.split(/\r?\n/).filter(Boolean);
-        const unexpected = lines.filter((l) => {
-          const file = l.slice(3).trim();
-
-          return !file.startsWith('scripts/phase6-mutations.mjs') && !file.startsWith('notes/');
-        });
-
-        if (unexpected.length > 0) {
-          console.error(`Integrity failure: Real checkout modified:\n${unexpected.join('\n')}`);
-          integrityOk = false;
-        }
+        console.error(`Integrity failure: Real checkout modified:\n${finalGitStatus.output}`);
+        integrityOk = false;
       }
     } catch (err) {
       console.error(`Integrity check error: ${err.message}`);
       integrityOk = false;
     }
 
-    if (reportOutput) {
-      reportOutput.cleanup = {
-        cleanupOk,
-        integrityOk,
-        tempDirDeleted: tempDir ? !existsSync(tempDir) : true,
+    if (!reportOutput) {
+      reportOutput = {
+        schemaVersion: SCHEMA_VERSION,
+        baseSha: PINNED_BASE_SHA,
+        currentSha,
+        metadata: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          pid: process.pid,
+          tool: 'jest',
+        },
+        error: runError ? { message: runError.message, stack: runError.stack } : null,
+        durationMs: Date.now() - startTime,
       };
     }
 
+    reportOutput.cleanup = {
+      cleanupOk,
+      integrityOk,
+      junctionUnlinked,
+      tempDirDeleted,
+    };
+
+    // Emit single machine-readable JSON output strictly AFTER cleanup and integrity checks
+    console.log(JSON.stringify(reportOutput, null, 2));
+
     if (!cleanupOk || !integrityOk) {
-      console.error('CRITICAL: Cleanup or original checkout integrity check failed. Exiting with code 3.');
-      process.exit(3);
+      console.error('CRITICAL: Cleanup or original checkout integrity check failed. Exit code 3.');
+
+      return 3;
     }
 
-    if (qualificationFailed) {
-      process.exit(1);
+    if (qualificationFailed || runError) {
+      return 1;
     }
 
-    process.exit(0);
+    return 0;
   }
 }
 
-main().catch((err) => {
+main().then((code) => {
+  process.exit(code);
+}).catch((err) => {
   console.error(`Unexpected unhandled failure: ${err.stack || err.message}`);
   process.exit(1);
 });
