@@ -29,21 +29,32 @@ function isErrnoException(error: unknown): error is { readonly code: string } {
 }
 
 function run(args: readonly string[], cwd: string): CliRunResult {
-  const result = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [CLI, ...args], { cwd, encoding: 'utf8', timeout: 30000 });
 
-  return { status: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
+  if (result.error) throw result.error;
+
+  if (result.status === null) throw new Error('CLI terminated without an exit status.');
+
+  return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
 }
 
 /** Bounded async run: a hung child is killed rather than leaking a handle. */
 function runAsync(args: readonly string[], cwd: string, timeoutMs = 30000): Promise<number> {
-  return new Promise((resolvePromise) => {
+  return new Promise((resolvePromise, reject) => {
+    let timedOut = false;
     const child = spawn(process.execPath, [CLI, ...args], { cwd, stdio: 'ignore' });
-    const timer = setTimeout(() => { child.kill(); }, timeoutMs);
+    const timer = setTimeout(() => { timedOut = true; child.kill(); }, timeoutMs);
 
     timer.unref();
 
-    child.on('exit', (code) => { clearTimeout(timer); resolvePromise(code ?? 1); });
-    child.on('error', () => { clearTimeout(timer); resolvePromise(-1); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+
+      if (timedOut) reject(new Error('Concurrent CLI child timed out.'));
+      else if (code === null) reject(new Error('Concurrent CLI child terminated without an exit status.'));
+      else resolvePromise(code);
+    });
+    child.on('error', (error) => { clearTimeout(timer); reject(error); });
   });
 }
 
@@ -320,10 +331,17 @@ test('concurrent writers into a fresh nested directory produce exactly one compl
   try {
     const nested = [...BASE, '--out', 'a/b/c'];
 
-    const statuses = await Promise.all([
+    const runs = await Promise.allSettled([
       runAsync(nested, root), runAsync(nested, root), runAsync(nested, root),
       runAsync(nested, root), runAsync(nested, root), runAsync(nested, root),
     ]);
+
+    // Wait for every child before inspecting results or cleaning the temp root.
+    const statuses = runs.map((run) => {
+      if (run.status === 'rejected') throw new Error('Concurrent CLI child failed.', { cause: run.reason });
+
+      return run.value;
+    });
 
     // The exclusive create guarantees at most one writer. A concurrent parent
     // mkdir may legitimately lose the race and exit 1; never two winners.
