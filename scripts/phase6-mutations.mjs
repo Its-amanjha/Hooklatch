@@ -159,7 +159,7 @@ export const stripeDescriptor: ProviderDescriptor = {
     name: 'doppler-trimming-outer-header-whitespace',
     category: 'Doppler grammar ordering',
     target: 'src/providers/doppler.ts',
-    selectedSuites: ['tests/providers/doppler.test.ts'],
+    selectedSuites: ['tests/integration/phase6-mutation-guards.test.ts'],
     original: `    const raw = headers.get(SIGNATURE_HEADER);
 
     if (raw === undefined || raw.trim() === '') {
@@ -177,7 +177,7 @@ export const stripeDescriptor: ProviderDescriptor = {
     name: 'sentry-accepting-sha256-prefix',
     category: 'Sentry sha256 prefix',
     target: 'src/providers/sentry.ts',
-    selectedSuites: ['tests/providers/sentry.test.ts'],
+    selectedSuites: ['tests/integration/phase6-mutation-guards.test.ts'],
     original: '    const signature = decodeHexSignature(raw);',
     replacement: `    const normalized = raw.startsWith('sha256=') ? raw.slice(7) : raw;
     const signature = decodeHexSignature(normalized);`,
@@ -307,7 +307,7 @@ export const stripeDescriptor: ProviderDescriptor = {
     name: 'standard-webhooks-prefix-not-stripped',
     category: 'Stripe/Standard Webhooks key derivation',
     target: 'src/providers/standard-webhooks-protocol.ts',
-    selectedSuites: ['tests/providers/standard-webhooks.test.ts'],
+    selectedSuites: ['tests/integration/phase6-mutation-guards.test.ts'],
     original: `      const encoded = secret.startsWith(SECRET_PREFIX)
         ? secret.slice(SECRET_PREFIX.length)
         : secret;`,
@@ -319,7 +319,7 @@ export const stripeDescriptor: ProviderDescriptor = {
     name: 'sanity-skipping-canonical-pad-bits-check',
     category: 'Sanity canonical Base64url pad bits and milliseconds',
     target: 'src/providers/sanity.ts',
-    selectedSuites: ['tests/providers/sanity.test.ts'],
+    selectedSuites: ['tests/integration/phase6-mutation-guards.test.ts'],
     original: '  return encodeBase64Url(bytes) === value ? bytes : null;',
     replacement: '  return bytes;',
     historicalNote: 'Killed by tests/providers/sanity.test.ts pad-bit validation tests.',
@@ -358,6 +358,7 @@ function sha256(content) {
  */
 function scanTrackedHashes(repoPath) {
   const result = {};
+
   const res = spawnSync('git', ['ls-files'], {
     cwd: repoPath,
     shell: false,
@@ -419,6 +420,7 @@ function checkGitStatus(repoPath) {
   }
 
   const lines = res.stdout.split(/\r?\n/).filter(Boolean);
+
   const dirty = lines.filter((line) => {
     const file = line.slice(3).trim();
 
@@ -564,7 +566,9 @@ function runProcess(command, args, options = {}) {
  * Sanitize and redact sensitive tokens, keys, signatures, and byte dumps from error excerpts.
  */
 function sanitizeMessage(raw) {
-  if (typeof raw !== 'string') return '';
+  // Assert the report-string contract at this untyped JSON boundary.
+  try { assert.match(raw, /^[\s\S]*$/); }
+  catch { return ''; }
 
   let sanitized = raw;
 
@@ -599,22 +603,13 @@ function sanitizeMessage(raw) {
  * Determine whether a test failure message represents a genuine executed assertion matcher failure,
  * rather than an unhandled runtime error (such as a ReferenceError or TypeError thrown inside test body).
  */
-function isGenuineAssertionFailure(message) {
-  if (typeof message !== 'string') return false;
+function isFailedMatcher(detail) {
+  try {
+    assert.equal(detail.matcherResult.pass, false);
+    assert.match(detail.matcherResult.message, /^expect\(/);
 
-  const hasMatcher = message.includes('expect(') ||
-    message.includes('Expected:') ||
-    message.includes('Expected a verification failure') ||
-    message.includes('MatcherError') ||
-    message.includes('AssertionError') ||
-    message.includes('JestAssertionError') ||
-    message.includes('HooklatchError');
-
-  const isUnhandledRuntimeError = (message.includes('ReferenceError:') ||
-    message.includes('TypeError:') ||
-    message.includes('SyntaxError:')) && !message.includes('expect(');
-
-  return hasMatcher && !isUnhandledRuntimeError;
+    return true;
+  } catch { return false; }
 }
 
 /**
@@ -628,17 +623,18 @@ function extractFailures(reportData) {
   for (const suite of reportData.testResults) {
     if (!Array.isArray(suite.assertionResults)) continue;
 
-    for (const assertion of suite.assertionResults) {
-      if (assertion.status === 'failed') {
-        const rawMessages = Array.isArray(assertion.failureMessages) ? assertion.failureMessages : [];
-        const matcherMessages = rawMessages.filter(isGenuineAssertionFailure);
+    for (const [index, assertion] of suite.assertionResults.entries()) {
+      if (assertion.status !== 'failed') continue;
+      const details = Array.isArray(assertion.failureDetails) ? assertion.failureDetails.filter(isFailedMatcher) : [];
 
-        if (matcherMessages.length > 0) {
-          failures.push({
-            name: assertion.fullName ?? assertion.title ?? 'unnamed assertion',
-            messages: matcherMessages.slice(0, 1).map(sanitizeMessage),
-          });
-        }
+      if (details.length > 0) {
+        // Deliberately omit title, messages, actual/expected and stack values.
+        failures.push({
+          name: `assertion ${index + 1}`,
+          suite: path.basename(suite.name ?? 'unknown-suite'),
+          matchers: details.map((detail) => detail.matcherResult.name ?? 'jest-matcher'),
+          messages: ['Executed Jest matcher failed; values omitted.'],
+        });
       }
     }
   }
@@ -664,7 +660,7 @@ function classifyExecution({ exitCode, timedOut, reportData, matchCount, isNoOp 
     return 'timeout';
   }
 
-  if (!reportData || typeof reportData !== 'object') {
+  if (!reportData || !Array.isArray(reportData.testResults)) {
     return 'compile-or-runtime-error';
   }
 
@@ -936,6 +932,7 @@ function validateClassifierDirect() {
             {
               status: 'failed',
               fullName: 'sample assertion',
+              failureDetails: [{ matcherResult: { name: 'toBe', message: 'expect(received).toBe(expected)', pass: false } }],
               failureMessages: ['Error: expect(received).toBe(expected)\n\nExpected: true\nReceived: false'],
             },
           ],
@@ -1016,6 +1013,7 @@ async function validateClassifierWithRealJest(snapshotDir) {
     writeFileSync(targetPath, harmlessMutated, 'utf8');
 
     const harmlessRun = await runJestInSnapshot(snapshotDir, [targetSuite], 'control-harmless');
+
     const harmlessClass = classifyExecution({
       exitCode: harmlessRun.exitCode,
       timedOut: harmlessRun.timedOut,
@@ -1032,6 +1030,7 @@ async function validateClassifierWithRealJest(snapshotDir) {
     writeFileSync(targetPath, syntaxMutated, 'utf8');
 
     const syntaxRun = await runJestInSnapshot(snapshotDir, [targetSuite], 'control-syntax');
+
     const syntaxClass = classifyExecution({
       exitCode: syntaxRun.exitCode,
       timedOut: syntaxRun.timedOut,
@@ -1043,20 +1042,20 @@ async function validateClassifierWithRealJest(snapshotDir) {
     assert.notEqual(syntaxClass, 'assertion-killed', 'Real Jest syntax error must never count as assertion-killed.');
     assert.equal(syntaxClass, 'compile-or-runtime-error', 'Real Jest syntax error must classify as compile-or-runtime-error.');
 
-    // Control 3: runtime ReferenceError throw inside test function -> must classify as compile-or-runtime-error, never killed
+    // Control 3: runtime exception with assertion-like text must not count as a matcher failure.
+    let additionalControls;
     const testPath = path.join(snapshotDir, targetSuite);
     const originalTest = readFileSync(testPath, 'utf8');
 
     try {
-      const runtimeThrowMutated = originalTest.replace(
-        "test('orchestration snapshots caller bytes and secret configuration before awaits',",
-        "test('orchestration snapshots caller bytes and secret configuration before awaits', () => { throw new ReferenceError('canary_unhandled_reference_error'); },",
-      );
+      const runtimeThrowMutated = originalTest +
+        "\ntest('runtime marker control', () => { const error = new Error('Expected: synthetic-private-value'); error.name = 'HooklatchError'; throw error; });\n";
 
       writeFileSync(testPath, runtimeThrowMutated, 'utf8');
       writeFileSync(targetPath, original, 'utf8');
 
       const runtimeThrowRun = await runJestInSnapshot(snapshotDir, [targetSuite], 'control-runtime-throw');
+
       const runtimeThrowClass = classifyExecution({
         exitCode: runtimeThrowRun.exitCode,
         timedOut: runtimeThrowRun.timedOut,
@@ -1067,6 +1066,20 @@ async function validateClassifierWithRealJest(snapshotDir) {
 
       assert.notEqual(runtimeThrowClass, 'assertion-killed', 'Runtime throw inside test body must never count as assertion-killed.');
       assert.equal(runtimeThrowClass, 'compile-or-runtime-error', 'Runtime throw inside test body must classify as compile-or-runtime-error.');
+      assert.equal(runtimeThrowRun.testsFailed, 1, 'Runtime control must execute and fail exactly one test.');
+      assert.equal(runtimeThrowRun.runtimeErrorSuites, 0, 'Runtime control must not fail suite registration.');
+
+      writeFileSync(testPath, originalTest + "\ntest('real matcher control', () => { expect(1).toBe(2); });\n", 'utf8');
+      const matcherRun = await runJestInSnapshot(snapshotDir, [targetSuite], 'control-real-matcher');
+
+      const matcherClass = classifyExecution({
+        exitCode: matcherRun.exitCode, timedOut: matcherRun.timedOut,
+        reportData: matcherRun.reportData, matchCount: 1, isNoOp: false,
+      });
+
+      assert.equal(matcherClass, 'assertion-killed', 'Real executed matcher must count as an assertion kill.');
+      additionalControls = { runtimeThrowClass, matcherClass, runtimeFailedTests: runtimeThrowRun.testsFailed, runtimeErrorSuites: runtimeThrowRun.runtimeErrorSuites };
+
     } finally {
       writeFileSync(testPath, originalTest, 'utf8');
     }
@@ -1074,6 +1087,7 @@ async function validateClassifierWithRealJest(snapshotDir) {
     return {
       harmlessClass,
       syntaxClass,
+      ...additionalControls,
       verified: true,
     };
   } finally {
@@ -1131,6 +1145,7 @@ function parseArgs(argv) {
       options.includeControls = true;
     } else if (arg === '--id' || arg === '--mutant') {
       i += 1;
+
       if (i >= argv.length) {
         throw new Error(`Missing value for argument: ${arg}`);
       }
@@ -1163,7 +1178,7 @@ function parseAndValidateIds(raw, knownIds) {
   for (const piece of pieces) {
     const trimmed = piece.trim();
 
-    if (!/^\d+$/.test(trimmed)) {
+    if (!/^[1-9]\d*$/.test(trimmed)) {
       throw new Error(`Invalid mutant ID format: "${trimmed}". IDs must be canonical integers without junk.`);
     }
 
@@ -1244,8 +1259,10 @@ Exit codes:
   let qualificationFailed = false;
   let runError = null;
   let reportOutput = null;
+  let finalExitCode = 0;
 
   try {
+    qualification: {
     tempDir = mkdtempSync(path.join(os.tmpdir(), TEMP_DIR_PREFIX));
 
     const { snapshotDir, snapshotNodeModules: modulesLink } = createSnapshot(REPO_ROOT, tempDir);
@@ -1273,7 +1290,7 @@ Exit codes:
         status: 'validated',
       };
 
-      return 0;
+      break qualification;
     }
 
     if (cliOptions.validateClassifierOnly) {
@@ -1296,7 +1313,7 @@ Exit codes:
         status: 'validated',
       };
 
-      return 0;
+      break qualification;
     }
 
     const mutantsToRun = MUTANT_CATALOGUE.filter((m) => {
@@ -1315,7 +1332,7 @@ Exit codes:
 
     if (baselineResult.status !== 'passed') {
       qualificationFailed = true;
-      console.error(`Baseline failed (${baselineResult.status}):\n${baselineResult.stderr}`);
+      console.error(`Baseline failed (${baselineResult.status}); raw output omitted.`);
 
       reportOutput = {
         schemaVersion: SCHEMA_VERSION,
@@ -1341,7 +1358,7 @@ Exit codes:
         durationMs: Date.now() - startTime,
       };
 
-      return 1;
+      break qualification;
     }
 
     console.error(`Baseline PASS: ${baselineResult.testsPassed} tests passed across ${baselineSuites.length} suites.`);
@@ -1407,13 +1424,12 @@ Exit codes:
         execution = await runJestInSnapshot(snapshotDir, mutant.selectedSuites, `mutant-${mutant.id}`);
       } finally {
         writeFileSync(targetFile, originalContent, 'utf8');
-        const restoredHash = sha256(readFileSync(targetFile));
-        const expectedHash = sha256(Buffer.from(originalContent, 'utf8'));
-
-        if (restoredHash !== expectedHash) {
-          throw new Error(`Failed to restore pristine bytes in ${mutant.target}`);
-        }
       }
+
+      const restoredHash = sha256(readFileSync(targetFile));
+      const expectedHash = sha256(Buffer.from(originalContent, 'utf8'));
+
+      if (restoredHash !== expectedHash) throw new Error(`Failed to restore pristine bytes in ${mutant.target}`);
 
       const classification = classifyExecution({
         exitCode: execution.exitCode,
@@ -1478,10 +1494,11 @@ Exit codes:
       summary,
       durationMs: Date.now() - startTime,
     };
+    }
   } catch (err) {
     runError = err;
     qualificationFailed = true;
-    console.error(`Execution error: ${err.message}`);
+    console.error('Execution error while running qualification.');
   } finally {
     let junctionUnlinked = false;
     let tempDirDeleted = false;
@@ -1547,7 +1564,7 @@ Exit codes:
           pid: process.pid,
           tool: 'jest',
         },
-        error: runError ? { message: runError.message, stack: runError.stack } : null,
+        error: runError ? { code: 'execution-failed' } : null,
         durationMs: Date.now() - startTime,
       };
     }
@@ -1565,20 +1582,18 @@ Exit codes:
     if (!cleanupOk || !integrityOk) {
       console.error('CRITICAL: Cleanup or original checkout integrity check failed. Exit code 3.');
 
-      return 3;
+      finalExitCode = 3;
+    } else if (qualificationFailed || runError) {
+      finalExitCode = 1;
     }
-
-    if (qualificationFailed || runError) {
-      return 1;
-    }
-
-    return 0;
   }
+
+  return finalExitCode;
 }
 
 main().then((code) => {
   process.exit(code);
-}).catch((err) => {
-  console.error(`Unexpected unhandled failure: ${err.stack || err.message}`);
+}).catch(() => {
+  console.error('Unexpected unhandled runner failure.');
   process.exit(1);
 });
