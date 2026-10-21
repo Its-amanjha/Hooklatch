@@ -5,9 +5,42 @@
  * Communicates via standard Web Fetch Request / Response.
  */
 
+function isString(val) {
+  return Object.prototype.toString.call(val) === '[object String]';
+}
+
 function isCallable(val) {
   return Object.prototype.toString.call(val) === '[object Function]' ||
     Object.prototype.toString.call(val) === '[object AsyncFunction]';
+}
+
+function buildVerifyOptions(specOptions) {
+  const options = {
+    provider: specOptions.provider,
+    secrets: specOptions.secrets,
+  };
+
+  if (specOptions.toleranceSeconds !== undefined) {
+    options.toleranceSeconds = specOptions.toleranceSeconds;
+  }
+
+  if (specOptions.now !== undefined) {
+    options.now = () => specOptions.now;
+  }
+
+  if (specOptions.providerOptions !== undefined) {
+    const providerOpts = {};
+
+    for (const [key, value] of Object.entries(specOptions.providerOptions)) {
+      if (value !== undefined) {
+        providerOpts[key] = value;
+      }
+    }
+
+    options.providerOptions = providerOpts;
+  }
+
+  return options;
 }
 
 export default {
@@ -26,7 +59,13 @@ export default {
       return Response.json({ status: 'healthy', environment: 'workerd' });
     }
 
-    if (url.pathname.startsWith('/case/')) {
+    const isVerifyRequest = url.pathname.startsWith('/verify-request');
+
+    const isVerify = url.pathname.startsWith('/verify');
+
+    const isCreateVerifier = url.pathname.startsWith('/create-verifier');
+
+    if (isVerifyRequest || isVerify || isCreateVerifier) {
       const caseHeader = request.headers.get('x-test-case');
 
       if (!caseHeader) {
@@ -52,17 +91,24 @@ export default {
           }, { status: 501 });
         }
 
-        const rawBody = new Uint8Array(await request.arrayBuffer());
+        const verifyOptions = buildVerifyOptions(spec.options);
 
-        const verifyOptions = {
-          provider: spec.provider,
-          secrets: spec.options.secrets,
-          providerOptions: spec.options.providerOptions,
-          toleranceSeconds: spec.options.toleranceSeconds,
-          now: () => spec.options.now,
-        };
+        let result;
 
-        const result = await sdk.verify({ rawBody, headers: request.headers }, verifyOptions);
+        if (isVerifyRequest) {
+          // Tests setup-before-body-pull: pass request directly without reading body first
+          result = await sdk.verifyRequest(request, verifyOptions);
+        } else if (isCreateVerifier) {
+          const rawBody = new Uint8Array(await request.arrayBuffer());
+
+          const verifier = sdk.createVerifier(verifyOptions);
+
+          result = await verifier({ rawBody, headers: request.headers });
+        } else {
+          const rawBody = new Uint8Array(await request.arrayBuffer());
+
+          result = await sdk.verify({ rawBody, headers: request.headers }, verifyOptions);
+        }
 
         return Response.json({
           ok: result.ok,
@@ -72,11 +118,15 @@ export default {
           bytes: result.rawBody ? Array.from(result.rawBody) : undefined,
         });
       } catch (err) {
+        const isHooklatch = err.name === 'HooklatchError' ||
+          Boolean(err.code && isString(err.code));
+
         return Response.json({
           ok: false,
-          error: err.name,
+          isHooklatchError: isHooklatch,
+          errorCode: err.code ?? err.name,
           message: err.message,
-        }, { status: 500 });
+        }, { status: 200 });
       }
     }
 
