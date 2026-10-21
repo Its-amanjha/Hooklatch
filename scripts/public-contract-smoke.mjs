@@ -21,7 +21,8 @@
  * infrastructure failure; 2 usage error.
  */
 
-import { execFile } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { createHash } from 'node:crypto';
 import {
   existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, symlinkSync, unlinkSync, writeFileSync,
@@ -32,13 +33,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { promisify } from 'node:util';
 
 import {
   CASES, ENVIRONMENTS, PROVIDER_IDS, RUNTIME_BOUNDARY, SELF_TEST,
 } from './public-contract/fixtures.mjs';
 
-const execFileAsync = promisify(execFile);
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TEMP_PREFIX = 'hooklatch-public-contract-';
 const EXIT = { PASS: 0, FAIL: 1, USAGE: 2 };
@@ -63,6 +62,8 @@ cleanup matched; 1 = contract/infrastructure failure; 2 = usage error.`;
 
 class InfrastructureError extends Error {}
 
+const lifecycle = { cleanupSafe: true };
+
 /* -------------------------------------------------------------------------- */
 /* small utilities                                                             */
 /* -------------------------------------------------------------------------- */
@@ -78,17 +79,53 @@ const bounded = (value) => {
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 
 async function run(command, args, { cwd, timeout = NODE_TIMEOUT_MS, label }) {
-  try {
-    const { stdout } = await execFileAsync(command, args, {
-      cwd, encoding: 'utf8', timeout, windowsHide: true, maxBuffer: 16 * 1024 * 1024,
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let terminationTimer;
+    const limit = 16 * 1024 * 1024;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+
+      if (!child.pid) return;
+
+      if (process.platform === 'win32') {
+        const termination = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, timeout: 15000, stdio: 'ignore' });
+
+        if (termination.error || termination.status !== 0) {
+          lifecycle.cleanupSafe = false;
+          child.kill('SIGKILL');
+        }
+      } else {
+        try { process.kill(-child.pid, 'SIGKILL'); }
+        catch { lifecycle.cleanupSafe = false; child.kill('SIGKILL'); }
+      }
+
+      terminationTimer = setTimeout(() => {
+        lifecycle.cleanupSafe = false;
+        child.stdout.destroy();
+        child.stderr.destroy();
+        child.unref();
+        reject(new InfrastructureError(`${label ?? command} termination could not be confirmed; temp files retained.`));
+      }, 5000);
+    }, timeout);
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk.slice(0, Math.max(0, limit - stdout.length)); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.slice(0, Math.max(0, limit - stderr.length)); });
+    child.on('error', () => { clearTimeout(timer); reject(new InfrastructureError(`${label ?? command} could not start.`)); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      clearTimeout(terminationTimer);
+
+      if (timedOut || code !== 0) reject(new InfrastructureError(`${label ?? command} failed${timedOut ? ' (timeout)' : ` (${code})`}: ${bounded(stderr)}`));
+      else resolve(stdout);
     });
-
-    return stdout;
-  } catch (error) {
-    const detail = error?.stderr ? bounded(error.stderr) : bounded(error?.message ?? error);
-
-    throw new InfrastructureError(`${label ?? command} failed${error?.code ? ` (${error.code})` : ''}: ${detail}`);
-  }
+  });
 }
 
 /** npm is not guaranteed to expose npm_execpath when the script runs under plain node. */
@@ -360,7 +397,7 @@ function createLink(target, linkPath) {
   return { linkPath: resolvedLink, target: resolvedTarget };
 }
 
-async function installEnvironment(npmCli, tempRoot, tarballPath, definition) {
+async function installEnvironment(npmCli, tempRoot, tarballPath, definition, ownedLinks) {
   const envDir = path.join(tempRoot, `env-${definition.id}`);
 
   mkdirSync(envDir, { recursive: true });
@@ -386,7 +423,10 @@ async function installEnvironment(npmCli, tempRoot, tarballPath, definition) {
   const links = [];
 
   for (const link of definition.links) {
-    links.push(createLink(path.join(REPO_ROOT, link.target), path.join(envDir, 'node_modules', link.name)));
+    const created = createLink(path.join(REPO_ROOT, link.target), path.join(envDir, 'node_modules', link.name));
+
+    ownedLinks.push(created);
+    links.push(created);
   }
 
   return { definition, envDir, installedRoot, installedManifest, links };
@@ -487,7 +527,7 @@ function normalizeDiagnostic(ts, diagnostic, envDir) {
   };
 }
 
-function compileCase(ts, caseDefinition, environment, source) {
+function compileCaseLocal(ts, caseDefinition, environment, source) {
   const fileName = path.join(environment.envDir, caseDefinition.file);
 
   writeFileSync(fileName, source, 'utf8');
@@ -501,6 +541,36 @@ function compileCase(ts, caseDefinition, environment, source) {
     .map((diagnostic) => normalizeDiagnostic(ts, diagnostic, environment.envDir));
 
   return { fileName, diagnostics };
+}
+
+async function compileCase(caseDefinition, environment, source) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL(import.meta.url), { workerData: {
+      caseDefinition, source, environment: { definition: environment.definition, envDir: environment.envDir },
+    } });
+
+    let settled = false;
+    let timer;
+
+    const finish = async (error, result) => {
+      if (settled) return;
+
+      settled = true;
+      clearTimeout(timer);
+      await worker.terminate();
+
+      if (error) reject(error);
+      else resolve(result);
+    };
+
+    worker.once('message', (message) => {
+      if (message.ok) void finish(null, message.result);
+      else void finish(new InfrastructureError(message.message));
+    });
+    worker.once('error', () => { void finish(new InfrastructureError('Compiler worker failed.')); });
+    worker.once('exit', () => { if (!settled) void finish(new InfrastructureError('Compiler worker exited without a result.')); });
+    timer = setTimeout(() => { void finish(new InfrastructureError('Compiler worker timed out.')); }, NODE_TIMEOUT_MS);
+  });
 }
 
 function parseMarkers(source) {
@@ -592,14 +662,14 @@ function classify(caseDefinition, diagnostics, source) {
 /* classifier self-tests                                                       */
 /* -------------------------------------------------------------------------- */
 
-function runClassifierSelfTests(ts, coreEnvironment, tempRoot, results) {
+async function runClassifierSelfTests(ts, coreEnvironment, tempRoot, results) {
   // 1. A valid program with a marker must NOT be accepted as a passing negative.
   const validName = 'selftest-valid-program-not-negative.ts';
   const validSource = `${SELF_TEST.validProgramSource}// @expect-error ${SELF_TEST.mismatchedMarkerCode}\n`;
   const validCase = { id: 'selftest/valid-program-not-negative', kind: 'negative', file: validName };
 
   try {
-    const { diagnostics } = compileCase(ts, validCase, coreEnvironment, validSource);
+    const { diagnostics } = await compileCase(validCase, coreEnvironment, validSource);
     const classified = classify(validCase, diagnostics, validSource);
 
     results.push({
@@ -715,7 +785,20 @@ async function runRuntimeBoundary(coreEnvironment) {
     throw new InfrastructureError(`runtime boundary driver produced non-JSON output: ${bounded(line)}`);
   }
 
-  return { rootExports: parsed.rootExports ?? [], checks: parsed.checks ?? [] };
+  const requiredIds = [
+    ...RUNTIME_BOUNDARY.expectedRootExports.map((name) => `root-export:${name}`),
+    'diagnostics-export:diagnose',
+    ...RUNTIME_BOUNDARY.blockedSubpaths.map((name) => `blocked:${name}`),
+    ...RUNTIME_BOUNDARY.absentPeers.map((name) => `absent-peer:${name}`),
+  ];
+
+  if (!Array.isArray(parsed.checks) || parsed.checks.length !== requiredIds.length
+      || new Set(parsed.checks.map((check) => check.id)).size !== requiredIds.length
+      || !requiredIds.every((id) => parsed.checks.some((check) => check.id === id))) {
+    throw new InfrastructureError('runtime boundary report has incomplete checks');
+  }
+
+  return { rootExports: parsed.rootExports ?? [], checks: parsed.checks };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -844,9 +927,8 @@ async function main() {
     const environments = {};
 
     for (const definition of Object.values(ENVIRONMENTS)) {
-      const environment = await installEnvironment(npmCli, tempRoot, pack.tarballPath, definition);
+      const environment = await installEnvironment(npmCli, tempRoot, pack.tarballPath, definition, links);
 
-      links.push(...environment.links);
       verifyInstalledPackage(environment, manifest, pack);
 
       if (definition.id === 'core') {
@@ -888,7 +970,7 @@ async function main() {
 
       if (environment === undefined) throw new InfrastructureError(`case ${caseDefinition.id} names an unknown environment`);
 
-      const { diagnostics } = compileCase(ts, caseDefinition, environment, caseDefinition.source);
+      const { diagnostics } = await compileCase(caseDefinition, environment, caseDefinition.source);
       const classified = classify(caseDefinition, diagnostics, caseDefinition.source);
       const status = classified.pass ? 'pass' : 'fail';
 
@@ -919,7 +1001,7 @@ async function main() {
 
     if (caseFailures > 0) throw new InfrastructureError(`${caseFailures} public-contract case(s) did not match the intended outcome`);
 
-    runClassifierSelfTests(ts, environments.core, tempRoot, report.selfTests);
+    await runClassifierSelfTests(ts, environments.core, tempRoot, report.selfTests);
 
     for (const selfTest of report.selfTests) {
       say(`  ${selfTest.status === 'pass' ? 'PASS' : 'FAIL'}  ${selfTest.id} — ${selfTest.detail}`);
@@ -954,7 +1036,14 @@ async function main() {
     // cleanup can never traverse into the shared checkout node_modules.
     const cleanup = { tempRoot: tempRoot === null ? null : path.resolve(tempRoot), links: [], removed: false, insideTemp: false };
 
-    if (tempRoot !== null) {
+    if (tempRoot !== null && !lifecycle.cleanupSafe) {
+      cleanup.error = 'Child-process termination is uncertain; temp root retained for inspection.';
+      report.failures.push(cleanup.error);
+      report.status = 'fail';
+      exitCode = EXIT.FAIL;
+    }
+
+    if (tempRoot !== null && lifecycle.cleanupSafe) {
       try {
         assertInsideTempRoot(tempRoot);
         cleanup.insideTemp = true;
@@ -974,6 +1063,8 @@ async function main() {
         if (cleanup.error === undefined) {
           await rm(cleanup.tempRoot, { recursive: true, force: true });
           cleanup.removed = !existsSync(cleanup.tempRoot);
+
+          if (!cleanup.removed) cleanup.error = 'Temp root remains after cleanup.';
         }
       } catch (cleanupError) {
         cleanup.error = bounded(cleanupError?.message ?? cleanupError);
@@ -989,19 +1080,25 @@ async function main() {
     report.cleanup = cleanup;
 
     if (before !== null) {
-      const after = await snapshotCheckout();
-      const comparison = compareSnapshots(before, after);
+      try {
+        const after = await snapshotCheckout();
+        const comparison = compareSnapshots(before, after);
 
-      report.checkout = {
-        head: before.head,
-        gitStatusBefore: before.gitStatus,
-        gitStatusAfter: after.gitStatus,
-        filesChecked: comparison.checkedFiles,
-        failures: comparison.failures,
-      };
+        report.checkout = {
+          head: before.head,
+          gitStatusBefore: before.gitStatus,
+          gitStatusAfter: after.gitStatus,
+          filesChecked: comparison.checkedFiles,
+          failures: comparison.failures,
+        };
 
-      if (comparison.failures.length > 0) {
-        report.failures.push(...comparison.failures);
+        if (comparison.failures.length > 0) {
+          report.failures.push(...comparison.failures);
+          report.status = 'fail';
+          exitCode = EXIT.FAIL;
+        }
+      } catch {
+        report.failures.push('Final checkout snapshot could not be verified.');
         report.status = 'fail';
         exitCode = EXIT.FAIL;
       }
@@ -1026,4 +1123,14 @@ async function main() {
   return exitCode;
 }
 
-process.exitCode = await main();
+if (isMainThread) {
+  process.exitCode = await main();
+} else {
+  try {
+    const result = compileCaseLocal(loadTypeScript(), workerData.caseDefinition, workerData.environment, workerData.source);
+
+    parentPort.postMessage({ ok: true, result });
+  } catch (error) {
+    parentPort.postMessage({ ok: false, message: bounded(error?.message ?? error) });
+  }
+}
