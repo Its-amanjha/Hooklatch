@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 
 import { Hono } from 'hono';
 
@@ -5,10 +6,9 @@ import { createWebhookHandler as createNextHandler } from '../../src/adapters/ne
 import { createWebhookHandler as createWorkerHandler } from '../../src/adapters/cloudflare.js';
 import { createWebhookMiddleware as createHonoMiddleware } from '../../src/adapters/hono.js';
 import { readNodeStream } from '../../src/adapters/shared.js';
-// (no signing helper needed; signatures are computed with node:crypto)
 
 /**
- * Phase 6 Stage A â€” genuinely new stream-boundary regressions.
+ * Phase 6 Stage A â€” stream-boundary regressions.
  *
  * Builds on (does not duplicate) the Phase 3 byte-contract and Phase 4
  * lifecycle suites. New ground here:
@@ -38,6 +38,7 @@ async function assertOverflowWithRejectingCancel(handle: (request: Request) => P
   const cancelPending = new Promise<void>((_resolve, reject) => { settleReject = reject; });
   const cancelEntered = new Promise<void>((resolve) => { markCancelEntered = resolve; });
   let cancelCalled = false;
+  let cancelSettled = false;
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -48,7 +49,7 @@ async function assertOverflowWithRejectingCancel(handle: (request: Request) => P
       cancelCalled = true;
       markCancelEntered();
 
-      return cancelPending;
+      return cancelPending.finally(() => { cancelSettled = true; });
     },
   });
 
@@ -76,12 +77,16 @@ async function assertOverflowWithRejectingCancel(handle: (request: Request) => P
     // cancel was *requested* (called) but its settlement is still pending/rejected;
     // the adapter must have resolved the response before that settlement.
     expect(outcome).toEqual({ kind: 'response', status: 413 });
+    expect(cancelSettled).toBe(false);
 
     // Release the pending cancel rejection so nothing dangles. The adapter
     // swallows it via reader.cancel().catch(() => undefined), so no unhandled
     // rejection should surface.
     settleReject(new Error('cancel rejected'));
     await response;
+    // Give the stream cancellation and detached rejection handler an event-loop turn.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(cancelSettled).toBe(true);
   } finally {
     if (checkpoint !== undefined) clearImmediate(checkpoint);
     settleReject(new Error('cancel rejected'));
@@ -96,9 +101,11 @@ test('nextjs returns 413 when the overflowing producer cancel rejects', async ()
     provider: 'github',
     secrets: [SECRET],
     maxBodyBytes: 1,
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   await assertOverflowWithRejectingCancel(handler);
@@ -110,9 +117,11 @@ test('cloudflare returns 413 when the overflowing producer cancel rejects', asyn
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET], maxBodyBytes: 1 }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   await assertOverflowWithRejectingCancel((request) => handler(request, {}, { waitUntil: () => undefined }));
@@ -138,9 +147,11 @@ test('nextjs returns 413 when a later chunk pushes a partial valid body over the
     provider: 'github',
     secrets: [SECRET],
     maxBodyBytes: 2,
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -169,9 +180,11 @@ test('cloudflare returns 413 when a later chunk pushes a partial valid body over
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET], maxBodyBytes: 2 }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -242,9 +255,11 @@ test('nextjs returns 413 when zero-length chunks precede an oversized chunk', as
     provider: 'github',
     secrets: [SECRET],
     maxBodyBytes: 1,
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -274,9 +289,11 @@ test('cloudflare returns 413 when zero-length chunks precede an oversized chunk'
 
   const handler = createWorkerHandler({
     options: () => ({ provider: 'github', secrets: [SECRET], maxBodyBytes: 1 }),
-    handler: async () => { called = true;
+    handler: async () => {
+      called = true;
 
- return new Response('ok', { status: 200 }); },
+      return new Response('ok', { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -334,7 +351,7 @@ test('readNodeStream returns 500 when the stream errors after partial valid byte
 
 const CANARY_PAYLOAD = 'phase6-stream-canary-payload-9f2e1a2b';
 const CANARY_SECRET = 'phase6-stream-canary-secret-7b3d2c4e';
-const CANARY_SIGNATURE_HEX = 'phase6streamcanarysignaturehex4a8c1f2e3b5d7a9c';
+const CANARY_SIGNATURE_HEX = createHmac('sha256', CANARY_SECRET).update(CANARY_PAYLOAD).digest('hex');
 const CANARY_ID = 'phase6-stream-canary-delivery-id-1e7b3c5d';
 
 const CANARY_TOKENS = [CANARY_PAYLOAD, CANARY_SECRET, CANARY_SIGNATURE_HEX, CANARY_ID];
@@ -348,7 +365,7 @@ function assertNoCanary(body: string): void {
 test('nextjs overflow error body omits canaries', async () => {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(new Uint8Array(2));
+      controller.enqueue(new TextEncoder().encode(CANARY_PAYLOAD));
       controller.close();
     },
   });
@@ -363,7 +380,11 @@ test('nextjs overflow error body omits canaries', async () => {
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body: stream,
-    headers: { 'content-type': 'application/octet-stream' },
+    headers: {
+      'content-type': 'application/octet-stream',
+      'x-hub-signature-256': `sha256=${CANARY_SIGNATURE_HEX}`,
+      'x-github-delivery': CANARY_ID,
+    },
     // @ts-expect-error duplex is required by some runtimes for streaming bodies
     duplex: 'half',
   }));
@@ -377,7 +398,7 @@ test('nextjs overflow error body omits canaries', async () => {
 test('cloudflare overflow error body omits canaries', async () => {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(new Uint8Array(2));
+      controller.enqueue(new TextEncoder().encode(CANARY_PAYLOAD));
       controller.close();
     },
   });
@@ -391,7 +412,11 @@ test('cloudflare overflow error body omits canaries', async () => {
     new Request('https://example.test/webhook', {
       method: 'POST',
       body: stream,
-      headers: { 'content-type': 'application/octet-stream' },
+      headers: {
+        'content-type': 'application/octet-stream',
+        'x-hub-signature-256': `sha256=${CANARY_SIGNATURE_HEX}`,
+        'x-github-delivery': CANARY_ID,
+      },
       // @ts-expect-error duplex is required by some runtimes for streaming bodies
       duplex: 'half',
     }),
