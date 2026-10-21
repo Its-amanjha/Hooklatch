@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import { HooklatchError } from '../../src/errors.js';
-import { concatBytes, decodeBase64, utf8 } from '../../src/internal/bytes.js';
 import { createPolarDescriptor } from '../../src/providers/polar.js';
 import type { PolarDescriptorOptions } from '../../src/providers/polar.js';
 import { base64Of, expectFailure, expectOk, headerMap, ternErrorCode } from './helpers.js';
@@ -11,7 +11,7 @@ const LEGACY_SECRET_A = 'polar-legacy-synthetic-secret-alpha-2026';
 const LEGACY_SECRET_B = 'polar-legacy-synthetic-secret-beta-2026';
 const EVENT_ID = 'msg_phase7_polar_synthetic_0001';
 const TIMESTAMP = '1792450000';
-const BODY = utf8('{"type":"order.created","data":{"id":"synthetic-order-1"}}');
+const BODY = literalBytes('{"type":"order.created","data":{"id":"synthetic-order-1"}}');
 const CANARY = 'phase7-polar-config-canary-6d2b9f';
 
 type PolarHeaderRecord = {
@@ -36,8 +36,22 @@ function polarHeaders(
   return record;
 }
 
+/** Independent byte/key oracles for synthetic valid inputs, not production helpers. */
+function literalBytes(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, 'utf8'));
+}
+
+function currentBytes(secret: string): Uint8Array {
+  const encoded = secret.startsWith('whsec_') ? secret.slice('whsec_'.length) : secret;
+
+  return new Uint8Array(Buffer.from(encoded, 'base64'));
+}
+
 function contentFor(id: string, timestamp: string, body: Uint8Array): Uint8Array {
-  return concatBytes(utf8(`${id}.${timestamp}.`), body);
+  return new Uint8Array(Buffer.concat([
+    Buffer.from(`${id}.${timestamp}.`, 'utf8'),
+    Buffer.from(body),
+  ]));
 }
 
 /** Independent test-only HMAC anchor. No official Polar vector is claimed. */
@@ -79,14 +93,12 @@ function polarError(options: PolarDescriptorOptions): HooklatchError {
 test('defaults to current mode and derives the canonical Base64 key', () => {
   const descriptor = createPolarDescriptor();
   const explicit = createPolarDescriptor({ secretMode: 'current' });
-  const expectedKey = decodeBase64(CURRENT_SECRET.slice('whsec_'.length));
-
-  if (expectedKey === null) throw new Error('The synthetic current secret must decode.');
+  const expectedKey = currentBytes(CURRENT_SECRET.slice('whsec_'.length));
 
   expect(descriptor.provider).toBe('polar');
   expect(descriptor.decodeSecret(CURRENT_SECRET)).toEqual(expectedKey);
   expect(explicit.decodeSecret(CURRENT_SECRET)).toEqual(expectedKey);
-  expect(descriptor.decodeSecret(CURRENT_SECRET)).not.toEqual(utf8(CURRENT_SECRET));
+  expect(descriptor.decodeSecret(CURRENT_SECRET)).not.toEqual(literalBytes(CURRENT_SECRET));
 });
 
 test('current mode keeps strict canonical Base64 and 24..64 decoded-byte bounds', () => {
@@ -118,17 +130,15 @@ test('current mode keeps strict canonical Base64 and 24..64 decoded-byte bounds'
 
 test('legacy mode uses the complete literal UTF-8 secret with no bounds or prefix policy', () => {
   const descriptor = createPolarDescriptor({ secretMode: 'legacy' });
-  const currentKey = decodeBase64(CURRENT_SECRET.slice('whsec_'.length));
+  const currentKey = currentBytes(CURRENT_SECRET.slice('whsec_'.length));
 
-  if (currentKey === null) throw new Error('The synthetic current secret must decode.');
-
-  expect(descriptor.decodeSecret(CURRENT_SECRET)).toEqual(utf8(CURRENT_SECRET));
+  expect(descriptor.decodeSecret(CURRENT_SECRET)).toEqual(literalBytes(CURRENT_SECRET));
   expect(descriptor.decodeSecret(CURRENT_SECRET)).not.toEqual(currentKey);
-  expect(descriptor.decodeSecret('plain-legacy-secret')).toEqual(utf8('plain-legacy-secret'));
-  expect(descriptor.decodeSecret('whsec_')).toEqual(utf8('whsec_'));
-  expect(descriptor.decodeSecret('A')).toEqual(utf8('A'));
-  expect(descriptor.decodeSecret('A'.repeat(300))).toEqual(utf8('A'.repeat(300)));
-  expect(descriptor.decodeSecret('  padded literal secret  ')).toEqual(utf8('  padded literal secret  '));
+  expect(descriptor.decodeSecret('plain-legacy-secret')).toEqual(literalBytes('plain-legacy-secret'));
+  expect(descriptor.decodeSecret('whsec_')).toEqual(literalBytes('whsec_'));
+  expect(descriptor.decodeSecret('A')).toEqual(literalBytes('A'));
+  expect(descriptor.decodeSecret('A'.repeat(300))).toEqual(literalBytes('A'.repeat(300)));
+  expect(descriptor.decodeSecret('  padded literal secret  ')).toEqual(literalBytes('  padded literal secret  '));
   expect(ternErrorCode(() => descriptor.decodeSecret(''))).toBe('invalid-secret');
 });
 
@@ -141,11 +151,11 @@ test('the same whsec_ string produces different keys and is not interchangeable 
   expect(currentKey).not.toEqual(legacyKey);
 
   const currentParsed = expectOk(
-    current.parse(headerMap(polarHeaders(token(sign(currentKey)))), BODY),
+    current.parse(headerMap(polarHeaders(token(sign(currentBytes(CURRENT_SECRET))))), BODY),
   );
 
   const legacyParsed = expectOk(
-    legacy.parse(headerMap(polarHeaders(token(sign(legacyKey)))), BODY),
+    legacy.parse(headerMap(polarHeaders(token(sign(literalBytes(CURRENT_SECRET))))), BODY),
   );
 
   expect(macMatches(currentKey, currentParsed.signedContent, currentParsed.signatures)).toBe(true);
@@ -158,8 +168,8 @@ test('accepts both rotation orders in current mode', () => {
   const descriptor = createPolarDescriptor();
   const keyA = descriptor.decodeSecret(CURRENT_SECRET);
   const keyB = descriptor.decodeSecret(CURRENT_SECRET_ALT);
-  const signatureA = token(sign(keyA));
-  const signatureB = token(sign(keyB));
+  const signatureA = token(sign(currentBytes(CURRENT_SECRET)));
+  const signatureB = token(sign(currentBytes(CURRENT_SECRET_ALT)));
 
   const orders: readonly (readonly [string, string])[] = [
     [signatureA, signatureB],
@@ -181,8 +191,8 @@ test('accepts both rotation orders in legacy mode', () => {
   const descriptor = createPolarDescriptor({ secretMode: 'legacy' });
   const keyA = descriptor.decodeSecret(LEGACY_SECRET_A);
   const keyB = descriptor.decodeSecret(LEGACY_SECRET_B);
-  const signatureA = token(sign(keyA));
-  const signatureB = token(sign(keyB));
+  const signatureA = token(sign(literalBytes(LEGACY_SECRET_A)));
+  const signatureB = token(sign(literalBytes(LEGACY_SECRET_B)));
 
   const orders: readonly (readonly [string, string])[] = [
     [signatureA, signatureB],
@@ -202,7 +212,7 @@ test('accepts both rotation orders in legacy mode', () => {
 
 test('inherits canonical failure reasons, token rules and metadata ordering', () => {
   const descriptor = createPolarDescriptor();
-  const signature = sign(descriptor.decodeSecret(CURRENT_SECRET));
+  const signature = sign(currentBytes(CURRENT_SECRET));
   const valid = token(signature);
 
   for (const signature of ['', '   ']) {
@@ -253,7 +263,7 @@ test('accepts only canonical nonnegative safe-integer timestamps', () => {
   const key = descriptor.decodeSecret(CURRENT_SECRET);
 
   for (const timestamp of ['0', String(Number.MAX_SAFE_INTEGER)]) {
-    const signature = token(sign(key, EVENT_ID, timestamp));
+    const signature = token(sign(currentBytes(CURRENT_SECRET), EVENT_ID, timestamp));
 
     const parsed = expectOk(
       descriptor.parse(headerMap(polarHeaders(signature, EVENT_ID, timestamp)), BODY),
@@ -264,7 +274,7 @@ test('accepts only canonical nonnegative safe-integer timestamps', () => {
     expect(macMatches(key, parsed.signedContent, parsed.signatures)).toBe(true);
   }
 
-  const signature = token(sign(key));
+  const signature = token(sign(currentBytes(CURRENT_SECRET)));
 
   const invalidTimestamps = [
     '00',
@@ -290,7 +300,7 @@ test('accepts only canonical nonnegative safe-integer timestamps', () => {
 
 test('never accepts svix-* aliases for canonical Polar fields', () => {
   const descriptor = createPolarDescriptor();
-  const signature = token(sign(descriptor.decodeSecret(CURRENT_SECRET)));
+  const signature = token(sign(currentBytes(CURRENT_SECRET)));
 
   expect(
     expectFailure(
@@ -362,7 +372,7 @@ test('never accepts svix-* aliases for canonical Polar fields', () => {
 test('authenticates the event id but leaves delivery metadata unsigned', () => {
   const descriptor = createPolarDescriptor();
   const key = descriptor.decodeSecret(CURRENT_SECRET);
-  const signature = token(sign(key));
+  const signature = token(sign(currentBytes(CURRENT_SECRET)));
 
   const parsed = expectOk(
     descriptor.parse(
@@ -411,7 +421,7 @@ test('signs exact raw body bytes including empty, NUL, invalid UTF-8, non-JSON a
 
   const bodies: readonly Uint8Array[] = [
     new Uint8Array(),
-    utf8('plain text, not JSON'),
+    literalBytes('plain text, not JSON'),
     new Uint8Array([0xff, 0xfe, 0x80, 0x00, 0xc3]),
     new Uint8Array([0x00, 0x01, 0x00, 0xff]),
     view,
@@ -419,7 +429,7 @@ test('signs exact raw body bytes including empty, NUL, invalid UTF-8, non-JSON a
 
   for (const body of bodies) {
     const parsed = expectOk(
-      descriptor.parse(headerMap(polarHeaders(token(sign(key, EVENT_ID, TIMESTAMP, body)))), body),
+      descriptor.parse(headerMap(polarHeaders(token(sign(currentBytes(CURRENT_SECRET), EVENT_ID, TIMESTAMP, body)))), body),
     );
 
     expect(parsed.signedContent).toEqual(contentFor(EVENT_ID, TIMESTAMP, body));
@@ -427,7 +437,7 @@ test('signs exact raw body bytes including empty, NUL, invalid UTF-8, non-JSON a
   }
 
   const parsedView = expectOk(
-    descriptor.parse(headerMap(polarHeaders(token(sign(key, EVENT_ID, TIMESTAMP, view)))), view),
+    descriptor.parse(headerMap(polarHeaders(token(sign(currentBytes(CURRENT_SECRET), EVENT_ID, TIMESTAMP, view)))), view),
   );
 
   expect(parsedView.signedContent).toEqual(contentFor(EVENT_ID, TIMESTAMP, view));
@@ -451,17 +461,17 @@ test('snapshots the selected mode and ignores inherited-only configuration', () 
   const getterDescriptor = createPolarDescriptor(getterOptions);
 
   expect(reads).toBe(1);
-  expect(getterDescriptor.decodeSecret(LEGACY_SECRET_A)).toEqual(utf8(LEGACY_SECRET_A));
+  expect(getterDescriptor.decodeSecret(LEGACY_SECRET_A)).toEqual(literalBytes(LEGACY_SECRET_A));
 
   const mutable: MutablePolarOptions = { secretMode: 'legacy' };
   const mutableDescriptor = createPolarDescriptor(mutable);
 
   mutable.secretMode = 'current';
-  expect(mutableDescriptor.decodeSecret(LEGACY_SECRET_A)).toEqual(utf8(LEGACY_SECRET_A));
+  expect(mutableDescriptor.decodeSecret(LEGACY_SECRET_A)).toEqual(literalBytes(LEGACY_SECRET_A));
 
   // SAFETY: The inherited property deliberately bypasses the own-field contract.
   const inherited = Object.create({ secretMode: 'legacy' }) as PolarDescriptorOptions;
-  const defaultKey = createPolarDescriptor().decodeSecret(CURRENT_SECRET);
+  const defaultKey = currentBytes(CURRENT_SECRET);
 
   expect(createPolarDescriptor(inherited).decodeSecret(CURRENT_SECRET)).toEqual(defaultKey);
   expect(createPolarDescriptor({}).decodeSecret(CURRENT_SECRET)).toEqual(defaultKey);
@@ -544,4 +554,53 @@ test('rejects invalid configuration generically without echoing values', () => {
     expect(JSON.stringify(error)).not.toContain(CANARY);
     expect(error).not.toHaveProperty('cause');
   }
+});
+
+
+test('rejects unexpected own enumerable symbol options without reflecting values', () => {
+  const bases: readonly PolarDescriptorOptions[] = [
+    {},
+    { secretMode: 'current' },
+    { secretMode: 'legacy' },
+  ];
+
+  for (const base of bases) {
+    const options = { ...base };
+
+    Object.defineProperty(options, Symbol(CANARY), { value: CANARY, enumerable: true });
+
+    expect(() => createPolarDescriptor(options)).toThrow(HooklatchError);
+    const error = polarError(options);
+
+    expect(error.code).toBe('invalid-options');
+    expect(error.message).toBe('Invalid Polar provider options.');
+    expect(String(error)).not.toContain(CANARY);
+  }
+});
+
+
+test('ignores non-enumerable unknown options while reading an own non-enumerable mode', () => {
+  const options: PolarDescriptorOptions = {};
+
+  Object.defineProperty(options, 'secretMode', { value: 'legacy', enumerable: false });
+  Object.defineProperty(options, 'unexpected', { value: CANARY, enumerable: false });
+  Object.defineProperty(options, Symbol(CANARY), { value: CANARY, enumerable: false });
+
+  const descriptor = createPolarDescriptor(options);
+
+  expect(descriptor.decodeSecret(CURRENT_SECRET)).toEqual(literalBytes(CURRENT_SECRET));
+});
+
+test('matches an independent Unicode legacy-key HMAC over visible binary bytes', () => {
+  const secret = '  polar-é-漢-🔒  ';
+  const body = new Uint8Array([0xaa, 0x00, 0xff, 0x80, 0xbb]).subarray(1, 4);
+  const descriptor = createPolarDescriptor({ secretMode: 'legacy' });
+
+  const parsed = expectOk(
+    descriptor.parse(headerMap(polarHeaders(token(sign(secret, EVENT_ID, TIMESTAMP, body)))), body),
+  );
+
+  expect(descriptor.decodeSecret(secret)).toEqual(literalBytes(secret));
+  expect(parsed.signedContent).toEqual(contentFor(EVENT_ID, TIMESTAMP, body));
+  expect(macMatches(descriptor.decodeSecret(secret), parsed.signedContent, parsed.signatures)).toBe(true);
 });

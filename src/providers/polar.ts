@@ -56,12 +56,14 @@ function snapshotSecretMode(options: PolarDescriptorOptions | undefined): 'curre
 
   if (!isConfigObject(options)) invalidOptions();
 
-  let keys: readonly string[] = [];
+  let keys: readonly (string | symbol)[] = [];
   let hasMode = false;
   let mode: PolarDescriptorOptions['secretMode'] = undefined;
 
   try {
-    keys = Object.keys(options);
+    keys = Reflect.ownKeys(options).filter(
+      (key) => Object.getOwnPropertyDescriptor(options, key)?.enumerable,
+    );
     hasMode = Object.hasOwn(options, 'secretMode');
     mode = hasMode ? options.secretMode : undefined;
   } catch {
