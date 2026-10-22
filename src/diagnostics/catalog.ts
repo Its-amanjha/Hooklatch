@@ -310,6 +310,10 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
     expectedHeaders: ['X-Doppler-Signature'],
     grammar: 'Signed mode: sha256=<64 hexadecimal digits> over the raw body; no Basic/Bearer fallback',
   },
+  linear: {
+    expectedHeaders: ['Linear-Signature'],
+    grammar: 'A single bare 64-digit hexadecimal HMAC-SHA256 signature over exact raw body bytes. Signature authentication only: body claims are not extracted and unsigned header timestamps do not establish freshness.',
+  },
   sanity: {
     expectedHeaders: ['sanity-webhook-signature'],
     grammar: 'Exactly t=<unix-milliseconds>,v1=<43 canonical unpadded Base64url characters>; one of each field, no whitespace',

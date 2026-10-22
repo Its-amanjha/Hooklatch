@@ -100,6 +100,7 @@ const DEFAULT_SECRET_ENV = {
   sanity: 'SANITY_WEBHOOK_SECRET',
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
+  linear: 'LINEAR_WEBHOOK_SECRET',
 } satisfies Readonly<Record<Provider | 'grafana' | 'polar', string>>;
 
 export const HELP_TEXT = `Usage: hooklatch init webhook --provider <id> --framework <id> [options]

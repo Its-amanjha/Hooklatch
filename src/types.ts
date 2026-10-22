@@ -2,7 +2,7 @@
 export type Provider = 'stripe' | 'github' | 'shopify' | 'standard-webhooks'
   | 'clerk' | 'svix' | 'razorpay' | 'paddle' | 'lemon-squeezy'
   | 'dodo-payments' | 'gitlab' | 'replicate' | 'workos' | 'sentry' | 'doppler' | 'sanity'
-  | 'grafana' | 'polar';
+  | 'grafana' | 'polar' | 'linear';
 
 export type HeaderInput = Headers
   | Readonly<Record<string, string | readonly string[] | undefined>>

@@ -19,6 +19,7 @@ import { workosDescriptor } from './workos.js';
 import { sentryDescriptor } from './sentry.js';
 import { dopplerDescriptor } from './doppler.js';
 import { sanityDescriptor } from './sanity.js';
+import { linearDescriptor } from './linear.js';
 
 /** Registry order is part of the internal contract; append new providers only. */
 export const SUPPORTED_PROVIDERS = [
@@ -40,6 +41,7 @@ export const SUPPORTED_PROVIDERS = [
   'sanity',
   'grafana',
   'polar',
+  'linear',
 ] as const satisfies readonly Provider[];
 
 const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, ProviderDescriptor>> = {
@@ -59,6 +61,7 @@ const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, Provi
   sentry: sentryDescriptor,
   doppler: dopplerDescriptor,
   sanity: sanityDescriptor,
+  linear: linearDescriptor,
 };
 
 /** Resolve the pure descriptor for a supported provider. */
@@ -105,4 +108,5 @@ export {
   sentryDescriptor,
   dopplerDescriptor,
   sanityDescriptor,
+  linearDescriptor,
 };
