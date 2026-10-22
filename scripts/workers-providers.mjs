@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -20,6 +20,15 @@ import { Miniflare } from 'miniflare';
  * The fixture layer is Node-only and uses `node:crypto` solely to prepare
  * synthetic cases. The bundled Worker imports the built-in verification code
  * and never imports a Node module, a provider SDK, or this harness.
+ *
+ * Configured providers (Grafana/Polar) replay their fixture rows with the exact
+ * `providerOptions` the fixture declares; the value is validated at this
+ * boundary and forwarded verbatim, never defaulted or synthesized here. Rows
+ * for configured fixtures whose provider the built registry does not yet
+ * expose are reported as dependency-pending, not silently skipped or counted.
+ * This harness drives WHATWG `Request` objects, so it asserts
+ * `webHeadersExpected` when a fixture supplies it; the raw record/tuple
+ * expectations belong to scripts/package-smoke.mjs.
  *
  * Clerk/Svix branded cases are the pinned published Standard Webhooks vector
  * (`reference-vector-sign-works`) with only the three `webhook-*` header names
@@ -49,6 +58,56 @@ const SENTINEL_HEADER = {
 
 /** Provider-specific synthetic binary/rotating-key recipes (never inferred). */
 const BINARY_SUPPLEMENT_PROVIDERS = ['razorpay', 'paddle', 'lemon-squeezy'];
+
+/**
+ * Public provider-option keys a fixture may supply, per contract. Any other
+ * provider (or key) carrying `providerOptions` is a fixture error, because the
+ * public options union forbids configuration for the existing providers.
+ */
+const CONFIGURED_PROVIDER_KEYS = {
+  grafana: ['mode', 'signatureHeader', 'timestampHeader'],
+  polar: ['secretMode'],
+};
+
+const GRAFANA_MODES = ['body', 'timestamped'];
+const POLAR_SECRET_MODES = ['current', 'legacy'];
+const FIELD_NAME_TOKEN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+
+/**
+ * Reviewed fixture rows that must stay replayable for each configured provider:
+ * both layouts/modes, custom header binding, rotation, inclusive freshness
+ * boundaries, MAC-before-freshness and the no-fallback/no-repair cases.
+ */
+const REQUIRED_CONFIGURED_IDS = {
+  grafana: [
+    'positive-body-default-header',
+    'positive-custom-header-and-decoy-default',
+    'positive-timestamped-default-header',
+    'positive-timestamped-custom-headers',
+    'rotation-both-secrets-accept-old',
+    'rotation-both-secrets-accept-old-timestamped',
+    'boundary-plus300-ok',
+    'boundary-plus301-future',
+    'boundary-minus300-ok',
+    'boundary-minus301-expired',
+    'wrong-signature-beats-stale',
+    'timestamped-custom-header-absent-no-default-fallback',
+    'body-mode-timestamped-layout-signature-no-upgrade',
+  ],
+  polar: [
+    'positive-current-baseline',
+    'positive-legacy-literal-key',
+    'positive-multi-token-space-list',
+    'rotation-both-secrets-accept-old',
+    'boundary-plus300-ok',
+    'boundary-plus301-future',
+    'boundary-minus300-ok',
+    'boundary-minus301-expired',
+    'wrong-signature-beats-stale',
+    'svix-family-cannot-repair-canonical-fields',
+    'tolerance-zero-old-expired',
+  ],
+};
 
 const cases = [];
 
@@ -98,6 +157,157 @@ function headerValue(headers, name) {
   return Array.isArray(value) ? value.join(', ') : value;
 }
 
+/**
+ * JSON boundary kind. Fixture files are parsed JSON, so each value carries one
+ * of these tags; this is the I/O-boundary parse step that the repository's
+ * anti-slop rules require in place of ad-hoc `typeof` narrowing.
+ */
+function jsonKind(value) {
+  return Object.prototype.toString.call(value).slice(8, -1);
+}
+
+function requireKind(value, kind, label) {
+  assert.equal(jsonKind(value), kind, `${label} must be a JSON ${kind.toLowerCase()}.`);
+
+  return value;
+}
+
+function isPlainRecord(value) {
+  return jsonKind(value) === 'Object';
+}
+
+function requireNonemptyString(value, label) {
+  requireKind(value, 'String', label);
+  assert.notEqual(value.length, 0, `${label} must be nonempty.`);
+
+  return value;
+}
+
+function requireHeaderName(value, label) {
+  const name = requireNonemptyString(value, label);
+
+  assert(FIELD_NAME_TOKEN.test(name), `${label} is not an RFC9110 field-name token: ${JSON.stringify(name)}.`);
+
+  return name;
+}
+
+/** Validate fixture `options.providerOptions` structurally at this boundary. */
+function validateProviderOptions(provider, value, label) {
+  if (value === undefined) return;
+
+  assert(isPlainRecord(value), `${label}: providerOptions must be a non-array object.`);
+
+  const allowed = CONFIGURED_PROVIDER_KEYS[provider];
+
+  assert(allowed !== undefined,
+    `${label}: providerOptions is only valid for configured providers; the public options union forbids it for ${provider}.`);
+
+  for (const key of Object.keys(value)) {
+    assert(allowed.includes(key), `${label}: unexpected providerOptions key ${JSON.stringify(key)}.`);
+    assert.notEqual(value[key], undefined, `${label}: providerOptions.${key} must be a defined own value; omit it instead.`);
+  }
+
+  if (provider === 'grafana') {
+    assert(Object.hasOwn(value, 'mode'), `${label}: grafana providerOptions require an own mode.`);
+    assert(GRAFANA_MODES.includes(value.mode),
+      `${label}: grafana providerOptions.mode must be body or timestamped, got ${JSON.stringify(value.mode)}.`);
+
+    if (Object.hasOwn(value, 'signatureHeader')) {
+      requireHeaderName(value.signatureHeader, `${label}: providerOptions.signatureHeader`);
+    }
+
+    if (value.mode === 'body') {
+      assert(!Object.hasOwn(value, 'timestampHeader'), `${label}: body mode must not carry timestampHeader.`);
+    } else {
+      assert(Object.hasOwn(value, 'timestampHeader'),
+        `${label}: timestamped mode requires an own timestampHeader.`);
+      requireHeaderName(value.timestampHeader, `${label}: providerOptions.timestampHeader`);
+    }
+
+    return;
+  }
+
+  if (Object.hasOwn(value, 'secretMode')) {
+    assert(POLAR_SECRET_MODES.includes(value.secretMode),
+      `${label}: polar providerOptions.secretMode must be current or legacy, got ${JSON.stringify(value.secretMode)}.`);
+  }
+}
+
+/** Validate fixture request/options data before it reaches any SDK call. */
+function validateFixtureCase(provider, fixture, label) {
+  requireNonemptyString(fixture.id, `${label}: fixture id`);
+  assert(isPlainRecord(fixture.request), `${label}: request must be an object.`);
+
+  const { bodyBase64 } = fixture.request;
+
+  requireKind(bodyBase64, 'String', `${label}: request.bodyBase64`);
+  // Exact bytes: a non-canonical encoding would replay different bytes than the
+  // fixture author signed.
+  assert.equal(Buffer.from(bodyBase64, 'base64').toString('base64'), bodyBase64,
+    `${label}: request.bodyBase64 is not canonical padded Base64.`);
+
+  assert(isPlainRecord(fixture.request.headers), `${label}: request.headers must be a record.`);
+
+  for (const [name, value] of Object.entries(fixture.request.headers)) {
+    assert(FIELD_NAME_TOKEN.test(name), `${label}: request header name ${JSON.stringify(name)} is not a field-name token.`);
+
+    const values = Array.isArray(value) ? value : [value];
+
+    assert(values.length > 0 && values.every((entry) => jsonKind(entry) === 'String'),
+      `${label}: request header ${JSON.stringify(name)} must be a string or nonempty string array.`);
+  }
+
+  const options = fixture.options;
+
+  assert(isPlainRecord(options), `${label}: options must be an object.`);
+
+  for (const key of Object.keys(options)) {
+    assert(['secrets', 'now', 'toleranceSeconds', 'providerOptions'].includes(key),
+      `${label}: unexpected options key ${JSON.stringify(key)}.`);
+  }
+
+  assert(Array.isArray(options.secrets) && options.secrets.length > 0, `${label}: options.secrets must be a nonempty array.`);
+
+  for (const secret of options.secrets) requireKind(secret, 'String', `${label}: each secret`);
+
+  // Existing corpora deliberately use fractional seconds to model sub-second
+  // freshness drift, so the boundary check stays at "fixed nonnegative epoch".
+  // Number.isFinite rejects non-number JSON kinds without a typeof branch.
+  assert(Number.isFinite(options.now) && options.now >= 0,
+    `${label}: options.now must be a fixed nonnegative finite epoch-second clock.`);
+
+  if (options.toleranceSeconds !== undefined) {
+    assert(Number.isSafeInteger(options.toleranceSeconds) && options.toleranceSeconds >= 0,
+      `${label}: options.toleranceSeconds must be a nonnegative safe integer.`);
+  }
+
+  validateProviderOptions(provider, options.providerOptions, label);
+
+  assert(isPlainRecord(fixture.expected), `${label}: expected must be an object.`);
+
+  if (fixture.webHeadersExpected !== undefined) {
+    assert(isPlainRecord(fixture.webHeadersExpected), `${label}: webHeadersExpected must be an object.`);
+    // A web override that matches the raw expectation hides which transport is
+    // being asserted, so stale overrides fail here.
+    assert.notDeepEqual(fixture.webHeadersExpected, fixture.expected,
+      `${label}: webHeadersExpected duplicates expected; remove the redundant override.`);
+  }
+}
+
+/**
+ * Explicit public options: exactly the fixture fields, with providerOption
+ * forwarded only when the fixture declares it (an own undefined is invalid).
+ */
+function publicOptions(options) {
+  const built = { secrets: options.secrets, now: options.now };
+
+  if (options.toleranceSeconds !== undefined) built.toleranceSeconds = options.toleranceSeconds;
+
+  if (options.providerOptions !== undefined) built.providerOptions = options.providerOptions;
+
+  return built;
+}
+
 function resolveFixtureIdentity(provider, fixture) {
   const expected = (fixture.webHeadersExpected ?? fixture.expected).identity;
 
@@ -136,6 +346,11 @@ function fixtureRuntimeCases(provider, file) {
   const entries = [];
 
   for (const fixture of file.cases) {
+    validateFixtureCase(provider, fixture, `${provider} fixture ${fixture.id}`);
+
+    // This harness drives WHATWG Requests, so the normalized-header
+    // expectation wins; the raw record/tuple expectation is asserted by
+    // scripts/package-smoke.mjs against the direct APIs.
     const expected = fixture.webHeadersExpected ?? fixture.expected;
 
     entries.push({
@@ -143,7 +358,7 @@ function fixtureRuntimeCases(provider, file) {
       provider,
       headers: fixture.request.headers,
       bodyBase64: fixture.request.bodyBase64,
-      options: fixture.options,
+      options: publicOptions(fixture.options),
       expected: expected.ok
         ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
         : { ok: false, reason: expected.reason },
@@ -157,7 +372,7 @@ function fixtureRuntimeCases(provider, file) {
     provider,
     headers: positive.request.headers,
     bodyBase64: tamperedBody(positive.request.bodyBase64),
-    options: positive.options,
+    options: publicOptions(positive.options),
     expected: { ok: false, reason: 'invalid-signature' },
   });
 
@@ -220,6 +435,81 @@ for (const provider of requiredProviders) {
   if (BINARY_SUPPLEMENT_PROVIDERS.includes(provider)) {
     for (const entry of binarySupplementCases(provider)) pushCase(entry);
   }
+}
+
+/**
+ * Configured corpora must keep their reviewed layouts/modes and the rows that
+ * prove rotation, freshness boundaries and MAC-before-freshness. Enforced for
+ * registered and pending providers alike, so a fixture cannot silently shrink
+ * before coordinator registration joins it to the public API.
+ */
+function requireConfiguredCorpus(provider, file) {
+  const configuredRows = file.cases
+    .filter((entry) => entry.options.providerOptions !== undefined);
+
+  if (configuredRows.length === 0) return;
+
+  const requiredIds = REQUIRED_CONFIGURED_IDS[provider];
+
+  assert(requiredIds !== undefined,
+    `Provider ${provider} has configured fixtures but no reviewed row requirements; add them deliberately.`);
+
+  const ids = new Set(configuredRows.map((entry) => entry.id));
+
+  for (const id of requiredIds) {
+    assert(ids.has(id), `Configured fixture row ${provider}:${id} is required by the StageB contract and is missing.`);
+  }
+
+  if (provider === 'grafana') {
+    for (const mode of GRAFANA_MODES) {
+      assert(configuredRows.some((entry) => entry.expected.ok && entry.options.providerOptions.mode === mode),
+        `Grafana qualification needs a passing ${mode}-mode fixture row.`);
+    }
+  }
+
+  if (provider === 'polar') {
+    for (const secretMode of POLAR_SECRET_MODES) {
+      assert(configuredRows.some((entry) => entry.expected.ok && entry.options.providerOptions.secretMode === secretMode),
+        `Polar qualification needs a passing ${secretMode}-mode fixture row.`);
+    }
+  }
+}
+
+for (const provider of requiredProviders) requireConfiguredCorpus(provider, fixtures.get(provider));
+
+const pending = pendingConfiguredFixtureProviders();
+
+/**
+ * Configured fixture files whose provider the built registry does not expose
+ * yet. Their rows are still validated at this boundary (shape, exact bytes and
+ * providerOptions) and their reviewed corpus must not shrink, but they are
+ * reported as dependency-pending rather than replayed or counted as covered.
+ */
+function pendingConfiguredFixtureProviders() {
+  const directory = resolve(root, 'tests', 'fixtures');
+  const pending = [];
+
+  for (const name of readdirSync(directory).sort()) {
+    if (!name.endsWith('.json')) continue;
+
+    const provider = name.slice(0, -'.json'.length);
+
+    if (requiredProviders.includes(provider)) continue;
+
+    const file = JSON.parse(readFileSync(join(directory, name), 'utf8'));
+
+    const rows = Array.isArray(file.cases)
+      ? file.cases.filter((entry) => entry?.options?.providerOptions !== undefined) : [];
+
+    if (rows.length === 0) continue;
+
+    for (const fixture of rows) validateFixtureCase(provider, fixture, `${provider} pending fixture ${fixture.id}`);
+
+    requireConfiguredCorpus(provider, file);
+    pending.push({ provider, rows: rows.length });
+  }
+
+  return pending;
 }
 
 // Preserve the published Clerk/Svix branded-family matrix (alias, conflicting
@@ -412,13 +702,24 @@ const workerSource = `
 
       if (testCase === undefined) return new Response('not found', { status: 404 });
 
-      const result = await verifyRequest(request, {
+      const options = {
         provider: testCase.provider,
         secrets: testCase.options.secrets,
-        ...(testCase.options.toleranceSeconds === undefined
-          ? {} : { toleranceSeconds: testCase.options.toleranceSeconds }),
         now: () => testCase.options.now,
-      });
+      };
+
+      if (testCase.options.toleranceSeconds !== undefined) {
+        options.toleranceSeconds = testCase.options.toleranceSeconds;
+      }
+
+      // Forward the fixture's providerOptions verbatim; omitting the field is
+      // intentional (never an implicit default) because an own undefined is
+      // invalid for the public options union.
+      if (testCase.options.providerOptions !== undefined) {
+        options.providerOptions = testCase.options.providerOptions;
+      }
+
+      const result = await verifyRequest(request, options);
 
       return Response.json(result.ok
         ? {
@@ -544,5 +845,11 @@ try {
 if (failure !== null) process.exit(1);
 
 console.log('');
+
+if (pending.length > 0) {
+  const summary = pending.map((entry) => `${entry.provider} (${entry.rows} rows)`).join(', ');
+
+  console.log(`DEPENDENCY-PENDING: ${summary} configured fixture rows are outside the built registry; public registration is coordinator-owned, so these rows were not replayed and are not counted in the pass above.`);
+}
 
 console.log(`PASS: ${cases.length} workerd provider cases across ${requiredProviders.length} providers.`);

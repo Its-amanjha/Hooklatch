@@ -7,10 +7,17 @@
  *
  * The generation set is derived from the built registry
  * (`dist/providers/index.js` `SUPPORTED_PROVIDERS`), so registering a provider
- * extends this from 36 to 52 handlers automatically. The expected secret-env
- * table is exhaustive for the full 13-provider set (current nine plus the four
- * Phase 4 IDs from notes/phase-4/contract.md); the extra four entries document
- * the finished graph without generating handlers the unregistered CLI rejects.
+ * extends the matrix automatically. Contract order is 18 providers; at the
+ * 16-provider base this generates 16 x 4 = 64 handlers, and only a registry
+ * that really contains Grafana/Polar may report 72. The expected secret-env
+ * table is exhaustive for the frozen 18-provider contract (the existing 16 plus
+ * GRAFANA_WEBHOOK_SECRET/POLAR_WEBHOOK_SECRET); names whose provider the
+ * unregistered CLI rejects are asserted as expectations, not generated.
+ *
+ * Grafana's primary row is generated with an explicit body-mode configuration and
+ * must carry it into the emitted options; the optional configured-variant block
+ * adds timestamped custom headers and Polar legacy mode once those providers are
+ * registered. Existing providers must stay config-free.
  *
  * The script is standalone (no npm_execpath requirement). npm pack/install use
  * offline mode on the local tarball. Repository src and examples are never
@@ -28,9 +35,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Expected default secret env per provider: the nine registered today plus the
- * four Phase 4 IDs. `generate` is driven by the built registry, so the four
- * unregistered names never reach the CLI here.
+ * Expected default secret env per provider, exhaustive for the frozen
+ * 18-provider contract. `generate` is driven by the built registry, so names for
+ * providers the CLI does not register yet never reach generation here.
  */
 const EXPECTED_SECRET_ENV = {
   stripe: 'STRIPE_WEBHOOK_SECRET',
@@ -49,9 +56,58 @@ const EXPECTED_SECRET_ENV = {
   sentry: 'SENTRY_WEBHOOK_SECRET',
   doppler: 'DOPPLER_WEBHOOK_SECRET',
   sanity: 'SANITY_WEBHOOK_SECRET',
+  grafana: 'GRAFANA_WEBHOOK_SECRET',
+  polar: 'POLAR_WEBHOOK_SECRET',
 };
 
-const PHASE4_PROVIDERS = ['dodo-payments', 'gitlab', 'replicate', 'workos'];
+/** Providers whose CLI configuration is required/forwarded by this contract. */
+const CONFIGURED_PROVIDERS = ['grafana', 'polar'];
+
+/**
+ * Primary generation recipe per configured provider. `flags` are appended to the
+ * installed CLI invocation; `required`/`forbidden` are asserted against the
+ * emitted source so a dropped configuration flag fails here.
+ */
+const PRIMARY_CONFIGURATION = {
+  grafana: {
+    flags: ['--grafana-mode', 'body'],
+    requiresProviderOptions: true,
+    required: [/providerOptions\s*:\s*\{/, /mode\s*:\s*['"]body['"]/],
+    forbidden: [/timestampHeader\s*:/],
+  },
+  polar: {
+    flags: [],
+    requiresProviderOptions: false,
+    required: [],
+    forbidden: [/secretMode\s*:\s*['"]legacy['"]/],
+    // Omitting the mode is the current default; an explicit mode must be current.
+    modeForwarded: /secretMode\s*:\s*['"]current['"]/,
+  },
+};
+
+/**
+ * Configured variants: only generated for configured providers the built registry
+ * actually exposes, because the installed CLI rejects a provider it has not
+ * registered. A hostile-but-valid RFC9110 token is used to prove safe literal
+ * serialization of an apostrophe-class header name without executable source.
+ */
+const CONFIGURED_VARIANTS = {
+  grafana: {
+    flags: ['--grafana-mode', 'timestamped', '--signature-header', 'x-acme`sig', '--timestamp-header', 'x-acme-timestamp'],
+    required: [
+      /providerOptions\s*:\s*\{/,
+      /mode\s*:\s*['"]timestamped['"]/,
+      /signatureHeader\s*:\s*['"]x-acme`sig['"]/,
+      /timestampHeader\s*:\s*['"]x-acme-timestamp['"]/,
+    ],
+    forbidden: [/mode\s*:\s*['"]body['"]/],
+  },
+  polar: {
+    flags: ['--polar-secret-mode', 'legacy'],
+    required: [/providerOptions\s*:/, /secretMode\s*:\s*['"]legacy['"]/],
+    forbidden: [/secretMode\s*:\s*['"]current['"]/],
+  },
+};
 
 const FRAMEWORKS = ['express', 'nextjs', 'hono', 'cloudflare'];
 
@@ -148,12 +204,53 @@ function expectedFileName(provider, framework) {
   return `${provider}.${framework}.ts`;
 }
 
+function requirePattern(content, pattern, label) {
+  if (!pattern.test(content)) fail(`${label} is missing ${pattern}.`);
+}
+
+function forbidPattern(content, pattern, label) {
+  if (pattern.test(content)) fail(`${label} must not contain ${pattern}.`);
+}
+
+/**
+ * Assert that the generated options carry exactly the configuration the recipe
+ * requested, and that existing providers remain configuration-free.
+ */
+function expectProviderConfiguration(provider, framework, content) {
+  const label = `Generated ${framework} handler for ${provider}`;
+  const recipe = PRIMARY_CONFIGURATION[provider];
+
+  if (recipe === undefined) {
+    if (content.includes('providerOptions')) {
+      fail(`${label} must stay config-free; providerOptions is not allowed for existing providers.`);
+    }
+
+    return;
+  }
+
+  const hasOptions = /providerOptions\s*:/.test(content);
+
+  if (recipe.requiresProviderOptions && !hasOptions) {
+    fail(`${label} is missing the required providerOptions configuration.`);
+  }
+
+  if (!recipe.requiresProviderOptions && recipe.modeForwarded !== undefined && /secretMode\s*:/.test(content)) {
+    requirePattern(content, recipe.modeForwarded, label);
+  }
+
+  for (const pattern of recipe.required) requirePattern(content, pattern, label);
+
+  for (const pattern of recipe.forbidden) forbidPattern(content, pattern, label);
+}
+
 function expectContentMarkers(provider, framework, secretEnv, content) {
   for (const marker of [`provider: '${provider}'`, `maxBodyBytes: ${BODY_LIMIT}`]) {
     if (!content.includes(marker)) {
       fail(`Generated ${framework} handler for ${provider} is missing: ${marker}`);
     }
   }
+
+  expectProviderConfiguration(provider, framework, content);
 
   if (framework === 'cloudflare') {
     for (const marker of [`from 'hooklatch/cloudflare'`, `${secretEnv}: string`, `env.${secretEnv}`]) {
@@ -185,7 +282,7 @@ function assertCompletedDir(directory, fileName, label) {
   }
 }
 
-function generationArgv(cli, provider, framework, secretEnv, relativeOut) {
+function generationArgv(cli, provider, framework, secretEnv, relativeOut, extraFlags = []) {
   return [
     cli,
     'init', 'webhook',
@@ -194,6 +291,7 @@ function generationArgv(cli, provider, framework, secretEnv, relativeOut) {
     '--out', relativeOut,
     '--secret-env', secretEnv,
     '--body-limit', String(BODY_LIMIT),
+    ...extraFlags,
   ];
 }
 
@@ -233,10 +331,34 @@ async function main() {
     }
   }
 
-  for (const provider of PHASE4_PROVIDERS) {
+  for (const provider of CONFIGURED_PROVIDERS) {
     if (!Object.hasOwn(EXPECTED_SECRET_ENV, provider)) {
-      fail(`Phase 4 provider ${provider} is missing from the template expectation table.`);
+      fail(`Configured provider ${provider} is missing from the template expectation table.`);
     }
+
+    if (!Object.hasOwn(PRIMARY_CONFIGURATION, provider)) {
+      fail(`Configured provider ${provider} has no primary generation recipe.`);
+    }
+
+    if (!Object.hasOwn(CONFIGURED_VARIANTS, provider)) {
+      fail(`Configured provider ${provider} has no configured variant recipe.`);
+    }
+  }
+
+  assert.equal(EXPECTED_SECRET_ENV.grafana, 'GRAFANA_WEBHOOK_SECRET');
+  assert.equal(EXPECTED_SECRET_ENV.polar, 'POLAR_WEBHOOK_SECRET');
+
+  if (providers.some((provider) => CONFIGURED_PROVIDERS.includes(provider))) {
+    // New providers must be appended after the existing sixteen, in contract
+    // order; a partially rebuilt registry is not a support claim.
+    const existingIds = Object.keys(EXPECTED_SECRET_ENV)
+      .filter((provider) => !CONFIGURED_PROVIDERS.includes(provider));
+
+    assert.deepEqual(providers.slice(0, existingIds.length), existingIds,
+      'The existing providers must remain registered first, in contract order.');
+    assert.deepEqual(providers.slice(existingIds.length),
+      CONFIGURED_PROVIDERS.filter((provider) => providers.includes(provider)),
+      'Configured providers must trail the existing providers in contract order.');
   }
 
   const npmCli = locateNpmCli();
@@ -274,6 +396,7 @@ async function main() {
 
     for (const provider of providers) {
       const secretEnv = EXPECTED_SECRET_ENV[provider];
+      const primaryFlags = PRIMARY_CONFIGURATION[provider]?.flags ?? [];
 
       for (const framework of FRAMEWORKS) {
         const label = `${provider}/${framework}`;
@@ -284,7 +407,7 @@ async function main() {
 
         const generationLabel = `hooklatch init webhook (${label})`;
 
-        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOut), consumerRoot, generationLabel);
+        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOut, primaryFlags), consumerRoot, generationLabel);
 
         assertCompletedDir(firstDir, expectedFileName(provider, framework), `Generation (${label})`);
 
@@ -293,7 +416,7 @@ async function main() {
 
         expectContentMarkers(provider, framework, secretEnv, content);
 
-        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOutCopy), consumerRoot, `deterministic regeneration (${label})`);
+        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOutCopy, primaryFlags), consumerRoot, `deterministic regeneration (${label})`);
 
         assertCompletedDir(secondDir, expectedFileName(provider, framework), `Regeneration (${label})`);
 
@@ -303,6 +426,38 @@ async function main() {
 
         // Independent compiler program: one NodeNext child per generated file.
         typecheckGeneratedFile(firstPath, consumerRoot, label);
+      }
+    }
+
+    // Configured variants exercise explicit non-default forwarding. They are
+    // generated only for providers the packed CLI actually registers; running
+    // them earlier would fail the installed CLI, not prove configuration.
+    const configuredRegistered = providers.filter((provider) => Object.hasOwn(CONFIGURED_VARIANTS, provider));
+    let variantCount = 0;
+
+    for (const provider of configuredRegistered) {
+      const secretEnv = EXPECTED_SECRET_ENV[provider];
+      const variant = CONFIGURED_VARIANTS[provider];
+
+      for (const framework of FRAMEWORKS) {
+        const label = `${provider}-configured/${framework}`;
+        const relativeOut = join('gen-configured', provider, framework);
+        const outDir = join(consumerRoot, relativeOut);
+        const contentLabel = `Configured ${framework} handler for ${provider}`;
+
+        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOut, variant.flags), consumerRoot,
+          `hooklatch init webhook configured (${label})`);
+        assertCompletedDir(outDir, expectedFileName(provider, framework), `Configured generation (${label})`);
+
+        const file = join(outDir, expectedFileName(provider, framework));
+        const content = readFileSync(file, 'utf8');
+
+        for (const pattern of variant.required) requirePattern(content, pattern, contentLabel);
+
+        for (const pattern of variant.forbidden) forbidPattern(content, pattern, contentLabel);
+
+        typecheckGeneratedFile(file, consumerRoot, label);
+        variantCount += 1;
       }
     }
 
@@ -321,7 +476,9 @@ async function main() {
 
     if (existsSync(join(consumerRoot, 'gen-invalid'))) fail('Installed CLI wrote output for a rejected provider.');
 
-    console.log(`PASS: ${providers.length * FRAMEWORKS.length} generated handlers are complete, deterministic and semantically typechecked.`);
+    const variantNote = variantCount > 0 ? `; ${variantCount} configured variants independently typechecked` : '';
+
+    console.log(`PASS: ${providers.length * FRAMEWORKS.length} generated handlers across ${providers.length} registered providers are complete, deterministic and semantically typechecked${variantNote}.`);
   } finally {
     const checked = resolve(tempRoot);
 
