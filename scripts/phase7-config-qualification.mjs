@@ -593,7 +593,7 @@ function buildExecutableCaseCatalogue() {
     headers: {
       'webhook-id': polarId,
       'webhook-timestamp': polarTimestamp,
-      'webhook-signature': 'v1,badmac',
+      'webhook-signature': `v1,${crypto.createHmac('sha256', 'independent-wrong-key').update(polarPayload).digest('base64')}`,
     },
     rawBody: polarRawBody,
     expected: {

@@ -417,7 +417,13 @@ try {
             const failureDiagnostic = diagnose(result, { verbose: true });
             assert.equal(failureDiagnostic.provider, provider);
             assert.equal(failureDiagnostic.code, expected.reason);
-            assert(failureDiagnostic.detail.expectedHeaders.length > 0);
+            if (provider === 'grafana') {
+              assert.deepEqual(failureDiagnostic.detail.expectedHeaders, []);
+              assert.match(failureDiagnostic.detail.grammar, /configured signature header/i);
+              assert.match(failureDiagnostic.detail.grammar, /timestamped/i);
+            } else {
+              assert(failureDiagnostic.detail.expectedHeaders.length > 0);
+            }
             return;
           }
 

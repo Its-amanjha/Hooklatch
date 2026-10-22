@@ -63,7 +63,9 @@
     "lint:eslint": "eslint src tests scripts --no-error-on-unmatched-pattern",
     "lint:anti-slop": "oxlint --config .oxlintrc.json src tests scripts examples",
     "test:mutations": "node scripts/phase6-mutations.mjs --include-controls",
-    "test:public-contracts": "node scripts/public-contract-smoke.mjs"
+    "test:public-contracts": "node scripts/public-contract-smoke.mjs",
+    "test:provider-config": "node scripts/phase7-config-qualification.mjs --json",
+    "test:configured-templates": "node scripts/phase7-cli-config-smoke.mjs"
   },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",

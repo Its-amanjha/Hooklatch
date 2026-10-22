@@ -36,6 +36,8 @@ export const PROVIDER_IDS = Object.freeze([
   'sentry',
   'doppler',
   'sanity',
+  'grafana',
+  'polar',
 ]);
 
 export const CORE_LIBS = Object.freeze(['lib.es2022.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts']);
@@ -353,6 +355,86 @@ app.post('/webhook', middleware, (c) => {
 });
 
 export { app, middleware };
+`,
+  },
+
+  {
+    id: 'core/positive-configured-providers', kind: 'positive', environment: 'core',
+    file: 'positive-configured-providers.ts',
+    description: 'Public configured option types preserve provider/mode correlation across all three root APIs.',
+    source: `
+import { verify, verifyRequest, createVerifier } from 'hooklatch';
+import type { VerifyOptions, GrafanaOptions, PolarOptions, WebhookRequest } from 'hooklatch';
+const body: GrafanaOptions = { mode: 'body', signatureHeader: 'x-signature' };
+const timestamped: GrafanaOptions = { mode: 'timestamped', timestampHeader: 'x-timestamp' };
+const legacy: PolarOptions = { secretMode: 'legacy' };
+const settings: readonly VerifyOptions[] = [
+  { provider: 'grafana', secrets: ['synthetic'], providerOptions: body },
+  { provider: 'grafana', secrets: ['synthetic'], providerOptions: timestamped },
+  { provider: 'polar', secrets: ['synthetic'], providerOptions: legacy },
+  { provider: 'polar', secrets: ['synthetic'] },
+];
+export async function exercise(input: WebhookRequest, request: Request): Promise<void> {
+  for (const options of settings) {
+    await verify(input, options);
+    await createVerifier(options)(input);
+    await verifyRequest(request.clone(), options);
+  }
+}
+`,
+  },
+  {
+    id: 'core/negative-missing-grafana-options', kind: 'negative', environment: 'core',
+    file: 'negative-missing-grafana-options.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'grafana', secrets: ['synthetic'] }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-grafana-unknown-mode', kind: 'negative', environment: 'core',
+    file: 'negative-grafana-unknown-mode.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'grafana', secrets: ['synthetic'], providerOptions: { mode: 'auto' } }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-grafana-timestamp-header-required', kind: 'negative', environment: 'core',
+    file: 'negative-grafana-timestamp-header-required.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'grafana', secrets: ['synthetic'], providerOptions: { mode: 'timestamped' } }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-grafana-body-forbids-timestamp-header', kind: 'negative', environment: 'core',
+    file: 'negative-grafana-body-forbids-timestamp-header.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'grafana', secrets: ['synthetic'], providerOptions: { mode: 'body', timestampHeader: 'x-timestamp' } }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-legacy-provider-forbids-options', kind: 'negative', environment: 'core',
+    file: 'negative-legacy-provider-forbids-options.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'github', secrets: ['synthetic'], providerOptions: { secretMode: 'legacy' } }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-polar-unknown-mode', kind: 'negative', environment: 'core',
+    file: 'negative-polar-unknown-mode.ts',
+    description: 'Rejects a configuration outside the provider-discriminated public contract.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'polar', secrets: ['synthetic'], providerOptions: { secretMode: 'dual' } }; // @expect-error TS2322
 `,
   },
 
