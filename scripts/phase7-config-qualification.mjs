@@ -13,9 +13,9 @@ const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const WORKSPACE_ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
 const WORKER_SOURCE_PATH = path.join(WORKSPACE_ROOT, 'scripts/phase7-config/worker.mjs');
 
-const EXPECTED_18_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks',
+const EXPECTED_19_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks',
   'clerk', 'svix', 'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab',
-  'replicate', 'workos', 'sentry', 'doppler', 'sanity', 'grafana', 'polar'];
+  'replicate', 'workos', 'sentry', 'doppler', 'sanity', 'grafana', 'polar', 'linear'];
 
 const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp-header', '--polar-secret-mode'];
 const PINNED_GRAFANA_COLON_DIGEST = 'f6cdebb3d45820628f1a70ffe07a4074d9127cc57f20fe59a0010391c2ab5714';
@@ -902,9 +902,9 @@ async function inspectProviderReadiness(root) {
     const providers = await import(pathToFileURL(path.join(root, 'dist/providers/index.js')).href);
 
     if (!Array.isArray(providers.SUPPORTED_PROVIDERS)
-      || providers.SUPPORTED_PROVIDERS.length !== EXPECTED_18_PROVIDERS.length
-      || EXPECTED_18_PROVIDERS.some((id, index) => providers.SUPPORTED_PROVIDERS[index] !== id)) {
-      missing.push('exact-ordered-18-provider-registry');
+      || providers.SUPPORTED_PROVIDERS.length !== EXPECTED_19_PROVIDERS.length
+      || EXPECTED_19_PROVIDERS.some((id, index) => providers.SUPPORTED_PROVIDERS[index] !== id)) {
+      missing.push('exact-ordered-19-provider-registry');
     }
 
     const output = execFileSync(process.execPath, [path.join(root, 'dist/cli/index.js'), '--help'], {
@@ -1175,7 +1175,7 @@ async function runSelfTests(resources) {
     fs.mkdirSync(path.join(root, 'dist/providers'), { recursive: true });
     fs.writeFileSync(path.join(root, 'package.json'), '{"type":"module"}');
     fs.writeFileSync(path.join(root, 'dist/providers/index.js'),
-      `/* export const SUPPORTED_PROVIDERS = ${JSON.stringify(EXPECTED_18_PROVIDERS)}; */\nexport const SUPPORTED_PROVIDERS = [];`);
+      `/* export const SUPPORTED_PROVIDERS = ${JSON.stringify(EXPECTED_19_PROVIDERS)}; */\nexport const SUPPORTED_PROVIDERS = [];`);
     assert.equal((await inspectProviderReadiness(root)).ready, false);
   });
   const sdk = await import(pathToFileURL(path.join(WORKSPACE_ROOT, 'dist/index.js')).href);

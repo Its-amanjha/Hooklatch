@@ -38,6 +38,7 @@ export const PROVIDER_IDS = Object.freeze([
   'sanity',
   'grafana',
   'polar',
+  'linear',
 ]);
 
 export const CORE_LIBS = Object.freeze(['lib.es2022.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts']);
@@ -372,6 +373,7 @@ const settings: readonly VerifyOptions[] = [
   { provider: 'grafana', secrets: ['synthetic'], providerOptions: body },
   { provider: 'grafana', secrets: ['synthetic'], providerOptions: timestamped },
   { provider: 'polar', secrets: ['synthetic'], providerOptions: legacy },
+  { provider: 'linear', secrets: ['synthetic'] },
   { provider: 'polar', secrets: ['synthetic'] },
 ];
 export async function exercise(input: WebhookRequest, request: Request): Promise<void> {
@@ -381,6 +383,15 @@ export async function exercise(input: WebhookRequest, request: Request): Promise
     await verifyRequest(request.clone(), options);
   }
 }
+`,
+  },
+  {
+    id: 'core/negative-linear-provider-options', kind: 'negative', environment: 'core',
+    file: 'negative-linear-provider-options.ts',
+    description: 'Linear accepts no providerOptions despite configured providers sharing the API.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'linear', secrets: ['synthetic'], providerOptions: { mode: 'body' } }; // @expect-error TS2322
 `,
   },
   {
