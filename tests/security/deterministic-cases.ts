@@ -2,19 +2,41 @@ import { createHmac } from 'node:crypto';
 import type { EventIdentity, Provider } from '../../src/types.js';
 
 /**
- * Deterministic, independently signed adversarial corpus for the sixteen integrated
- * public providers. Signing is implemented here from the documented recipes
- * with test-only `node:crypto`; it never calls production parse/decode or
- * signed-content helpers. Every value is synthetic and this corpus is not an
- * official provider conformance certificate.
+ * Deterministic, independently signed adversarial corpus for the eventual
+ * eighteen public providers. Signing is implemented here from the documented
+ * recipes with test-only `node:crypto`; it never calls production parse/decode
+ * or signed-content helpers. Every value is synthetic and this corpus is not
+ * an official provider conformance certificate.
  *
- * Providers are appended in registry order so the original six-provider prefix
- * remains byte-identical; `core-properties.test.ts` pins its full-case hash.
+ * Providers are appended in registry order so the original sixteen-provider
+ * prefix remains byte-identical; `core-properties.test.ts` pins its full-case
+ * hash. Grafana and Polar cases carry explicit receiver configuration rather
+ * than inferring a layout or secret mode from request data.
  */
 
 export const SECURITY_SEED = 0x5ec0_2026;
 export const CASES_PER_PROVIDER = 36;
 export const BASE_TIMESTAMP = 1_700_000_000;
+
+/** Local test union: the public Provider type grows in coordinator Stage B. */
+export type SecurityProvider = Provider | 'grafana' | 'polar';
+
+export type SecurityCaseMode = 'default' | 'body' | 'timestamped' | 'current' | 'legacy';
+
+export type GrafanaCaseOptions =
+  | { readonly mode: 'body'; readonly signatureHeader?: string; readonly timestampHeader?: never }
+  | {
+    readonly mode: 'timestamped';
+    readonly signatureHeader?: string;
+    readonly timestampHeader: string;
+  };
+
+export interface PolarCaseOptions { readonly secretMode: 'current' | 'legacy' }
+
+export type SecurityProviderOptions =
+  | GrafanaCaseOptions
+  | PolarCaseOptions
+  | undefined;
 
 export const SECURITY_PROVIDERS = [
   'stripe',
@@ -33,13 +55,15 @@ export const SECURITY_PROVIDERS = [
   'sentry',
   'doppler',
   'sanity',
-] as const satisfies readonly Provider[];
+  'grafana',
+  'polar',
+] as const satisfies readonly SecurityProvider[];
 
 export type SignatureEncoding = 'hex' | 'base64' | 'base64url';
 
 export interface DeterministicCase {
   readonly seed: number;
-  readonly provider: Provider;
+  readonly provider: SecurityProvider;
   readonly index: number;
   readonly context: string;
   readonly body: Uint8Array;
@@ -65,6 +89,8 @@ export interface DeterministicCase {
   readonly timestampHeader: string | null;
   readonly unsignedHeaders: Readonly<Record<string, string>>;
   readonly expectedIdentity: EventIdentity;
+  readonly mode: SecurityCaseMode;
+  readonly providerOptions: SecurityProviderOptions;
 }
 
 type Random = () => number;
@@ -155,11 +181,12 @@ function bodyFor(index: number, random: Random): Uint8Array {
 }
 
 type StandardWebhooksProvider = 'standard-webhooks' | 'clerk' | 'svix'
-  | 'dodo-payments' | 'gitlab' | 'replicate';
+  | 'dodo-payments' | 'gitlab' | 'replicate' | 'polar';
 
-function isStandardWebhooks(provider: Provider): provider is StandardWebhooksProvider {
+function isStandardWebhooks(provider: SecurityProvider): provider is StandardWebhooksProvider {
   return provider === 'standard-webhooks' || provider === 'clerk' || provider === 'svix'
-    || provider === 'dodo-payments' || provider === 'gitlab' || provider === 'replicate';
+    || provider === 'dodo-payments' || provider === 'gitlab' || provider === 'replicate'
+    || provider === 'polar';
 }
 
 interface SigningRecipe {
@@ -206,7 +233,7 @@ const standardWebhooksRecipe: SigningRecipe = {
  * makes a missing or unmapped provider a compile error; there is no protocol
  * fallback for future IDs added to the public union.
  */
-const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
+const SIGNING_RECIPES: Readonly<Record<SecurityProvider, SigningRecipe>> = {
   stripe: {
     encoding: 'hex',
     timestamped: true,
@@ -315,18 +342,54 @@ const SIGNING_RECIPES: Readonly<Record<Provider, SigningRecipe>> = {
     signedContent: (body) => Buffer.from(body),
     signatureValue: (token) => token,
   },
+  // The explicit receiver mode chooses whether the timestamp prefix is signed.
+  grafana: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body, timestampText) => timestampText === null
+      ? Buffer.from(body)
+      : Buffer.concat([Buffer.from(`${timestampText}:`, 'utf8'), Buffer.from(body)]),
+    signatureValue: (token) => token,
+  },
+  // Polar always uses the canonical Standard Webhooks signed content. The
+  // selected secret mode changes only how the configured secret becomes key
+  // bytes, which `signToken` applies explicitly per case.
+  polar: standardWebhooksRecipe,
 };
 
+function isPolarCaseOptions(options: SecurityProviderOptions): options is PolarCaseOptions {
+  return options !== undefined && 'secretMode' in options;
+}
+
+/** Apply only the explicitly selected secret interpretation for Polar. */
+function keyFor(
+  provider: SecurityProvider,
+  secret: string,
+  providerOptions: SecurityProviderOptions,
+): Buffer {
+  if (provider !== 'polar') return SIGNING_RECIPES[provider].key(secret);
+
+  if (!isPolarCaseOptions(providerOptions)) {
+    throw new Error('A Polar case requires an explicit secret mode.');
+  }
+
+  return providerOptions.secretMode === 'legacy'
+    ? literalKeyBytes(secret)
+    : standardWebhooksKeyBytes(secret);
+}
+
 function signToken(
-  provider: Provider,
+  provider: SecurityProvider,
   body: Uint8Array,
   secret: string,
   timestampText: string | null,
   idText: string | null,
+  providerOptions: SecurityProviderOptions,
 ): string {
   const recipe = SIGNING_RECIPES[provider];
 
-  return createHmac('sha256', recipe.key(secret))
+  return createHmac('sha256', keyFor(provider, secret, providerOptions))
     .update(recipe.signedContent(body, timestampText, idText))
     .digest(recipe.encoding);
 }
@@ -345,8 +408,16 @@ export function signatureTokenFor(
   secret: string,
   timestampText: string | null,
   idText: string | null,
+  providerOptions: SecurityProviderOptions = case_.providerOptions,
 ): string {
-  return signToken(case_.provider, case_.body, secret, timestampText, idText);
+  return signToken(
+    case_.provider,
+    case_.body,
+    secret,
+    timestampText,
+    idText,
+    providerOptions,
+  );
 }
 
 export function headerValueFor(
@@ -384,18 +455,31 @@ export function flipBodyByte(body: Uint8Array, index: number): Uint8Array {
   return copy;
 }
 
-function buildCase(provider: Provider, index: number, seed: number): DeterministicCase {
+function buildCase(provider: SecurityProvider, index: number, seed: number): DeterministicCase {
   const random = createRandom(seed);
   const body = bodyFor(index, random);
-  const activeSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
-  const retiredSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
-  const wrongSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
+  let activeSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
+  let retiredSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
+  let wrongSecret = `whsec_${Buffer.from(randomBytes(random, 24 + randomInt(random, 25))).toString('base64')}`;
+  const polarMode = provider === 'polar' ? (index % 2 === 0 ? 'current' : 'legacy') : null;
+
+  if (polarMode === 'legacy') {
+    const unicodeSuffix = index % 8 === 7 ? '-héllo-秘密' : '';
+
+    activeSecret = `whsec_legacy_${randomToken(random, 20)}${unicodeSuffix}`;
+    retiredSecret = `whsec_legacy_${randomToken(random, 20)}${unicodeSuffix}`;
+    wrongSecret = `whsec_legacy_${randomToken(random, 20)}${unicodeSuffix}`;
+  }
+
   const seconds = BASE_TIMESTAMP + ((index * 37 + randomInt(random, 17)) % 1000);
   const millisecondProtocol = provider === 'workos' || provider === 'sanity';
   const timestamp = millisecondProtocol ? seconds + 0.125 : seconds;
   const timestampText = String(millisecondProtocol ? timestamp * 1000 : timestamp);
   const recipe = SIGNING_RECIPES[provider];
-  const signedTimestamp = recipe.timestamped ? timestampText : null;
+  const grafanaTimestamped = provider === 'grafana' && index % 2 === 1;
+  const grafanaCustomSignature = provider === 'grafana' && (index % 4 === 2 || index % 4 === 3);
+  const timestamped = provider === 'grafana' ? grafanaTimestamped : recipe.timestamped;
+  const signedTimestamp = timestamped ? timestampText : null;
   const id = `msg_${provider.replaceAll('-', '')}_${index}_${randomToken(random, 10)}`;
   const signedId = isStandardWebhooks(provider) ? id : null;
   const deliveryId = index % 3 === 0 ? null : `dlv_${index}_${randomToken(random, 8)}`;
@@ -416,8 +500,63 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     }
   }
 
-  const signatureToken = signToken(provider, body, activeSecret, signedTimestamp, signedId);
-  const retiredToken = signToken(provider, body, retiredSecret, signedTimestamp, signedId);
+  const configuredGrafanaSignatureHeader = grafanaCustomSignature
+    ? 'X-Grafana-Signature'
+    : 'X-Grafana-Alerting-Signature';
+
+  const configuredGrafanaTimestampHeader = grafanaTimestamped
+    ? (index % 4 === 3 ? 'X-Grafana-Timestamp' : 'X-Grafana-Ts')
+    : null;
+
+  let mode: SecurityCaseMode = 'default';
+  let providerOptions: SecurityProviderOptions;
+
+  if (provider === 'grafana') {
+    mode = grafanaTimestamped ? 'timestamped' : 'body';
+
+    if (grafanaTimestamped) {
+      if (configuredGrafanaTimestampHeader === null) {
+        throw new Error('A timestamped Grafana case requires a timestamp header.');
+      }
+
+      const timestampedOptions = {
+        mode: 'timestamped' as const,
+        timestampHeader: configuredGrafanaTimestampHeader,
+      };
+
+      providerOptions = grafanaCustomSignature
+        ? { ...timestampedOptions, signatureHeader: configuredGrafanaSignatureHeader }
+        : timestampedOptions;
+    } else {
+      providerOptions = grafanaCustomSignature
+        ? { mode: 'body', signatureHeader: configuredGrafanaSignatureHeader }
+        : { mode: 'body' };
+    }
+  } else if (provider === 'polar') {
+    if (polarMode === null) throw new Error('A Polar case requires a secret mode.');
+
+    mode = polarMode;
+    providerOptions = { secretMode: polarMode };
+  }
+
+  const signatureToken = signToken(
+    provider,
+    body,
+    activeSecret,
+    signedTimestamp,
+    signedId,
+    providerOptions,
+  );
+
+  const retiredToken = signToken(
+    provider,
+    body,
+    retiredSecret,
+    signedTimestamp,
+    signedId,
+    providerOptions,
+  );
+
   const signatureValue = recipe.signatureValue(signatureToken, signedTimestamp);
   const headers: Record<string, string> = {};
   const unsignedHeaders: Record<string, string> = {};
@@ -462,7 +601,8 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     case 'svix':
     case 'dodo-payments':
     case 'gitlab':
-    case 'replicate': {
+    case 'replicate':
+    case 'polar': {
       const canonical = provider === 'svix' && index % 2 === 1;
 
       if (canonical) {
@@ -482,6 +622,13 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       headers[idHeader] = id;
       headers[timestampHeader] = timestampText;
       headers[signatureHeader] = signatureValue;
+
+      if (provider === 'polar') {
+        unsignedHeaders['Svix-Id'] = id;
+        unsignedHeaders['Svix-Timestamp'] = timestampText;
+        unsignedHeaders['Svix-Signature'] = signatureValue;
+      }
+
       break;
     }
 
@@ -528,6 +675,31 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
       headers['X-Event-Name'] = 'order_created';
       unsignedHeaders['X-Event-Name'] = 'order_created';
       break;
+    case 'grafana': {
+      signatureHeader = configuredGrafanaSignatureHeader;
+      headers[signatureHeader] = signatureValue;
+
+      if (grafanaTimestamped) {
+        if (configuredGrafanaTimestampHeader === null) {
+          throw new Error('A timestamped Grafana case requires a timestamp header.');
+        }
+
+        timestampHeader = configuredGrafanaTimestampHeader;
+        headers[timestampHeader] = timestampText;
+        unsignedHeaders['X-Grafana-Alt-Timestamp'] = String(seconds + 86_400);
+      } else {
+        timestampHeader = null;
+        unsignedHeaders['X-Grafana-Timestamp'] = '1600000000';
+      }
+
+      if (grafanaCustomSignature) {
+        unsignedHeaders['X-Grafana-Alerting-Signature'] = signatureValue;
+      } else {
+        unsignedHeaders['X-Grafana-Other-Signature'] = signatureValue;
+      }
+
+      break;
+    }
   }
 
   let rotationHeader: string | null = null;
@@ -562,6 +734,14 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     expectedIdentity = {
       deliveryId, eventId: shopifyEventId, timestamp: null, authenticatedFields: [],
     };
+  } else if (provider === 'grafana') {
+    expectedIdentity = grafanaTimestamped
+      ? {
+        deliveryId: null, eventId: null, timestamp, authenticatedFields: ['timestamp'],
+      }
+      : {
+        deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [],
+      };
   } else if (isStandardWebhooks(provider)) {
     expectedIdentity = {
       deliveryId: null, eventId: id, timestamp, authenticatedFields: ['eventId', 'timestamp'],
@@ -590,7 +770,7 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     secrets: [activeSecret],
     rotationSecrets: [activeSecret, retiredSecret],
     now: timestamp,
-    timestamp: recipe.timestamped ? timestamp : null,
+    timestamp: timestamped ? timestamp : null,
     authenticatedId: signedId,
     deliveryId: provider === 'github' || provider === 'shopify' ? deliveryId : null,
     eventId: recordEventId,
@@ -605,6 +785,8 @@ function buildCase(provider: Provider, index: number, seed: number): Determinist
     timestampHeader,
     unsignedHeaders,
     expectedIdentity,
+    mode,
+    providerOptions,
   };
 }
 
@@ -625,7 +807,7 @@ export function buildCases(seed: number = SECURITY_SEED): readonly Deterministic
 
 export const ALL_CASES = buildCases();
 
-export function casesFor(provider: Provider): readonly DeterministicCase[] {
+export function casesFor(provider: SecurityProvider): readonly DeterministicCase[] {
   return ALL_CASES.filter((entry) => entry.provider === provider);
 }
 

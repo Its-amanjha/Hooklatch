@@ -4,7 +4,6 @@ import { SUPPORTED_PROVIDERS } from '../../src/providers/index.js';
 import type {
   EventIdentity,
   HeaderInput,
-  Provider,
   VerificationFailureReason,
   VerificationSuccess,
   VerifyOptions,
@@ -25,11 +24,17 @@ import {
   signatureTokenFor,
   standardWebhooksKeyBytes,
 } from './deterministic-cases.js';
-import type { DeterministicCase } from './deterministic-cases.js';
+import type {
+  DeterministicCase,
+  GrafanaCaseOptions,
+  PolarCaseOptions,
+  SecurityProvider,
+} from './deterministic-cases.js';
 
 /**
- * Adversarial qualification of the sixteen integrated providers through the public
- * root only. All signatures are generated independently in
+ * Adversarial qualification of the eventual eighteen public providers through
+ * the public root only, preserving the original sixteen-provider records as a
+ * byte-identical prefix. All signatures are generated independently in
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
  * build expected values. Synthetic data only; not an official conformance run.
  */
@@ -39,13 +44,14 @@ type VerificationResult = Awaited<ReturnType<typeof verify>>;
 /** Providers with the shared 300-second default freshness window. */
 const TIMESTAMPED_PROVIDERS = [
   'stripe', 'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate',
+  'grafana', 'polar',
 ] as const;
 
 /** Providers whose signature covers the raw body only (no timestamp). */
 const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy', 'sentry', 'doppler'] as const;
 
 const STANDARD_WEBHOOKS_PROVIDERS = [
-  'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate',
+  'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate', 'polar',
 ] as const;
 
 /** Original six-provider prefix pinned before the Phase 3 corpus extension. */
@@ -62,14 +68,104 @@ const LEGACY_CASE_COUNT = LEGACY_PROVIDERS.length * CASES_PER_PROVIDER;
 const LEGACY_CORPUS_FINGERPRINT_SHA256 = 'f752a2e69f746f2088d9ea4ba79fa809da4adf05f35ffeb9762bde6eaab117b7';
 const LEGACY_FULL_RECORD_SHA256 = 'ce21294c247880d8f3ddf3346dcf4a49f17050d106ef877fbb0926d69c58c403';
 
+/** Captured from the immutable sixteen-provider corpus before Stage B edits. */
+const PRE_PHASE7_PROVIDER_COUNT = 16;
+const PRE_PHASE7_CASE_COUNT = PRE_PHASE7_PROVIDER_COUNT * CASES_PER_PROVIDER;
+
+const PRE_PHASE7_CORPUS_FINGERPRINT_SHA256 =
+  '39b22e3c4940c32498da9576ec54de9cb1debbf4eb1af10def1e35e6bb8dfedd';
+
+const PRE_PHASE7_FULL_RECORD_SHA256 =
+  '3dcad39cfa58faabda0751e99189cb6830090e3102b5fa55f185168de62862ab';
+
 function optionsFor(
   case_: DeterministicCase,
   secrets: readonly string[] = case_.secrets,
 ): VerifyOptions {
-  return { provider: case_.provider, secrets: [...secrets], now: () => case_.now };
+  const common = { secrets: [...secrets], now: () => case_.now };
+
+  if (case_.provider === 'grafana') {
+    const providerOptions = case_.providerOptions;
+
+    if (providerOptions === undefined || !('mode' in providerOptions)) {
+      throw new Error(`${case_.context}: expected Grafana provider options.`);
+    }
+
+    return { ...common, provider: 'grafana', providerOptions };
+  }
+
+  if (case_.provider === 'polar') {
+    const providerOptions = case_.providerOptions;
+
+    if (providerOptions === undefined || !('secretMode' in providerOptions)) {
+      throw new Error(`${case_.context}: expected Polar provider options.`);
+    }
+
+    return { ...common, provider: 'polar', providerOptions };
+  }
+
+  return { ...common, provider: case_.provider };
 }
 
-function representative(provider: Provider, index: number): DeterministicCase {
+function grafanaOptions(
+  providerOptions: GrafanaCaseOptions,
+  secrets: readonly string[],
+  now: number,
+  toleranceSeconds?: number,
+): VerifyOptions {
+  if (toleranceSeconds === undefined) {
+    return {
+      provider: 'grafana',
+      providerOptions,
+      secrets: [...secrets],
+      now: () => now,
+    };
+  }
+
+  return {
+    provider: 'grafana',
+    providerOptions,
+    secrets: [...secrets],
+    now: () => now,
+    toleranceSeconds,
+  };
+}
+
+function grafanaCaseOptions(case_: DeterministicCase): GrafanaCaseOptions {
+  const providerOptions = case_.providerOptions;
+
+  if (providerOptions === undefined || !('mode' in providerOptions)) {
+    throw new Error(`${case_.context}: expected Grafana provider options.`);
+  }
+
+  return providerOptions;
+}
+
+function polarOptions(
+  secretMode: PolarCaseOptions['secretMode'],
+  secrets: readonly string[],
+  now: number,
+  toleranceSeconds?: number,
+): VerifyOptions {
+  if (toleranceSeconds === undefined) {
+    return {
+      provider: 'polar',
+      providerOptions: { secretMode },
+      secrets: [...secrets],
+      now: () => now,
+    };
+  }
+
+  return {
+    provider: 'polar',
+    providerOptions: { secretMode },
+    secrets: [...secrets],
+    now: () => now,
+    toleranceSeconds,
+  };
+}
+
+function representative(provider: SecurityProvider, index: number): DeterministicCase {
   const found = casesFor(provider)[index];
 
   if (found === undefined) throw new Error(`Missing corpus case ${provider}/${index}.`);
@@ -87,6 +183,30 @@ function requiredHeader(case_: DeterministicCase, name: string | null): string {
   if (name === null) throw new Error(`${case_.context}: expected a signed identity header.`);
 
   return name;
+}
+
+function requiredSignatureTimestamp(case_: DeterministicCase): string {
+  if (case_.signatureTimestampText === null) {
+    throw new Error(`${case_.context}: expected a signed timestamp.`);
+  }
+
+  return case_.signatureTimestampText;
+}
+
+function requiredAuthenticatedId(case_: DeterministicCase): string {
+  if (case_.authenticatedId === null) {
+    throw new Error(`${case_.context}: expected an authenticated id.`);
+  }
+
+  return case_.authenticatedId;
+}
+
+function withoutHeader(headers: Readonly<Record<string, string>>, name: string) {
+  const copy = { ...headers };
+
+  delete copy[name];
+
+  return copy;
 }
 
 function expectSuccess(context: string, result: VerificationResult): VerificationSuccess {
@@ -153,6 +273,10 @@ function stableCaseRecord(entry: DeterministicCase): string {
     timestampHeader: entry.timestampHeader,
     unsignedHeaders: Object.entries(entry.unsignedHeaders),
     expectedIdentity: entry.expectedIdentity,
+    // Undefined for the original sixteen cases, so their canonical bytes and
+    // pinned full-record hashes remain unchanged.
+    mode: entry.mode === 'default' ? undefined : entry.mode,
+    providerOptions: entry.providerOptions,
   });
 }
 
@@ -182,12 +306,6 @@ function withTimestampText(case_: DeterministicCase, timestampText: string): Hea
   }
 
   return headers;
-}
-
-interface MutableOptions {
-  provider: Provider;
-  secrets: string[];
-  now: () => number;
 }
 
 async function expectValidCase(
@@ -237,9 +355,9 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
   });
 
-  test('covers the exact integrated sixteen-provider registry with no unmapped branch', () => {
+  test('covers the exact eventual eighteen-provider registry with no unmapped branch', () => {
     expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
-    expect(SECURITY_PROVIDERS).toHaveLength(16);
+    expect(SECURITY_PROVIDERS).toHaveLength(18);
     expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
 
     for (const provider of SUPPORTED_PROVIDERS) {
@@ -279,10 +397,21 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBe('389edc9929a4688e4c85e2a113ce01a362ce7ce82b360c6290f52506516c64a9');
   });
 
+  test('preserves all 576 prior sixteen-provider cases as an exact prefix', () => {
+    const prior = ALL_CASES.slice(0, PRE_PHASE7_CASE_COUNT);
+
+    expect(prior).toHaveLength(576);
+    expect(prior.every((entry, index) =>
+      entry.provider === SECURITY_PROVIDERS[Math.floor(index / CASES_PER_PROVIDER)]))
+      .toBe(true);
+    expect(sha256(corpusFingerprint(prior))).toBe(PRE_PHASE7_CORPUS_FINGERPRINT_SHA256);
+    expect(sha256(prior.map(stableCaseRecord).join('\n'))).toBe(PRE_PHASE7_FULL_RECORD_SHA256);
+  });
+
   test('keeps binary and nonzero-offset bodies for the added providers', () => {
     for (const provider of [
       'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab', 'replicate', 'workos',
-      'sentry', 'doppler', 'sanity',
+      'sentry', 'doppler', 'sanity', 'grafana', 'polar',
     ] as const) {
       const providerCases = casesFor(provider);
 
@@ -331,6 +460,50 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       && entry.expectedIdentity.eventId === null
       && entry.expectedIdentity.timestamp === null
       && entry.expectedIdentity.authenticatedFields.length === 0)).toBe(true);
+  });
+
+  test('maps Grafana and Polar to explicit, configuration-aware recipes', () => {
+    const grafana = casesFor('grafana');
+    const polar = casesFor('polar');
+
+    expect(grafana.filter((entry) => entry.mode === 'body')).toHaveLength(18);
+    expect(grafana.filter((entry) => entry.mode === 'timestamped')).toHaveLength(18);
+    expect(grafana.every((entry) => entry.encoding === 'hex')).toBe(true);
+    expect(grafana.every((entry) => entry.providerOptions !== undefined
+      && 'mode' in entry.providerOptions
+      && entry.providerOptions.mode === entry.mode)).toBe(true);
+    expect(grafana.filter((entry) => entry.mode === 'body').every((entry) =>
+      entry.signatureTimestampText === null
+      && entry.timestamp === null
+      && entry.expectedIdentity.timestamp === null
+      && entry.expectedIdentity.authenticatedFields.length === 0)).toBe(true);
+    expect(grafana.filter((entry) => entry.mode === 'timestamped').every((entry) =>
+      entry.signatureTimestampText !== null
+      && entry.timestamp !== null
+      && entry.timestampHeader !== null
+      && entry.expectedIdentity.timestamp === entry.timestamp
+      && entry.expectedIdentity.authenticatedFields.length === 1
+      && entry.expectedIdentity.authenticatedFields[0] === 'timestamp')).toBe(true);
+
+    expect(polar.filter((entry) => entry.mode === 'current')).toHaveLength(18);
+    expect(polar.filter((entry) => entry.mode === 'legacy')).toHaveLength(18);
+    expect(polar.every((entry) => entry.encoding === 'base64'
+      && entry.signatureHeader === 'Webhook-Signature'
+      && entry.idHeader === 'Webhook-Id'
+      && entry.timestampHeader === 'Webhook-Timestamp'
+      && entry.rotationHeader !== null
+      && entry.providerOptions !== undefined
+      && 'secretMode' in entry.providerOptions
+      && entry.providerOptions.secretMode === entry.mode)).toBe(true);
+    expect(polar.every((entry) => entry.expectedIdentity.eventId === entry.authenticatedId
+      && entry.expectedIdentity.timestamp === entry.timestamp
+      && entry.expectedIdentity.authenticatedFields.length === 2
+      && entry.expectedIdentity.authenticatedFields[0] === 'eventId'
+      && entry.expectedIdentity.authenticatedFields[1] === 'timestamp')).toBe(true);
+    expect(polar.filter((entry) => entry.mode === 'current')
+      .every((entry) => !entry.activeSecret.includes('whsec_legacy_'))).toBe(true);
+    expect(polar.filter((entry) => entry.mode === 'legacy')
+      .every((entry) => entry.activeSecret.includes('whsec_legacy_'))).toBe(true);
   });
 
   test('keeps literal and Base64-decoded key protocols distinct', async () => {
@@ -1344,7 +1517,8 @@ describe.each(SECURITY_PROVIDERS)('%s invocation snapshots', (provider) => {
     const view = backing.subarray(2, 2 + case_.body.byteLength);
     const headers = new Headers(case_.headers);
     const secrets = [case_.activeSecret];
-    const pending = verify({ rawBody: view, headers }, { provider, secrets, now: () => case_.now });
+    const options = { ...optionsFor(case_), secrets };
+    const pending = verify({ rawBody: view, headers }, options);
 
     backing.fill(0x5a);
     headers.set(case_.signatureHeader, 'mutated-after-call');
@@ -1380,10 +1554,9 @@ describe.each(SECURITY_PROVIDERS)('%s invocation snapshots', (provider) => {
   test(`${case_.context} createVerifier-prepared`, async () => {
     const mutableSecrets = [case_.activeSecret];
 
-    const options: MutableOptions = {
-      provider,
+    const options = {
+      ...optionsFor(case_),
       secrets: mutableSecrets,
-      now: () => case_.now,
     };
 
     const verifier = createVerifier(options);
@@ -1656,14 +1829,18 @@ describe.each(['dodo-payments', 'gitlab', 'replicate'] as const)(
           `${provider} same-secret protocol compatibility with ${other}`,
           await verify(
             { rawBody: case_.body, headers: case_.headers },
-            { ...optionsFor(case_), provider: other },
+            { provider: other, secrets: [...case_.secrets], now: () => case_.now },
           ),
         );
         expectReason(
           `${provider} separate-secret endpoint ${other}`,
           await verify(
             { rawBody: case_.body, headers: case_.headers },
-            { ...optionsFor(case_, [representative(other, 2).activeSecret]), provider: other },
+            {
+              provider: other,
+              secrets: [representative(other, 2).activeSecret],
+              now: () => case_.now,
+            },
           ),
           'invalid-signature',
         );
@@ -1854,5 +2031,795 @@ describe.each(['sentry', 'doppler'] as const)('%s literal body-only authenticati
         reason,
       );
     }
+  });
+});
+
+describe('Grafana explicit body and timestamped configurations', () => {
+  const bodyCase = representative('grafana', 2);
+  const defaultBodyCase = representative('grafana', 0);
+  const timestampedCase = representative('grafana', 1);
+  const customTimestampedCase = representative('grafana', 3);
+  const defaultSignatureHeader = 'X-Grafana-Alerting-Signature';
+
+  test('verifies each configured layout with role-based identity', async () => {
+    const body = await expectValidCase(bodyCase);
+    const timestamped = await expectValidCase(timestampedCase);
+    const customTimestamped = await expectValidCase(customTimestampedCase);
+
+    expect(body.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
+      timestamp: null,
+      authenticatedFields: [],
+    });
+    expect(timestamped.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
+      timestamp: requiredTimestamp(timestampedCase),
+      authenticatedFields: ['timestamp'],
+    });
+    expect(customTimestamped.identity).toEqual(customTimestampedCase.expectedIdentity);
+  });
+
+  test('body mode authenticates only the exact body and ignores timestamp decoys', async () => {
+    const stale = String(bodyCase.now + 86_400);
+
+    const headers = {
+      ...bodyCase.headers,
+      'X-Grafana-Timestamp': stale,
+      'X-Grafana-Alt-Timestamp': stale,
+    };
+
+    const success = expectSuccess(
+      `${bodyCase.context} body timestamp isolation`,
+      await verify(
+        { rawBody: bodyCase.body, headers },
+        grafanaOptions(grafanaCaseOptions(bodyCase), bodyCase.secrets, Number(stale), 0),
+      ),
+    );
+
+    expect(success.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
+      timestamp: null,
+      authenticatedFields: [],
+    });
+
+    const timestampedToken = signatureTokenFor(
+      bodyCase,
+      bodyCase.activeSecret,
+      stale,
+      null,
+    );
+
+    expectReason(
+      `${bodyCase.context} body rejects timestamp layout`,
+      await verify(
+        {
+          rawBody: bodyCase.body,
+          headers: {
+            ...bodyCase.headers,
+            [bodyCase.signatureHeader]: timestampedToken,
+            'X-Grafana-Timestamp': stale,
+          },
+        },
+        optionsFor(bodyCase),
+      ),
+      'invalid-signature',
+    );
+  });
+
+  test('timestamped mode enforces inclusive 300, explicit zero and MAC first', async () => {
+    const timestamp = requiredTimestamp(timestampedCase);
+
+    for (const delta of [300, -300]) {
+      expectSuccess(
+        `${timestampedCase.context} now-offset=${delta}`,
+        await verify(
+          { rawBody: timestampedCase.body, headers: timestampedCase.headers },
+          { ...optionsFor(timestampedCase), now: () => timestamp + delta },
+        ),
+      );
+    }
+
+    for (const [delta, reason] of [
+      [301, 'timestamp-expired'],
+      [-301, 'timestamp-future'],
+    ] as const) {
+      expectReason(
+        `${timestampedCase.context} now-offset=${delta}`,
+        await verify(
+          { rawBody: timestampedCase.body, headers: timestampedCase.headers },
+          { ...optionsFor(timestampedCase), now: () => timestamp + delta },
+        ),
+        reason,
+      );
+    }
+
+    expectSuccess(
+      `${timestampedCase.context} explicit zero`,
+      await verify(
+        { rawBody: timestampedCase.body, headers: timestampedCase.headers },
+        { ...optionsFor(timestampedCase), toleranceSeconds: 0 },
+      ),
+    );
+
+    for (const [delta, reason] of [
+      [1, 'timestamp-expired'],
+      [-1, 'timestamp-future'],
+    ] as const) {
+      expectReason(
+        `${timestampedCase.context} zero width now-offset=${delta}`,
+        await verify(
+          { rawBody: timestampedCase.body, headers: timestampedCase.headers },
+          { ...optionsFor(timestampedCase), toleranceSeconds: 0, now: () => timestamp + delta },
+        ),
+        reason,
+      );
+    }
+
+    for (const delta of [301, -301]) {
+      expectReason(
+        `${timestampedCase.context} bad MAC before stale now-offset=${delta}`,
+        await verify(
+          { rawBody: flipBodyByte(timestampedCase.body, 0), headers: timestampedCase.headers },
+          { ...optionsFor(timestampedCase), now: () => timestamp + delta },
+        ),
+        'invalid-signature',
+      );
+    }
+
+    expectReason(
+      `${timestampedCase.context} signed timestamp tamper`,
+      await verify(
+        {
+          rawBody: timestampedCase.body,
+          headers: withTimestampText(timestampedCase, String(timestamp + 1)),
+        },
+        optionsFor(timestampedCase),
+      ),
+      'invalid-signature',
+    );
+  });
+
+  test('selected headers are configuration, never request-driven hints', async () => {
+    const customHeader = bodyCase.signatureHeader;
+
+    const onlyDefault = {
+      ...withoutHeader(bodyCase.headers, customHeader),
+      [defaultSignatureHeader]: bodyCase.signatureValue,
+    };
+
+    expectReason(
+      `${bodyCase.context} custom missing cannot use default`,
+      await verify({ rawBody: bodyCase.body, headers: onlyDefault }, optionsFor(bodyCase)),
+      'missing-signature',
+    );
+
+    const onlyCustom = {
+      ...withoutHeader(defaultBodyCase.headers, defaultSignatureHeader),
+      'X-Grafana-Signature': defaultBodyCase.signatureValue,
+    };
+
+    expectReason(
+      `${defaultBodyCase.context} default missing cannot use custom`,
+      await verify(
+        { rawBody: defaultBodyCase.body, headers: onlyCustom },
+        optionsFor(defaultBodyCase),
+      ),
+      'missing-signature',
+    );
+
+    const selectedTimestampHeader = requiredHeader(
+      customTimestampedCase,
+      customTimestampedCase.timestampHeader,
+    );
+
+    const timestampText = requiredSignatureTimestamp(customTimestampedCase);
+    const altTimestampHeader = 'X-Grafana-Alt-Timestamp';
+
+    const missingTimestamp = {
+      ...withoutHeader(customTimestampedCase.headers, selectedTimestampHeader),
+      [altTimestampHeader]: timestampText,
+    };
+
+    expectReason(
+      `${customTimestampedCase.context} alternate timestamp cannot rescue`,
+      await verify(
+        { rawBody: customTimestampedCase.body, headers: missingTimestamp },
+        optionsFor(customTimestampedCase),
+      ),
+      'missing-timestamp',
+    );
+
+    expectReason(
+      `${customTimestampedCase.context} wrong timestamp value`,
+      await verify(
+        {
+          rawBody: customTimestampedCase.body,
+          headers: {
+            ...customTimestampedCase.headers,
+            [selectedTimestampHeader]: String(Number(timestampText) + 1),
+          },
+        },
+        optionsFor(customTimestampedCase),
+      ),
+      'invalid-signature',
+    );
+  });
+
+  test('layout is selected by configuration, with no downgrade or upgrade', async () => {
+    const timestampText = requiredSignatureTimestamp(timestampedCase);
+    const bodyLayoutToken = signatureTokenFor(timestampedCase, timestampedCase.activeSecret, null, null);
+
+    const bodyLayoutHeaders = {
+      ...timestampedCase.headers,
+      [timestampedCase.signatureHeader]: bodyLayoutToken,
+    };
+
+    const body = expectSuccess(
+      `${timestampedCase.context} configured body layout`,
+      await verify(
+        { rawBody: timestampedCase.body, headers: bodyLayoutHeaders },
+        grafanaOptions(
+          { mode: 'body' },
+          timestampedCase.secrets,
+          timestampedCase.now,
+        ),
+      ),
+    );
+
+    expect(body.identity).toEqual({
+      deliveryId: null,
+      eventId: null,
+      timestamp: null,
+      authenticatedFields: [],
+    });
+    expectReason(
+      `${timestampedCase.context} body layout cannot satisfy timestamped mode`,
+      await verify(
+        { rawBody: timestampedCase.body, headers: bodyLayoutHeaders },
+        optionsFor(timestampedCase),
+      ),
+      'invalid-signature',
+    );
+
+    const timestampedToken = signatureTokenFor(
+      timestampedCase,
+      timestampedCase.activeSecret,
+      timestampText,
+      null,
+    );
+
+    expectReason(
+      `${timestampedCase.context} timestamp layout cannot be upgraded from body mode`,
+      await verify(
+        {
+          rawBody: timestampedCase.body,
+          headers: {
+            ...timestampedCase.headers,
+            [timestampedCase.signatureHeader]: timestampedToken,
+          },
+        },
+        grafanaOptions({ mode: 'body' }, timestampedCase.secrets, timestampedCase.now),
+      ),
+      'invalid-signature',
+    );
+
+    expectReason(
+      `${timestampedCase.context} missing timestamp never downgrades`,
+      await verify(
+        {
+          rawBody: timestampedCase.body,
+          headers: withoutHeader(
+            timestampedCase.headers,
+            requiredHeader(timestampedCase, timestampedCase.timestampHeader),
+          ),
+        },
+        optionsFor(timestampedCase),
+      ),
+      'missing-timestamp',
+    );
+  });
+
+  test('literal key and header names are not signed', async () => {
+    const literalToken = signatureTokenFor(bodyCase, bodyCase.activeSecret, null, null);
+
+    const decodedToken = hmacToken(
+      standardWebhooksKeyBytes(bodyCase.activeSecret),
+      bodyCase.body,
+      'hex',
+    );
+
+    expect(literalToken).toBe(bodyCase.signatureToken);
+    expect(decodedToken).not.toBe(literalToken);
+    expectSuccess(
+      `${bodyCase.context} literal secret token`,
+      await verify({ rawBody: bodyCase.body, headers: bodyCase.headers }, optionsFor(bodyCase)),
+    );
+    expectReason(
+      `${bodyCase.context} decoded-key token is a different interpretation`,
+      await verify(
+        {
+          rawBody: bodyCase.body,
+          headers: { ...bodyCase.headers, [bodyCase.signatureHeader]: decodedToken },
+        },
+        optionsFor(bodyCase),
+      ),
+      'invalid-signature',
+    );
+
+    const timestampText = requiredSignatureTimestamp(timestampedCase);
+
+    const firstOptions: GrafanaCaseOptions = {
+      mode: 'timestamped',
+      signatureHeader: 'X-Grafana-One-Signature',
+      timestampHeader: 'X-Grafana-One-Timestamp',
+    };
+
+    const secondOptions: GrafanaCaseOptions = {
+      mode: 'timestamped',
+      signatureHeader: 'X-Grafana-Two-Signature',
+      timestampHeader: 'X-Grafana-Two-Timestamp',
+    };
+
+    for (const [label, options] of [
+      ['one', firstOptions],
+      ['two', secondOptions],
+    ] as const) {
+      const headers = {
+        [options.signatureHeader ?? '']: timestampedCase.signatureValue,
+        [options.timestampHeader]: timestampText,
+      };
+
+      expectSuccess(
+        `${timestampedCase.context} header-name layout=${label}`,
+        await verify(
+          { rawBody: timestampedCase.body, headers },
+          grafanaOptions(options, timestampedCase.secrets, timestampedCase.now),
+        ),
+      );
+    }
+  });
+
+  test('rotation stays inside the selected layout', async () => {
+    const retiredBodyToken = signatureTokenFor(
+      bodyCase,
+      bodyCase.retiredSecret,
+      null,
+      null,
+    );
+
+    const retiredBodyHeaders = {
+      ...bodyCase.headers,
+      [bodyCase.signatureHeader]: retiredBodyToken,
+    };
+
+    expectSuccess(
+      `${bodyCase.context} body rotation`,
+      await verify(
+        { rawBody: bodyCase.body, headers: retiredBodyHeaders },
+        optionsFor(bodyCase, bodyCase.rotationSecrets),
+      ),
+    );
+    expectReason(
+      `${bodyCase.context} body rotation removal`,
+      await verify(
+        { rawBody: bodyCase.body, headers: retiredBodyHeaders },
+        optionsFor(bodyCase, [bodyCase.activeSecret]),
+      ),
+      'invalid-signature',
+    );
+
+    const timestampText = requiredSignatureTimestamp(timestampedCase);
+
+    const retiredTimestampToken = signatureTokenFor(
+      timestampedCase,
+      timestampedCase.retiredSecret,
+      timestampText,
+      null,
+    );
+
+    const retiredTimestampHeaders = {
+      ...timestampedCase.headers,
+      [timestampedCase.signatureHeader]: retiredTimestampToken,
+    };
+
+    expectSuccess(
+      `${timestampedCase.context} timestamped rotation`,
+      await verify(
+        { rawBody: timestampedCase.body, headers: retiredTimestampHeaders },
+        optionsFor(timestampedCase, timestampedCase.rotationSecrets),
+      ),
+    );
+    expectReason(
+      `${timestampedCase.context} timestamped rotation removal`,
+      await verify(
+        { rawBody: timestampedCase.body, headers: retiredTimestampHeaders },
+        optionsFor(timestampedCase, [timestampedCase.activeSecret]),
+      ),
+      'invalid-signature',
+    );
+    expectReason(
+      `${timestampedCase.context} body-layout rotation cannot cross layout`,
+      await verify(
+        {
+          rawBody: timestampedCase.body,
+          headers: {
+            ...timestampedCase.headers,
+            [timestampedCase.signatureHeader]: signatureTokenFor(
+              timestampedCase,
+              timestampedCase.retiredSecret,
+              null,
+              null,
+            ),
+          },
+        },
+        optionsFor(timestampedCase, timestampedCase.rotationSecrets),
+      ),
+      'invalid-signature',
+    );
+  });
+});
+
+describe('Polar configured current and legacy secret modes', () => {
+  const currentCase = representative('polar', 2);
+  const legacyCase = representative('polar', 1);
+  const legacyUnicodeCase = representative('polar', 7);
+
+  test('verifies both modes with role-based canonical identity', async () => {
+    for (const case_ of [currentCase, legacyCase, legacyUnicodeCase]) {
+      const success = await expectValidCase(case_);
+
+      expect(success.identity).toEqual({
+        deliveryId: null,
+        eventId: requiredAuthenticatedId(case_),
+        timestamp: requiredTimestamp(case_),
+        authenticatedFields: ['eventId', 'timestamp'],
+      });
+    }
+
+    expect(legacyUnicodeCase.activeSecret).toContain('秘密');
+  });
+
+  test('current and legacy key interpretations never rescue each other', async () => {
+    const secret = currentCase.activeSecret;
+    const id = requiredAuthenticatedId(currentCase);
+    const timestampText = requiredSignatureTimestamp(currentCase);
+
+    const currentToken = signatureTokenFor(
+      currentCase,
+      secret,
+      timestampText,
+      id,
+      { secretMode: 'current' },
+    );
+
+    const legacyToken = signatureTokenFor(
+      currentCase,
+      secret,
+      timestampText,
+      id,
+      { secretMode: 'legacy' },
+    );
+
+    expect(currentToken).not.toBe(legacyToken);
+
+    const currentHeaders = {
+      ...currentCase.headers,
+      [currentCase.signatureHeader]: headerValueFor(
+        currentCase,
+        currentToken,
+        timestampText,
+      ),
+    };
+
+    const legacyHeaders = {
+      ...currentCase.headers,
+      [currentCase.signatureHeader]: headerValueFor(
+        currentCase,
+        legacyToken,
+        timestampText,
+      ),
+    };
+
+    expectSuccess(
+      `${currentCase.context} current token in current mode`,
+      await verify(
+        { rawBody: currentCase.body, headers: currentHeaders },
+        polarOptions('current', [secret], currentCase.now),
+      ),
+    );
+    expectReason(
+      `${currentCase.context} current token cannot satisfy legacy mode`,
+      await verify(
+        { rawBody: currentCase.body, headers: currentHeaders },
+        polarOptions('legacy', [secret], currentCase.now),
+      ),
+      'invalid-signature',
+    );
+    expectSuccess(
+      `${currentCase.context} legacy token in legacy mode`,
+      await verify(
+        { rawBody: currentCase.body, headers: legacyHeaders },
+        polarOptions('legacy', [secret], currentCase.now),
+      ),
+    );
+    expectReason(
+      `${currentCase.context} legacy token cannot satisfy current mode`,
+      await verify(
+        { rawBody: currentCase.body, headers: legacyHeaders },
+        polarOptions('current', [secret], currentCase.now),
+      ),
+      'invalid-signature',
+    );
+    await expect(verify(
+      { rawBody: currentCase.body, headers: currentHeaders },
+      polarOptions('current', [legacyCase.activeSecret], currentCase.now),
+    )).rejects.toMatchObject({ name: 'HooklatchError', code: 'invalid-secret' });
+  });
+
+  test('canonical headers cannot be repaired by svix aliases', async () => {
+    const id = requiredAuthenticatedId(currentCase);
+    const timestampText = requiredSignatureTimestamp(currentCase);
+    const signatureHeader = currentCase.signatureHeader;
+    const idHeader = requiredHeader(currentCase, currentCase.idHeader);
+    const timestampHeader = requiredHeader(currentCase, currentCase.timestampHeader);
+
+    for (const [label, headers, reason] of [
+      [
+        'svix-only',
+        {
+          'Svix-Id': id,
+          'Svix-Timestamp': timestampText,
+          'Svix-Signature': currentCase.signatureValue,
+        },
+        'missing-signature',
+      ],
+      [
+        'svix-timestamp-only',
+        {
+          [signatureHeader]: currentCase.signatureValue,
+          [idHeader]: id,
+          'Svix-Timestamp': timestampText,
+        },
+        'missing-timestamp',
+      ],
+      [
+        'svix-signature-only',
+        {
+          [idHeader]: id,
+          [timestampHeader]: timestampText,
+          'Svix-Signature': currentCase.signatureValue,
+        },
+        'missing-signature',
+      ],
+      [
+        'malformed-canonical-with-valid-svix',
+        {
+          ...currentCase.headers,
+          [signatureHeader]: 'v1,@@@',
+          'Svix-Signature': currentCase.signatureValue,
+        },
+        'malformed-signature',
+      ],
+    ] as const) {
+      expectReason(
+        `${currentCase.context} ${label}`,
+        await verify({ rawBody: currentCase.body, headers }, optionsFor(currentCase)),
+        reason,
+      );
+    }
+  });
+
+  test('binds the canonical layout and does not infer another signing recipe', async () => {
+    const bodyOnlyToken = hmacToken(
+      standardWebhooksKeyBytes(currentCase.activeSecret),
+      currentCase.body,
+      'base64',
+    );
+
+    const idHeader = requiredHeader(currentCase, currentCase.idHeader);
+    const timestampHeader = requiredHeader(currentCase, currentCase.timestampHeader);
+
+    expectReason(
+      `${currentCase.context} body-only signed content`,
+      await verify(
+        {
+          rawBody: currentCase.body,
+          headers: {
+            ...currentCase.headers,
+            [currentCase.signatureHeader]: headerValueFor(
+              currentCase,
+              bodyOnlyToken,
+              requiredSignatureTimestamp(currentCase),
+            ),
+          },
+        },
+        optionsFor(currentCase),
+      ),
+      'invalid-signature',
+    );
+    expectReason(
+      `${currentCase.context} missing canonical id`,
+      await verify(
+        {
+          rawBody: currentCase.body,
+          headers: withoutHeader(currentCase.headers, idHeader),
+        },
+        optionsFor(currentCase),
+      ),
+      'missing-identity',
+    );
+    expectReason(
+      `${currentCase.context} missing canonical timestamp`,
+      await verify(
+        {
+          rawBody: currentCase.body,
+          headers: withoutHeader(currentCase.headers, timestampHeader),
+        },
+        optionsFor(currentCase),
+      ),
+      'missing-timestamp',
+    );
+    expectReason(
+      `${currentCase.context} alternate timestamp header`,
+      await verify(
+        {
+          rawBody: currentCase.body,
+          headers: {
+            ...withoutHeader(currentCase.headers, timestampHeader),
+            'X-Polar-Timestamp': requiredSignatureTimestamp(currentCase),
+          },
+        },
+        optionsFor(currentCase),
+      ),
+      'missing-timestamp',
+    );
+  });
+
+  test('enforces inclusive 300, explicit zero and MAC first in both modes', async () => {
+    for (const case_ of [currentCase, legacyCase]) {
+      const timestamp = requiredTimestamp(case_);
+
+      for (const delta of [300, -300]) {
+        expectSuccess(
+          `${case_.context} now-offset=${delta}`,
+          await verify(
+            { rawBody: case_.body, headers: case_.headers },
+            { ...optionsFor(case_), now: () => timestamp + delta },
+          ),
+        );
+      }
+
+      for (const [delta, reason] of [
+        [301, 'timestamp-expired'],
+        [-301, 'timestamp-future'],
+      ] as const) {
+        expectReason(
+          `${case_.context} now-offset=${delta}`,
+          await verify(
+            { rawBody: case_.body, headers: case_.headers },
+            { ...optionsFor(case_), now: () => timestamp + delta },
+          ),
+          reason,
+        );
+      }
+
+      expectSuccess(
+        `${case_.context} explicit zero`,
+        await verify(
+          { rawBody: case_.body, headers: case_.headers },
+          { ...optionsFor(case_), toleranceSeconds: 0 },
+        ),
+      );
+
+      for (const [delta, reason] of [
+        [1, 'timestamp-expired'],
+        [-1, 'timestamp-future'],
+      ] as const) {
+        expectReason(
+          `${case_.context} zero width now-offset=${delta}`,
+          await verify(
+            { rawBody: case_.body, headers: case_.headers },
+            { ...optionsFor(case_), toleranceSeconds: 0, now: () => timestamp + delta },
+          ),
+          reason,
+        );
+      }
+
+      for (const delta of [301, -301]) {
+        expectReason(
+          `${case_.context} bad MAC before stale now-offset=${delta}`,
+          await verify(
+            { rawBody: flipBodyByte(case_.body, 0), headers: case_.headers },
+            { ...optionsFor(case_), now: () => timestamp + delta },
+          ),
+          'invalid-signature',
+        );
+      }
+    }
+  });
+
+  test('rotation applies inside the selected mode only', async () => {
+    for (const case_ of [currentCase, legacyCase]) {
+      const timestampText = requiredSignatureTimestamp(case_);
+
+      const retiredHeaders = {
+        ...case_.headers,
+        [case_.signatureHeader]: headerValueFor(
+          case_,
+          case_.retiredToken,
+          timestampText,
+        ),
+      };
+
+      expectSuccess(
+        `${case_.context} selected-mode rotation`,
+        await verify(
+          { rawBody: case_.body, headers: retiredHeaders },
+          optionsFor(case_, case_.rotationSecrets),
+        ),
+      );
+      expectReason(
+        `${case_.context} rotation removal`,
+        await verify(
+          { rawBody: case_.body, headers: retiredHeaders },
+          optionsFor(case_, [case_.activeSecret]),
+        ),
+        'invalid-signature',
+      );
+      expectReason(
+        `${case_.context} wrong secret`,
+        await verify(
+          { rawBody: case_.body, headers: retiredHeaders },
+          optionsFor(case_, [case_.wrongSecret]),
+        ),
+        'invalid-signature',
+      );
+    }
+
+    const currentRetiredHeaders = {
+      ...currentCase.headers,
+      [currentCase.signatureHeader]: headerValueFor(
+        currentCase,
+        currentCase.retiredToken,
+        requiredSignatureTimestamp(currentCase),
+      ),
+    };
+
+    expectReason(
+      `${currentCase.context} current rotation cannot cross into legacy mode`,
+      await verify(
+        { rawBody: currentCase.body, headers: currentRetiredHeaders },
+        polarOptions('legacy', currentCase.rotationSecrets, currentCase.now),
+      ),
+      'invalid-signature',
+    );
+  });
+
+  test('vendor labels are not signed while endpoint keys remain separate', async () => {
+    const standardCase = representative('standard-webhooks', 2);
+    const secret = currentCase.activeSecret;
+
+    expectSuccess(
+      `${currentCase.context} same canonical bytes as standard-webhooks`,
+      await verify(
+        { rawBody: currentCase.body, headers: currentCase.headers },
+        {
+          provider: 'standard-webhooks',
+          secrets: [secret],
+          now: () => currentCase.now,
+        },
+      ),
+    );
+    expectReason(
+      `${currentCase.context} separate endpoint secret`,
+      await verify(
+        { rawBody: currentCase.body, headers: currentCase.headers },
+        polarOptions('current', [standardCase.activeSecret], currentCase.now),
+      ),
+      'invalid-signature',
+    );
   });
 });
