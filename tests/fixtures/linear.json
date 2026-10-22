@@ -1,0 +1,856 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "content-type": "application/json",
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Canonical lowercase hex HMAC over the exact raw body. Identity is never extracted; the signed content is opaque authenticated bytes."
+    },
+    {
+      "id": "positive-uppercase-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9C258AF6ADF5F7101D0C71094D22A011EC1C4D49206A15A63CBADF65B44168EB"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Uppercase acceptance is Hooklatch receiver policy, not exact Linear SDK parity."
+    },
+    {
+      "id": "positive-request-header-casing-variant",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "LINEAR-SIGNATURE": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb",
+          "linear-delivery": "e2b9d5a1-7c34-4f2e-a1b0-8f9c2d3e4a60"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Request-side casing 'LINEAR-SIGNATURE' matches the configured name case-insensitively; linear-delivery is unsigned and ignored."
+    },
+    {
+      "id": "positive-whitespace-only-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "41a8b93c0f519705a1338b381050dabe71dbed3f3714483927e0e55fc2d87286"
+        }
+      },
+      "options": {
+        "secrets": [
+          "   "
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "A whitespace-only secret is a valid literal UTF-8 key; only an empty secret is invalid at setup. No trimming, prefix or Base64 interpretation."
+    },
+    {
+      "id": "positive-nonascii-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "e97927daaa3971c9b2bb236bd9f4d62b3c21df44572090a68f02c099a8497284"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linéar_sécret_λ"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "A non-ASCII secret is keyed by its exact UTF-8 bytes as a literal key."
+    },
+    {
+      "id": "positive-untrimmed-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "50b3683b2d3a22e2b1d1c563361322a81acb478d2063f4e2274369d88d8d80ad"
+        }
+      },
+      "options": {
+        "secrets": [
+          "  hooklatch_stage_8_surrounded_secret  "
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "The configured secret keeps its surrounding spaces; the trimmed variant would be a different key and must not accept this row."
+    },
+    {
+      "id": "positive-empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "linear-signature": "1cc4e4210a8f2585316b51c776c2fbeecee040f805004a400bb1df83e8df2b33"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Empty bodies are authenticated over zero bytes; the signature grammar is body-independent."
+    },
+    {
+      "id": "positive-non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoLWxpbmVhci1ub3QtanNvbg==",
+        "headers": {
+          "linear-signature": "bd288f9224f5d002e5662b74629a1eb48be0a795006083295da233ad3ca9a7b1"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Verification never parses bodies; non-JSON content authenticates on the exact bytes."
+    },
+    {
+      "id": "positive-binary-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "AP+AAf4=",
+        "headers": {
+          "linear-signature": "c3d392fafb13adad2f9b32d8ade8faccdf89e2c6fa77196a9d6097fc48970448"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Opaque binary bytes (0x00 0xFF 0x80 0x01 0xFE) are valid authenticated content."
+    },
+    {
+      "id": "positive-invalid-utf8-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "wyiB/w==",
+        "headers": {
+          "linear-signature": "acde8e745c1952881eb2a2e38f4871a78a7f9a06e870797d7a45d263d7550661"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Invalid UTF-8 sequences (0xC3 0x28 0x81 0xFF) never block authentication; bodies are not decoded."
+    },
+    {
+      "id": "positive-nul-byte-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "AAEC",
+        "headers": {
+          "linear-signature": "b86aa3998974f513b1f6b40135a6f85e1c5be75e655a07e2ddb18a778f68e3ce"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "NUL bytes are ordinary signed content, distinct from the invalid-UTF-8 and binary classes."
+    },
+    {
+      "id": "positive-old-body-timestamp-with-valid-mac",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6Im9sZC1ib2R5LXRpbWVzdGFtcCIsImNyZWF0ZWRBdCI6IjIwMjAtMDEtMDFUMDA6MDA6MDAuMDAwWiJ9",
+        "headers": {
+          "linear-timestamp": "1600000000",
+          "linear-signature": "b8b6767dabb11740bb9fcae15412a14201774da25a7c20ba19a6c830ee6d5836"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Body createdAt 2020 and a stale-looking linear-timestamp stay authenticated: linear is body-only authentication with no freshness enforcement."
+    },
+    {
+      "id": "positive-future-body-timestamp-with-valid-mac",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImZ1dHVyZS1ib2R5LXRpbWVzdGFtcCIsImNyZWF0ZWRBdCI6IjIwMjktMTItMzFUMjM6NTk6NTkuMDAwWiJ9",
+        "headers": {
+          "linear-timestamp": "1900000000",
+          "linear-signature": "8852dca0e8f6127c89b039f1a5620f019e1f52a707f9ec03e2379326c07206b3"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "A far-future body/timestamp context cannot change authenticity; no replay resistance is claimed."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1yb3RhdGlvbiJ9",
+        "headers": {
+          "linear-signature": "a2f1287c04f7d327f718f77c3c88e1bb6c21fdccfbb44e1e0f426f1e4170b321"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_old_secret",
+          "hooklatch_stage_8_linear_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "During rotation, a MAC from the old secret still authenticates."
+    },
+    {
+      "id": "positive-unsigned-context-headers-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-delivery": "e2b9d5a1-7c34-4f2e-a1b0-8f9c2d3e4a60",
+          "Linear-Event": "IssueCreated",
+          "linear-timestamp": "1700000100",
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "linear-delivery, Linear-Event and linear-timestamp are unsigned context; identity remains all null and never derives from them or the body."
+    },
+    {
+      "id": "positive-alien-signature-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-standard-webhooks-signature": "v1,c3ludGhldGljLXN0YWdlLTgtbGluZWFyLWRlY295",
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Alien authentication-family headers do not participate when the configured header carries the real MAC."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "content-type": "application/json",
+          "linear-delivery": "e2b9d5a1-7c34-4f2e-a1b0-8f9c2d3e4a60"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "No linear-signature header at all; unsigned context alone never authenticates."
+    },
+    {
+      "id": "alien-signature-header-cannot-rescue",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-webhook-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "A real MAC under an alien header name cannot rescue the missing configured header."
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "A whitespace-only value is trim-blank and classified as missing, in both the record and WHATWG views."
+    },
+    {
+      "id": "tampered-body-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ8",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "The recorded MAC signs the original body; one altered body byte invalidates it while the signature stays well-formed."
+    },
+    {
+      "id": "wrong-key-valid-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "3fbc87966c1f727a08da7e07a95361e8171fa1439835d977110fdf75877b241b"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "A well-formed 64-hex digest from an unconfigured key matches no active secret."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1yb3RhdGlvbiJ9",
+        "headers": {
+          "linear-signature": "a2f1287c04f7d327f718f77c3c88e1bb6c21fdccfbb44e1e0f426f1e4170b321"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_new_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "After removing the old secret, the same old-secret MAC is well-formed but matches no configured key."
+    },
+    {
+      "id": "signature-inner-whitespace-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011 ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Inner whitespace breaks the exactly-64-hex grammar; trimming never repairs it in either view."
+    },
+    {
+      "id": "signature-led-prefix-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "sha256=9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Scheme prefixes are malformed; the raw 64-hex grammar admits none."
+    },
+    {
+      "id": "standard-webhooks-token-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "v1,nCWK9q319xAdDHEJTSKgEewcTUkgahWmPLrfZbRBaOs="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A Standard Webhooks v1 token is malformed under the Linear grammar; no scheme family exists."
+    },
+    {
+      "id": "hex-63-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168e"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Short hex is malformed; the record view stores the texts verbatim."
+    },
+    {
+      "id": "hex-65-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eba"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Long hex is malformed; no length family exists other than exactly 64."
+    },
+    {
+      "id": "non-hex-character-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "gc258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A non-hex character inside the 64-character text is malformed."
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb, 9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Comma-combined repeated digests are malformed; header lists are never consumed for linear-signature."
+    },
+    {
+      "id": "signature-outer-whitespace-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": " 9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Record/tuple views preserve the leading space (nonempty, so not trim-blank) => malformed; WHATWG Headers trims it and the canonical digest verifies."
+    },
+    {
+      "id": "signature-trailing-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; recipe per phase-8 contract in notes/phase-8/contract.md (2026-10-23); pinned vendor material: linear.app/developers/webhooks and linear.app/developers/sdk-webhooks plus github.com/linear/linear webhooks client.ts at commit 4d9cdbf0beb1d1da1824deb5ff3cd458c71380c9; HMAC-SHA256 over exact raw-body bytes with literal UTF-8 secret, 64-hex signature in linear-signature (either case); Hooklatch uppercase acceptance, no signed timestamp and all-null identity are receiver policy per the same contract; no vendor-published vector was used; node:crypto recomputation; data/crypto consistency here is not public HTTP support"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OCwiY2FzZSI6ImxpbmVhci1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "linear-signature": "9c258af6adf5f7101d0c71094d22a011ec1c4d49206a15a63cbadf65b44168eb "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_8_linear_secret"
+        ],
+        "now": 1700000100
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "The trailing-space mirror of the leading pad row: record malformed, WHATWG trim accepts."
+    }
+  ]
+}
