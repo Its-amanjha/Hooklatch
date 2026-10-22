@@ -36,10 +36,15 @@ function main(): void {
     return;
   }
 
-  const content = renderTemplate(command.provider, command.framework, {
-    secretEnv: command.secretEnv,
-    bodyLimit: command.bodyLimit,
-  });
+  const templateOptions = command.providerOptions === undefined
+    ? { secretEnv: command.secretEnv, bodyLimit: command.bodyLimit }
+    : {
+      secretEnv: command.secretEnv,
+      bodyLimit: command.bodyLimit,
+      providerOptions: command.providerOptions,
+    };
+
+  const content = renderTemplate(command.provider, command.framework, templateOptions);
 
   if (command.dryRun) {
     process.stdout.write(`${resolved.relativePath}\n${content}`);
