@@ -423,7 +423,8 @@ describe('Phase 8 Stage A — Linear Public-Root Verification Contract', () => {
       // Linear verification is body-only authentication; no JSON parsing or freshness enforcement.
       const staleBodyText = JSON.stringify({
         action: 'Issue.update',
-        timestamp: 1000000000,
+        webhookTimestamp: 1000000000000,
+        webhookId: 'hooklatch-linear-webhook-configuration',
         data: { id: 'iss_stale' },
       });
 
@@ -442,7 +443,7 @@ describe('Phase 8 Stage A — Linear Public-Root Verification Contract', () => {
         rawBody: staleBody,
         headers: {
           'linear-signature': sig,
-          'linear-timestamp': '1792368000',
+          'linear-timestamp': '1792368000000',
           'Linear-Delivery': 'del_12345',
           'Linear-Event': 'Issue',
         },
@@ -762,18 +763,30 @@ describe('Phase 8 Stage A — Linear Public-Root Verification Contract', () => {
       expectErrorCodeSync(() => createVerifier(precedenceOpts), 'missing-secrets');
     });
 
-    test('async verify rejects setup errors before any stream consumption', async () => {
-      const dummyReq: WebhookRequest = {
-        rawBody: RAW_PAYLOAD,
-        headers: {},
-      };
+    test('verifyRequest rejects setup errors before any stream consumption', async () => {
+      let pulls = 0;
+
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulls += 1;
+          controller.enqueue(RAW_PAYLOAD);
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+
+      const request = new Request('https://hooklatch.test/webhook', {
+        ...STREAM_MODE, method: 'POST', body,
+      });
 
       const missingSecretsOpts: VerifyOptions = {
         provider: 'linear',
         secrets: [],
       };
 
-      await expectErrorCodeAsync(() => verify(dummyReq, missingSecretsOpts), 'missing-secrets');
+      await expectErrorCodeAsync(() => verifyRequest(request, missingSecretsOpts), 'missing-secrets');
+      expect(pulls).toBe(0);
+      expect(request.bodyUsed).toBe(false);
+      await body.cancel();
     });
   });
 });

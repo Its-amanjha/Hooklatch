@@ -7,7 +7,9 @@ import { createWebhookMiddleware } from '../../src/adapters/express.js';
 import { createWebhookHandler as createNextHandler } from '../../src/adapters/nextjs.js';
 import { createWebhookHandler as createWorkerHandler } from '../../src/adapters/cloudflare.js';
 import { createWebhookMiddleware as createHonoMiddleware } from '../../src/adapters/hono.js';
+import type { WebhookVariables } from '../../src/adapters/hono.js';
 import { isTcpAddress } from './signing.js';
+import { verify } from '../../src/index.js';
 
 /**
  * Phase 8 Stage A — Linear adapter-isolation regressions.
@@ -26,17 +28,12 @@ const LINEAR_SECRET = 'phase8-linear-canary-secret-7b3d2c';
 const LINEAR_BODY = 'phase8-linear-canary-payload-9f2e1a';
 const LINEAR_DELIVERY_ID = 'phase8-linear-canary-delivery-id-1e7b3c';
 
-const ALIEN_STRIPE_HEADER = 't=1700000000,v1=phase8-alien-stripe-mac-0000000000000000000000000000000000000000000000000000000000000000';
-
-const ALIEN_SW_HEADERS = {
-  'webhook-id': 'msg_phase8alienstandardwebhooks',
-  'webhook-timestamp': '1700000000',
-  'webhook-signature': 'v1,phase8alienswsignaturebase64==',
-};
-
+const NOW = 1700000000;
+const ALIEN_SW_ID = 'hooklatch-phase8-alien-message';
+const ALIEN_SW_KEY = new TextEncoder().encode('hooklatch-synthetic-standard-webhooks-key');
+const NULL_IDENTITY = { deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [] };
 const ALIEN_TOKEN = 'phase8-alien-authorization-bearer-token-xyz';
 
-const CANARY_TOKENS = [LINEAR_BODY, LINEAR_SECRET, LINEAR_DELIVERY_ID, ALIEN_TOKEN];
 
 function assertNoCanary(body: string): void {
   for (const token of CANARY_TOKENS) {
@@ -55,12 +52,33 @@ function bodyBytes(text: string): Uint8Array<ArrayBuffer> {
 const LINEAR_BODY_BYTES = bodyBytes(LINEAR_BODY);
 const LINEAR_SIG_HEADER = linearSig(LINEAR_BODY_BYTES, LINEAR_SECRET);
 
+// Independently valid signatures for this exact body. Stripe, GitHub and
+// Shopify deliberately share the configured synthetic key so a header fallback
+// could authenticate; Standard Webhooks uses its own explicit decoded key.
 const ALIEN_HEADERS = {
-  'stripe-signature': ALIEN_STRIPE_HEADER,
-  'x-shopify-hmac-sha256': 'phase8-alien-shopify-hmac-base64=',
+  'stripe-signature': `t=${NOW},v1=${createHmac('sha256', LINEAR_SECRET).update(`${NOW}.`).update(LINEAR_BODY_BYTES).digest('hex')}`,
+  'x-hub-signature-256': `sha256=${LINEAR_SIG_HEADER}`,
+  'x-shopify-hmac-sha256': createHmac('sha256', LINEAR_SECRET).update(LINEAR_BODY_BYTES).digest('base64'),
   'authorization': `Bearer ${ALIEN_TOKEN}`,
-  ...ALIEN_SW_HEADERS,
+  'webhook-id': ALIEN_SW_ID,
+  'webhook-timestamp': String(NOW),
+  'webhook-signature': `v1,${createHmac('sha256', ALIEN_SW_KEY).update(`${ALIEN_SW_ID}.${NOW}.`).update(LINEAR_BODY_BYTES).digest('base64')}`,
 };
+
+const CANARY_TOKENS = [LINEAR_BODY, LINEAR_SECRET, LINEAR_DELIVERY_ID, ALIEN_TOKEN, LINEAR_SIG_HEADER];
+
+test('alien fixtures authenticate under their explicitly configured providers', async () => {
+  const request = { rawBody: LINEAR_BODY_BYTES, headers: ALIEN_HEADERS };
+
+  const outcomes = await Promise.all([
+    verify(request, { provider: 'stripe', secrets: [LINEAR_SECRET], now: () => NOW }),
+    verify(request, { provider: 'github', secrets: [LINEAR_SECRET], now: () => NOW }),
+    verify(request, { provider: 'shopify', secrets: [LINEAR_SECRET], now: () => NOW }),
+    verify(request, { provider: 'standard-webhooks', secrets: [Buffer.from(ALIEN_SW_KEY).toString('base64')], now: () => NOW }),
+  ]);
+
+  expect(outcomes.map((result) => result.ok)).toEqual([true, true, true, true]);
+});
 
 function linearHeaders(extra: Record<string, string> = {}) {
   return {
@@ -104,7 +122,7 @@ function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string,
 
 test('express: missing linear header stays missing-signature despite alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }));
+  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }));
   app.use((_req, res) => res.status(200).send('ok'));
   const r = await sendRaw(app, LINEAR_BODY_BYTES, { ...ALIEN_HEADERS });
   expect(r.status).toBe(400);
@@ -113,9 +131,9 @@ test('express: missing linear header stays missing-signature despite alien heade
 });
 
 test('hono: missing linear header stays missing-signature despite alien headers', async () => {
-  const app = new Hono();
+  const app = new Hono<{ Variables: WebhookVariables }>();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -138,6 +156,7 @@ test('nextjs: missing linear header stays missing-signature despite alien header
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
+    now: () => NOW,
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -160,7 +179,7 @@ test('cloudflare: missing linear header stays missing-signature despite alien he
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET] }),
+    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }),
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -189,7 +208,7 @@ test('cloudflare: missing linear header stays missing-signature despite alien he
 
 test('express: malformed linear header stays malformed despite alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }));
+  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }));
   app.use((_req, res) => res.status(200).send('ok'));
 
   const r = await sendRaw(app, LINEAR_BODY_BYTES, {
@@ -203,9 +222,9 @@ test('express: malformed linear header stays malformed despite alien headers', a
 });
 
 test('hono: malformed linear header stays malformed despite alien headers', async () => {
-  const app = new Hono();
+  const app = new Hono<{ Variables: WebhookVariables }>();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -228,6 +247,7 @@ test('nextjs: malformed linear header stays malformed despite alien headers', as
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
+    now: () => NOW,
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -250,7 +270,7 @@ test('cloudflare: malformed linear header stays malformed despite alien headers'
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET] }),
+    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }),
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -281,7 +301,7 @@ const WRONG_MAC_HEADER = '0'.repeat(64);
 
 test('express: invalid linear MAC stays invalid despite alien headers', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }));
+  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }));
   app.use((_req, res) => res.status(200).send('ok'));
 
   const r = await sendRaw(app, LINEAR_BODY_BYTES, {
@@ -295,9 +315,9 @@ test('express: invalid linear MAC stays invalid despite alien headers', async ()
 });
 
 test('hono: invalid linear MAC stays invalid despite alien headers', async () => {
-  const app = new Hono();
+  const app = new Hono<{ Variables: WebhookVariables }>();
   let called = false;
-  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }), (c) => {
+  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }), (c) => {
     called = true;
 
     return c.text('ok', 200);
@@ -320,6 +340,7 @@ test('nextjs: invalid linear MAC stays invalid despite alien headers', async () 
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
+    now: () => NOW,
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -342,7 +363,7 @@ test('cloudflare: invalid linear MAC stays invalid despite alien headers', async
   let called = false;
 
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET] }),
+    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }),
     handler: async () => { called = true;
 
  return new Response('ok', { status: 200 }); },
@@ -371,17 +392,24 @@ test('cloudflare: invalid linear MAC stays invalid despite alien headers', async
 
 test('express: valid linear verifies even with alien headers present', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }));
-  app.use((req, res) => res.status(200).send(String(req.webhook?.rawBody.byteLength)));
+  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }));
+  app.use((req, res) => {
+    expect(req.webhook?.rawBody).toEqual(LINEAR_BODY_BYTES);
+    expect(req.webhook?.identity).toEqual(NULL_IDENTITY);
+
+    return res.status(200).send(String(req.webhook?.rawBody.byteLength));
+  });
   const r = await sendRaw(app, LINEAR_BODY_BYTES, linearHeaders(ALIEN_HEADERS));
   expect(r.status).toBe(200);
   expect(r.body).toBe(String(LINEAR_BODY_BYTES.byteLength));
 });
 
 test('hono: valid linear verifies even with alien headers present', async () => {
-  const app = new Hono();
-  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }), (c) => {
+  const app = new Hono<{ Variables: WebhookVariables }>();
+  app.post('/webhook', createHonoMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }), (c) => {
     const w = c.get('webhook');
+    expect(w.rawBody).toEqual(LINEAR_BODY_BYTES);
+    expect(w.identity).toEqual(NULL_IDENTITY);
 
     return c.text(`ok:${w.rawBody.byteLength}`, 200);
   });
@@ -400,7 +428,13 @@ test('nextjs: valid linear verifies even with alien headers present', async () =
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
-    handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    now: () => NOW,
+    handler: async (_req, success) => {
+      expect(success.rawBody).toEqual(LINEAR_BODY_BYTES);
+      expect(success.identity).toEqual(NULL_IDENTITY);
+
+      return new Response(String(success.rawBody.byteLength), { status: 200 });
+    },
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
@@ -415,8 +449,13 @@ test('nextjs: valid linear verifies even with alien headers present', async () =
 
 test('cloudflare: valid linear verifies even with alien headers present', async () => {
   const handler = createWorkerHandler({
-    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET] }),
-    handler: async (_req, _env, _ctx, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    options: () => ({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }),
+    handler: async (_req, _env, _ctx, success) => {
+      expect(success.rawBody).toEqual(LINEAR_BODY_BYTES);
+      expect(success.identity).toEqual(NULL_IDENTITY);
+
+      return new Response(String(success.rawBody.byteLength), { status: 200 });
+    },
   });
 
   const res = await handler(
@@ -441,6 +480,7 @@ test('linear: valid body MAC succeeds regardless of old timestamp in headers', a
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
+    now: () => NOW,
     handler: async (_req, success) => new Response(JSON.stringify(success.identity), { status: 200 }),
   });
 
@@ -464,6 +504,7 @@ test('linear: valid body MAC succeeds regardless of future timestamp in headers'
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
+    now: () => NOW,
     handler: async (_req, success) => new Response(JSON.stringify(success.identity), { status: 200 }),
   });
 
@@ -487,7 +528,13 @@ test('linear: changing unsigned delivery/event/time headers does not change a va
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
-    handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    now: () => NOW,
+    handler: async (_req, success) => {
+      expect(success.rawBody).toEqual(LINEAR_BODY_BYTES);
+      expect(success.identity).toEqual(NULL_IDENTITY);
+
+      return new Response(String(success.rawBody.byteLength), { status: 200 });
+    },
   });
 
   for (const delivery of ['id-a', 'id-b', '']) {
@@ -506,23 +553,30 @@ test('linear: changing unsigned delivery/event/time headers does not change a va
   }
 });
 
-test('linear: stale body (old data) with valid MAC is still authentication success', async () => {
-  // Linear has no freshness check. A validly signed body succeeds regardless of
-  // how old the data is. Freshness is the caller's responsibility after verify.
+test('linear: signed stale webhookTimestamp is authenticated without freshness or identity extraction', async () => {
+  const staleBody = bodyBytes(JSON.stringify({ webhookTimestamp: 1000000000000, webhookId: 'hooklatch-stale-configuration', data: {} }));
+
   const handler = createNextHandler({
     provider: 'linear',
     secrets: [LINEAR_SECRET],
-    handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
+    now: () => NOW,
+    toleranceSeconds: 0,
+    handler: async (_request, success) => {
+      expect(success.rawBody).toEqual(staleBody);
+      expect(success.identity).toEqual(NULL_IDENTITY);
+
+      return new Response('authenticated');
+    },
   });
 
-  const res = await handler(new Request('https://example.test/webhook', {
+  const response = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
-    body: LINEAR_BODY_BYTES,
-    headers: { 'content-type': 'application/octet-stream', 'linear-signature': LINEAR_SIG_HEADER },
+    body: staleBody,
+    headers: { 'linear-signature': linearSig(staleBody, LINEAR_SECRET), 'linear-timestamp': String(NOW * 1000) },
   }));
 
-  expect(res.status).toBe(200);
-  expect(await res.text()).toBe(String(LINEAR_BODY_BYTES.byteLength));
+  expect(response.status).toBe(200);
+  expect(await response.text()).toBe('authenticated');
 });
 
 // ---------------------------------------------------------------------------
@@ -531,7 +585,7 @@ test('linear: stale body (old data) with valid MAC is still authentication succe
 
 test('linear error bodies contain no payload, secret, signature or id', async () => {
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET] }));
+  app.use(createWebhookMiddleware({ provider: 'linear', secrets: [LINEAR_SECRET], now: () => NOW }));
   app.use((_req, res) => res.status(200).send('ok'));
 
   const r = await sendRaw(app, LINEAR_BODY_BYTES, {
