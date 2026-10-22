@@ -38,11 +38,9 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   relative target path and the file contents without writing anything.
 - `-h`, `--help` — print usage and exit 0.
 
-### Planned flags — Grafana and Polar (pending integration)
+### Grafana and Polar configuration flags
 
-The following flags are planned for the Grafana/Polar Stage B integration.
-They are **not available in the current built CLI** and do not change
-generated output until Codex completes public registration and qualification:
+The built CLI accepts these provider-specific configuration flags:
 
 - `--grafana-mode body|timestamped` — required only when `--provider grafana`;
   selects whether the signature covers the raw body only or a timestamped

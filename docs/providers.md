@@ -1,14 +1,13 @@
 # Provider guide
 
-Reference for sixteen supported provider IDs plus two providers pending
-integration and qualification. Paddle support covers Billing webhooks only.
+Reference for eighteen locally qualified provider IDs. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Qualified provider protocols
 
-These sixteen providers are integrated and qualified in the current codebase.
+These eighteen providers are integrated and locally qualified in the current codebase.
 The package has not yet been published to npm.
 
 | ID | Header | Signed content | Secret form | Identity |
@@ -258,16 +257,15 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Source:** https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/src/signature.ts
 - **Status:** implemented and locally qualified.
 
-## Providers pending integration and qualification
+## Configured provider protocols
 
-The following two provider IDs are documented here only as planned protocol
-mappings. They are **not registered or qualified for public verification**.
-Do not treat anything in this section as advertised support.
+Grafana requires explicit layout configuration. Polar selects one secret mode
+for the entire accept-set. These choices come from trusted application code.
 
 | ID | Header | Signed content | Secret form | Identity | Status |
 |---|---|---|---|---|---|
-| grafana | `x-grafana-alerting-signature` (default name) | `UTF8(timestamp + ':') + rawBody` (timestamped mode); raw body (body mode) | Literal string | timestamp authenticated in timestamped mode; otherwise all fields null | Pending |
-| polar | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decoded after optional `whsec_` strip (`current`); complete literal UTF-8 (`legacy`) | eventId + timestamp authenticated | Pending |
+| grafana | `x-grafana-alerting-signature` (default name) | `UTF8(timestamp + ':') + rawBody` (timestamped mode); raw body (body mode) | Literal string | timestamp authenticated in timestamped mode; otherwise all fields null | Locally qualified |
+| polar | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decoded after optional `whsec_` strip (`current`); complete literal UTF-8 (`legacy`) | eventId + timestamp authenticated | Locally qualified |
 
 ### Grafana
 
@@ -311,7 +309,7 @@ Do not treat anything in this section as advertised support.
 - **No fallback** to a default header when custom missing, other layout,
   Basic/Bearer, unsigned headers, or alien providers.
 - **Source:** https://raw.githubusercontent.com/grafana/alerting/2acbeef29642fc3d89c7f3f0ad2f78e01c6d673e/http/hmac.go
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ### Polar
 
@@ -340,7 +338,7 @@ Do not treat anything in this section as advertised support.
   text; Hooklatch does none of these. The 24–64 bound is Hooklatch's Standard
   Webhooks receiver policy, not a Polar guarantee.
 - **Source:** https://raw.githubusercontent.com/polarsource/polar/89917ad4fe752b06ff84bd31c313d2a53a6085f1/sdk/typescript/src/webhooks.ts
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ## Cross-provider rules
 
@@ -359,7 +357,7 @@ Do not treat anything in this section as advertised support.
   issued secrets. An out-of-range key fails with `invalid-secret`.
 - **Canonical aliases do not prove unique vendor identity:** Dodo Payments,
   GitLab signing-token mode and Replicate reuse the Standard Webhooks header
-  grammar, as does the planned Polar current mode. Reusing secrets across
+  grammar, as does Polar current mode. Reusing secrets across
   endpoints can allow cross-endpoint replay; use endpoint-specific secrets and
   route configuration.
 - **No payload parsing:** verification never parses or validates the payload

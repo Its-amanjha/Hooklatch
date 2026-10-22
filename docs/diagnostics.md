@@ -54,17 +54,16 @@ interface Diagnostic {
 `possibleCauses`, `suggestions`) is intended for humans and may evolve between
 releases.
 
-## Planned providers — Grafana and Polar (pending integration)
+## Configured providers — Grafana and Polar
 
-The following guidance describes the planned Grafana and Polar diagnostic
-behavior. It is **static reference material only**; neither provider is
-registered in the current built CLI or diagnostics catalog.
+Grafana and Polar diagnostics use static provider guidance. They receive no
+application configuration and never infer it from request data.
 
 ### Grafana
 
 There is no configuration context at diagnostic time, so `expectedHeaders` is
-`[]`. The `grammar` and `suggestions` fields describe the two explicit modes
-and configured header names; they do **not** claim that the default header is
+`[]`. The verbose `grammar` describes the two explicit modes
+and configured header roles; they do **not** claim that the default header is
 always expected.
 
 - Body mode: `signatureHeader` covers the raw body only; `timestampHeader` is
@@ -76,8 +75,8 @@ always expected.
 ### Polar
 
 `expectedHeaders` lists the canonical Standard Webhooks headers
-(`webhook-id`, `webhook-timestamp`, `webhook-signature`). The `suggestions`
-field explains that the selected `secretMode` (`current` or `legacy`) is
+(`webhook-id`, `webhook-timestamp`, `webhook-signature`). The verbose `grammar`
+explains that the selected `secretMode` (`current` or `legacy`) is
 application configuration and applies to every configured secret in the
 accept-set; no mixed-era or dual-key migration is performed.
 
@@ -165,7 +164,7 @@ try {
 }
 ```
 
-## Source-typing migration impact (pending integration)
+## Source-typing migration impact
 
 The public `VerifyOptions` type changes from an interface to a union that
 discriminates on `provider`:
@@ -181,11 +180,11 @@ export type VerifyOptions = CommonVerifyOptions & (
 `GrafanaOptions` is a mode-discriminated union (`body` or `timestamped`);
 `PolarOptions` carries an optional `secretMode` (`current` | `legacy`).
 
-Source-typing impact: broad `Provider` variables and `interface extends`
-consumers may need narrowing, and `NextWebhookHandlerOptions` becomes an
-intersection type. Existing provider calls remain valid; `providerOptions` is
-required for `grafana` and optional for `polar`. This is a source-typing note
-only — no provider is registered yet.
+Objects built from an uncorrelated broad `Provider` value may need narrowing.
+A variable already typed `VerifyOptions` remains valid. Interfaces cannot extend
+this union; use an intersection type, as `NextWebhookHandlerOptions` does.
+Existing concrete-provider calls remain valid; `providerOptions` is required
+for `grafana`, optional for `polar`, and forbidden for the other providers.
 
 ## Purity
 

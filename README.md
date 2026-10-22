@@ -8,8 +8,9 @@ Hooklatch checks incoming webhook signatures over the exact request bytes
 before your code parses or trusts the payload. It supports Stripe, GitHub,
 Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing, Lemon
 Squeezy, Dodo Payments, GitLab signing tokens, Replicate, WorkOS, Sentry App,
-Doppler signed webhooks and Sanity through one asynchronous API,
+Doppler signed webhooks, Sanity, Grafana and Polar through one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
+
 
 ## Requirements
 
@@ -85,6 +86,8 @@ payload schemas.
 | Sentry App | Body only | Literal client secret | None signed | None extracted |
 | Doppler signed mode | Body only | Literal secret string | None signed | None extracted |
 | Sanity | `t.body`, with millisecond `t` | Literal secret string | Signed; default 300 seconds (receiver policy) | Signed timestamp only |
+| Grafana | Body or `timestamp:body`, explicitly selected | Literal secret string | Timestamped mode only; default 300 seconds | Signed timestamp in timestamped mode |
+| Polar | `id.timestamp.body` | Explicit current (Base64) or legacy (literal) key mode | Signed; default 300 seconds | Signed message ID + timestamp |
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are
@@ -99,7 +102,7 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-21):** The core, sixteen provider descriptors,
+> **Implementation status (2026-10-22):** The core, eighteen provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
@@ -133,16 +136,15 @@ proof of a wrong secret or tampering. See [diagnostics](docs/diagnostics.md).
 ### `verify(request, options)`
 
 ```ts
-verify(
-  { rawBody: Uint8Array, headers: HeaderInput },
-  { provider: Provider, secrets: string[], toleranceSeconds?, now?, maxBodyBytes? },
-): Promise<VerificationResult>
+verify(request: WebhookRequest, options: VerifyOptions): Promise<VerificationResult>
 ```
 
 - `rawBody` — the exact request bytes. Never a re-serialized object.
 - `headers` — Web `Headers`, a readonly tuple list, or a record with string
   or string-array values. Lookup is case-insensitive; repeated values are
   comma-combined. Web `Headers` can normalize surrounding whitespace.
+- `providerOptions` — trusted application configuration, required for Grafana,
+  optional for Polar, and forbidden for other providers. See configured providers below.
 - `secrets` — every active secret. During rotation include old and new.
 - `toleranceSeconds` — signed-timestamp freshness window. Default `5` for
   Paddle Billing, `180` for WorkOS and `300` for the other timestamped providers.
@@ -156,6 +158,8 @@ verify(
   WorkOS and Sanity preserve milliseconds in their default clocks; other default
   clocks use whole seconds. Sanity's 300-second freshness window is Hooklatch
   receiver policy, not an established upstream SDK recency default.
+  Request-reading APIs and adapters capture the clock before consuming the body;
+  freshness is measured at ingress, not at business-processing time.
 - `maxBodyBytes` — body size limit. Default `1048576` (1 MiB). Enforced
   while reading, not just from `Content-Length`.
 
@@ -172,6 +176,34 @@ Returns a preconfigured asynchronous verifier that takes just the request:
 const verify = createVerifier({ provider: 'github', secrets: [secret] });
 const result = await verify({ rawBody, headers });
 ```
+
+## Configured providers
+
+Grafana requires explicit trusted layout configuration. For example:
+
+```ts
+import { createVerifier } from 'hooklatch';
+
+const verifier = createVerifier({
+  provider: 'grafana',
+  secrets: [secret],
+  providerOptions: { mode: 'timestamped', timestampHeader: 'x-alert-timestamp' },
+});
+```
+
+Body mode signs only the raw body and
+provides no freshness check. Timestamped mode defaults to an inclusive 300-second
+window; neither mode deduplicates requests. Header names are configuration, not
+signed domain separation.
+
+Polar defaults to current Base64-decoded keys. Select
+`providerOptions: { secretMode: 'legacy' }` for full literal UTF-8 keys. One mode
+applies to every active secret; mixed-era rotation is unsupported.
+
+`VerifyOptions` is now a provider-discriminated union. Existing concrete-provider
+calls remain valid; broad provider objects and interface extension may need
+narrowing. See the [provider guide](docs/providers.md) and
+[type migration notes](docs/diagnostics.md#source-typing-migration-impact).
 
 ## Result handling
 
