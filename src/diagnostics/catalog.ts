@@ -314,6 +314,14 @@ const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
     expectedHeaders: ['sanity-webhook-signature'],
     grammar: 'Exactly t=<unix-milliseconds>,v1=<43 canonical unpadded Base64url characters>; one of each field, no whitespace',
   },
+  grafana: {
+    expectedHeaders: [],
+    grammar: 'Configured signature header: 64 hexadecimal digits. Body mode signs raw bytes; timestamped mode also requires the configured timestamp header with canonical Unix seconds and signs timestamp:body.',
+  },
+  polar: {
+    expectedHeaders: ['webhook-id', 'webhook-timestamp', 'webhook-signature'],
+    grammar: 'Space-delimited v1,<base64-signature> tokens over id.timestamp.body; current or legacy secretMode is trusted application configuration, never detected from a request.',
+  },
 };
 
 export function getVerificationGuidance(reason: VerificationFailureReason): Guidance {

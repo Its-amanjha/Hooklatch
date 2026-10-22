@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response, RequestHandler } from 'express';
 import { HttpError, readNodeStream } from './shared.js';
 import { HooklatchError } from '../errors.js';
-import { createVerifier } from '../index.js';
-import { normalizeOptions } from '../internal/options.js';
+import { prepareVerification } from '../internal/prepare.js';
+import { readClock, verifyPrepared } from '../internal/verification.js';
 import { normalizeHeaders } from '../internal/headers.js';
 import type { VerificationSuccess, VerifyOptions } from '../types.js';
 
@@ -15,8 +15,9 @@ declare module 'express-serve-static-core' {
 export function createWebhookMiddleware(options: VerifyOptions): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const normalized = normalizeOptions(options);
-      const verifier = createVerifier(normalized);
+      const prepared = prepareVerification(options);
+      const normalized = prepared.options;
+      const receivedAt = readClock(prepared);
       const headers = [...normalizeHeaders(req.headers)];
       const maxBytes = normalized.maxBodyBytes;
       const encodingHeader = req.headers['content-encoding'];
@@ -53,7 +54,7 @@ export function createWebhookMiddleware(options: VerifyOptions): RequestHandler 
         rawBody = await readNodeStream(req, maxBytes);
       }
 
-      const result = await verifier({ rawBody, headers });
+      const result = await verifyPrepared({ rawBody, headers }, prepared, receivedAt);
 
       if (!result.ok) {
         const status = result.reason === 'body-too-large' ? 413 : 400;

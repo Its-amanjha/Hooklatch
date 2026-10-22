@@ -1,7 +1,8 @@
 /** Contract version 1. Verification never parses or validates payload schemas. */
 export type Provider = 'stripe' | 'github' | 'shopify' | 'standard-webhooks'
   | 'clerk' | 'svix' | 'razorpay' | 'paddle' | 'lemon-squeezy'
-  | 'dodo-payments' | 'gitlab' | 'replicate' | 'workos' | 'sentry' | 'doppler' | 'sanity';
+  | 'dodo-payments' | 'gitlab' | 'replicate' | 'workos' | 'sentry' | 'doppler' | 'sanity'
+  | 'grafana' | 'polar';
 
 export type HeaderInput = Headers
   | Readonly<Record<string, string | readonly string[] | undefined>>
@@ -9,13 +10,24 @@ export type HeaderInput = Headers
 
 export interface WebhookRequest { readonly rawBody: Uint8Array; readonly headers: HeaderInput }
 
-export interface VerifyOptions {
-  readonly provider: Provider;
+export type GrafanaOptions =
+  | { readonly mode: 'body'; readonly signatureHeader?: string; readonly timestampHeader?: never }
+  | { readonly mode: 'timestamped'; readonly signatureHeader?: string; readonly timestampHeader: string };
+
+export interface PolarOptions { readonly secretMode?: 'current' | 'legacy' }
+
+interface CommonVerifyOptions {
   readonly secrets: readonly string[];
   readonly toleranceSeconds?: number;
   readonly now?: () => number;
   readonly maxBodyBytes?: number;
 }
+
+export type VerifyOptions = CommonVerifyOptions & (
+  | { readonly provider: Exclude<Provider, 'grafana' | 'polar'>; readonly providerOptions?: never }
+  | { readonly provider: 'grafana'; readonly providerOptions: GrafanaOptions }
+  | { readonly provider: 'polar'; readonly providerOptions?: PolarOptions }
+);
 
 export type IdentityField = 'deliveryId' | 'eventId' | 'timestamp';
 

@@ -2,12 +2,24 @@ import { HooklatchError } from '../errors.js';
 import { verifyRequest } from '../index.js';
 import type { VerificationSuccess, VerifyOptions } from '../types.js';
 
-export interface NextWebhookHandlerOptions extends VerifyOptions {
+export type NextWebhookHandlerOptions = VerifyOptions & {
   readonly handler: (request: Request, success: VerificationSuccess) => Response | Promise<Response>;
-}
+};
 
 export function createWebhookHandler(options: NextWebhookHandlerOptions): (request: Request) => Promise<Response> {
-  const { handler, ...verifyOptions } = options;
+  try {
+    const { handler, ...verifyOptions } = options;
+
+    return requestHandler(verifyOptions, handler);
+  } catch {
+    // Contain caller-owned accessors without exposing their thrown values.
+    return async () => new Response('Internal Server Error', { status: 500 });
+  }
+}
+
+function requestHandler(
+  verifyOptions: VerifyOptions, handler: NextWebhookHandlerOptions['handler'],
+): (request: Request) => Promise<Response> {
 
   return async (request: Request): Promise<Response> => {
     const encoding = request.headers.get('content-encoding');

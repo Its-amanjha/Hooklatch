@@ -1,6 +1,8 @@
 import { HooklatchError } from '../errors.js';
 import type { ProviderDescriptor } from '../internal/provider.js';
-import type { Provider } from '../types.js';
+import type { Provider, GrafanaOptions, PolarOptions } from '../types.js';
+import { createGrafanaDescriptor } from './grafana.js';
+import { createPolarDescriptor } from './polar.js';
 import { clerkDescriptor } from './clerk.js';
 import { githubDescriptor } from './github.js';
 import { shopifyDescriptor } from './shopify.js';
@@ -36,9 +38,11 @@ export const SUPPORTED_PROVIDERS = [
   'sentry',
   'doppler',
   'sanity',
+  'grafana',
+  'polar',
 ] as const satisfies readonly Provider[];
 
-const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
+const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, ProviderDescriptor>> = {
   stripe: stripeDescriptor,
   github: githubDescriptor,
   shopify: shopifyDescriptor,
@@ -58,7 +62,23 @@ const DESCRIPTORS: Readonly<Record<Provider, ProviderDescriptor>> = {
 };
 
 /** Resolve the pure descriptor for a supported provider. */
-export function getProviderDescriptor(provider: Provider): ProviderDescriptor {
+export function getProviderDescriptor(provider: Provider, providerOptions?: GrafanaOptions | PolarOptions): ProviderDescriptor {
+  if (provider === 'grafana') {
+    if (providerOptions === undefined || !('mode' in providerOptions)) {
+      throw new HooklatchError('invalid-options', 'Invalid provider options.');
+    }
+
+    return createGrafanaDescriptor(providerOptions);
+  }
+
+  if (provider === 'polar') {
+    if (providerOptions !== undefined && 'mode' in providerOptions) {
+      throw new HooklatchError('invalid-options', 'Invalid provider options.');
+    }
+
+    return createPolarDescriptor(providerOptions);
+  }
+
   const descriptor = Object.hasOwn(DESCRIPTORS, provider) ? DESCRIPTORS[provider] : undefined;
 
   if (descriptor === undefined) {
