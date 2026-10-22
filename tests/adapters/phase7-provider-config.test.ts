@@ -374,6 +374,7 @@ test('cloudflare does not derive options from request headers', async () => {
 test('grafana body mode authenticates with default signature header', async () => {
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
     providerOptions: { mode: 'body' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
@@ -382,7 +383,7 @@ test('grafana body mode authenticates with default signature header', async () =
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': 'd51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c' },
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': hmacHex(toBytes('hi'), GITHUB_SECRET) },
   }));
 
   expect(res.status).toBe(200);
@@ -392,6 +393,7 @@ test('grafana body mode authenticates with default signature header', async () =
 test('grafana body mode rejects a wrong signature header name', async () => {
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
     providerOptions: { mode: 'body', signatureHeader: 'x-custom-sig' },
     handler: async () => new Response('ok', { status: 200 }),
@@ -401,7 +403,7 @@ test('grafana body mode rejects a wrong signature header name', async () => {
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': 'd51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c' },
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': hmacHex(toBytes('hi'), GITHUB_SECRET) },
   }));
 
   expect(res.status).toBe(400);
@@ -416,6 +418,7 @@ test('grafana timestamped mode authenticates with configured headers', async () 
 
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
     providerOptions: { mode: 'timestamped', signatureHeader: 'x-grafana-alerting-signature', timestampHeader: 'x-grafana-timestamp' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
@@ -441,6 +444,7 @@ test('polar current mode authenticates a standard webhooks request', async () =>
 
   const handler = createNextHandler({
     provider: 'polar',
+    now: () => 1700000100,
     secrets: [secret],
     providerOptions: { secretMode: 'current' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
@@ -465,6 +469,7 @@ test('polar legacy mode authenticates a standard webhooks request', async () => 
 
   const handler = createNextHandler({
     provider: 'polar',
+    now: () => 1700000100,
     secrets: [secret],
     providerOptions: { secretMode: 'legacy' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
@@ -490,6 +495,7 @@ test('polar cross-era: current-signed message rejected under legacy mode', async
 
   const handler = createNextHandler({
     provider: 'polar',
+    now: () => 1700000100,
     secrets: [secret],
     providerOptions: { secretMode: 'legacy' },
     handler: async () => new Response('ok', { status: 200 }),
@@ -508,8 +514,10 @@ test('polar cross-era: current-signed message rejected under legacy mode', async
 test('grafana invalid config returns 500 before body read', async () => {
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
-    providerOptions: { mode: 'body', timestampHeader: 'x-ts' },
+    // SAFETY: deliberately invalid body-mode config exercises runtime rejection.
+    providerOptions: { mode: 'body', timestampHeader: 'x-ts' } as never,
     handler: async () => new Response('ok', { status: 200 }),
   });
 
@@ -530,6 +538,7 @@ test('grafana handler receives verified bytes and exact signed identity', async 
 
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
     providerOptions: { mode: 'body' },
     handler: async (_req, success) => new Response(JSON.stringify({ bytes: success.rawBody.byteLength, identity: success.identity }), { status: 200 }),
@@ -556,8 +565,10 @@ test('grafana handler receives verified bytes and exact signed identity', async 
 test('grafana own-undefined providerOptions is invalid', async () => {
   const handler = createNextHandler({
     provider: 'grafana',
+    now: () => 1700000100,
     secrets: [GITHUB_SECRET],
-    providerOptions: { mode: 'body', signatureHeader: undefined },
+    // SAFETY: deliberately supplied own undefined exercises runtime rejection.
+    providerOptions: { mode: 'body', signatureHeader: undefined } as never,
     handler: async () => new Response('ok', { status: 200 }),
   });
 
@@ -575,9 +586,9 @@ test('grafana own-undefined providerOptions is invalid', async () => {
 
 test('grafana throwing getter in providerOptions yields generic 500', async () => {
   const options = {
-    provider: 'grafana',
+    provider: 'grafana' as const,
     secrets: [GITHUB_SECRET],
-    get providerOptions() { throw new Error('secret getter boom'); },
+    get providerOptions(): never { throw new Error('secret getter boom'); },
     handler: async () => new Response('ok', { status: 200 }),
   };
 

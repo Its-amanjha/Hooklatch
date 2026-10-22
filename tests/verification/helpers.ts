@@ -117,7 +117,7 @@ function isFixtureExpected(value: unknown): value is FixtureExpected {
 }
 
 export function isGrafanaProviderOptions(value: unknown): value is GrafanaProviderOptions {
-  if (typeof value !== 'object' || value === null || !('mode' in value)) return false;
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || !('mode' in value)) return false;
 
   if (value.mode !== 'body' && value.mode !== 'timestamped') return false;
 
@@ -133,7 +133,7 @@ export function isGrafanaProviderOptions(value: unknown): value is GrafanaProvid
 }
 
 export function isPolarProviderOptions(value: unknown): value is PolarProviderOptions {
-  if (typeof value !== 'object' || value === null) return false;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
 
   if ('secretMode' in value && value.secretMode !== 'current' && value.secretMode !== 'legacy') return false;
 
@@ -204,7 +204,7 @@ function hasProviderOptionsFor(provider: FixtureProvider, case_: FixtureCase): b
 
   if (provider === 'grafana') return 'mode' in config;
 
-  return !('mode' in config);
+  return provider === 'polar' && !('mode' in config);
 }
 
 export function loadFixture(provider: FixtureProvider): readonly FixtureCase[] {
@@ -240,6 +240,8 @@ export function fixtureBytes(case_: FixtureCase): Uint8Array {
 
 /** Correlated literal branches; no mapped dictionary and no Provider cast. */
 export function fixtureOptions(provider: FixtureProvider, case_: FixtureCase): VerifyOptions {
+  if (!hasProviderOptionsFor(provider, case_)) throw new Error('Invalid fixture providerOptions for selected provider');
+
   const secrets = [...case_.options.secrets];
   const now = (): number => case_.options.now;
   const toleranceSeconds = case_.options.toleranceSeconds;

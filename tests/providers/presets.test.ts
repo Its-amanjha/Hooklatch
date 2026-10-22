@@ -49,10 +49,10 @@ function sign(
 }
 
 function runVerify(
-  provider: Provider,
+  provider: Extract<Provider, 'clerk' | 'svix' | 'standard-webhooks'>,
   headers: HeaderInput,
   body: Uint8Array = BODY,
-  overrides: Partial<VerifyOptions> = {},
+  overrides: Partial<Omit<VerifyOptions, 'provider' | 'providerOptions'>> = {},
 ): Promise<VerificationResult> {
   return verify(
     { rawBody: body, headers },

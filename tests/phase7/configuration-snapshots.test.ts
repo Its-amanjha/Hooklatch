@@ -61,6 +61,8 @@ interface StreamRequestInit extends RequestInit {
   duplex: 'half';
 }
 
+const STREAM_MODE: StreamRequestInit = { duplex: 'half' };
+
 describe('Phase 7 Stage B — Configuration Snapshots and Immutability', () => {
   describe('Options, secret array, and header mutation isolation', () => {
     test('mutating secrets array after creating verifier does not affect verification', async () => {
@@ -237,7 +239,7 @@ describe('Phase 7 Stage B — Configuration Snapshots and Immutability', () => {
         method: 'POST',
         headers: { [CUSTOM_SIG_HEADER]: sig },
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       // Start async verifyRequest; body reading will suspend at pull barrier.
@@ -692,7 +694,7 @@ describe('Phase 7 Stage B — Configuration Snapshots and Immutability', () => {
       }
 
       // 2. Polar legacy mode: bad MAC + future timestamp
-      const badPolarSig = 'invalidbase64mac==';
+      const badPolarSig = signPolar(RAW_BODY, EVENT_ID, TIMESTAMP_STR, 'different-literal-signing-key', true);
 
       const polarReq: WebhookRequest = {
         rawBody: RAW_BODY,

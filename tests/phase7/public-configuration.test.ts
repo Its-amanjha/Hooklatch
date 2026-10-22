@@ -90,7 +90,7 @@ function expectInvalidOptionsSync(run: () => void, canary?: string): void {
   }
 }
 
-async function expectInvalidOptionsAsync(run: () => Promise<void>, canary?: string): Promise<void> {
+async function expectInvalidOptionsAsync<Value>(run: () => Promise<Value>, canary?: string): Promise<void> {
   let thrown: unknown;
 
   try {
@@ -670,13 +670,13 @@ describe('Phase 7 Stage B — Public Configuration Contract', () => {
         providerOptions: {
           mode: 'body',
           signatureHeader: undefined,
-        },
+        } as never,
       };
 
       expectInvalidOptionsSync(() => createVerifier(ownUndefinedSig));
     });
 
-    test('Polar rejects invalid secretMode values', () => {
+    test('Polar rejects invalid own modes and ignores inherited mode', async () => {
       // SAFETY: Deliberately unknown secretMode value to verify rejection.
       const badMode: VerifyOptions = {
         provider: 'polar',
@@ -697,13 +697,19 @@ describe('Phase 7 Stage B — Public Configuration Contract', () => {
         providerOptions: inheritedObj as never,
       };
 
-      expectInvalidOptionsSync(() => createVerifier(inheritedMode));
+      const inheritedResult = await verify({ rawBody: RAW_BODY, headers: {
+        'webhook-id': EVENT_ID,
+        'webhook-timestamp': TIMESTAMP_STR,
+        'webhook-signature': `v1,${signPolar(RAW_BODY, EVENT_ID, TIMESTAMP_STR, POLAR_CURRENT_SECRET, false)}`,
+      } }, { ...inheritedMode, now: () => TIMESTAMP });
+
+      expect(inheritedResult.ok).toBe(true);
 
       // SAFETY: Explicit own secretMode: undefined must be rejected.
       const undefinedMode: VerifyOptions = {
         provider: 'polar',
         secrets: [POLAR_CURRENT_SECRET],
-        providerOptions: { secretMode: undefined },
+        providerOptions: { secretMode: undefined } as never,
       };
 
       expectInvalidOptionsSync(() => createVerifier(undefinedMode));
@@ -765,7 +771,7 @@ describe('Phase 7 Stage B — Public Configuration Contract', () => {
       expectInvalidOptionsSync(() => createVerifier(polarExtraSym));
     });
 
-    test('Non-enumerable required fields are not recognized as configuration', () => {
+    test('Known non-enumerable own fields remain valid configuration', async () => {
       const nonEnumGrafana = {};
       Object.defineProperty(nonEnumGrafana, 'mode', {
         value: 'body',
@@ -773,14 +779,18 @@ describe('Phase 7 Stage B — Public Configuration Contract', () => {
         configurable: true,
       });
 
-      // SAFETY: Non-enumerable mode must be treated as absent mode.
+      // SAFETY: defineProperty above supplies the required own body-mode value.
       const opts: VerifyOptions = {
         provider: 'grafana',
         secrets: [GRAFANA_SECRET],
         providerOptions: nonEnumGrafana as never,
       };
 
-      expectInvalidOptionsSync(() => createVerifier(opts));
+      const result = await verify({ rawBody: RAW_BODY, headers: {
+        [DEFAULT_GRAFANA_HEADER]: signGrafana(RAW_BODY),
+      } }, opts);
+
+      expect(result.ok).toBe(true);
     });
 
     test('Throwing getters and revoked proxies emerge only as generic static invalid-options', () => {

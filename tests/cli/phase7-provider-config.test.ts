@@ -509,7 +509,7 @@ describe('real CLI child process', () => {
     expect(syntaxDiagnostics(content)).toEqual([]);
   });
 
-  test.each(FRAMEWORKS)('Grafana body template reaches the %s target or honestly blocks at the base registry', (framework) => {
+  test.each(FRAMEWORKS)('Grafana body template reaches the %s target', (framework) => {
     const root = makeTempRoot(`grafana-body-${framework}`);
 
     const result = runCli(root, [
@@ -523,12 +523,6 @@ describe('real CLI child process', () => {
       'body',
     ]);
 
-    if (result.status === 2) {
-      expect(result.stderr).toBe('Unsupported provider.\n');
-      expect(collectFiles(path.join(root, 'hooklatch'))).toEqual([]);
-
-      return;
-    }
 
     expect(result.status).toBe(0);
 
@@ -536,11 +530,11 @@ describe('real CLI child process', () => {
     const content = fs.readFileSync(target, 'utf8');
 
     expect(content).toContain('providerOptions: { mode: "body" },');
-    expect(content).toContain('process.env.GRAFANA_WEBHOOK_SECRET');
+    expect(content).toContain(framework === 'cloudflare' ? 'env.GRAFANA_WEBHOOK_SECRET' : 'process.env.GRAFANA_WEBHOOK_SECRET');
     expect(syntaxDiagnostics(content)).toEqual([]);
   });
 
-  test('Grafana timestamped generation preserves header names or honestly blocks at the base registry', () => {
+  test('Grafana timestamped generation preserves header names', () => {
     const root = makeTempRoot('grafana-timestamped');
 
     const result = runCli(root, [
@@ -558,12 +552,6 @@ describe('real CLI child process', () => {
       'x-ts',
     ]);
 
-    if (result.status === 2) {
-      expect(result.stderr).toBe('Unsupported provider.\n');
-      expect(collectFiles(path.join(root, 'hooklatch'))).toEqual([]);
-
-      return;
-    }
 
     expect(result.status).toBe(0);
 
@@ -576,7 +564,7 @@ describe('real CLI child process', () => {
   });
 
   test.each(['current', 'legacy'] as const)(
-    'Polar %s generation reaches the target or honestly blocks at the base registry',
+    'Polar %s generation reaches the target',
     (secretMode) => {
       const root = makeTempRoot(`polar-${secretMode}`);
       const args = ['init', 'webhook', '--provider', 'polar', '--framework', 'express'];
@@ -585,12 +573,6 @@ describe('real CLI child process', () => {
 
       const result = runCli(root, args);
 
-      if (result.status === 2) {
-        expect(result.stderr).toBe('Unsupported provider.\n');
-        expect(collectFiles(path.join(root, 'hooklatch'))).toEqual([]);
-
-        return;
-      }
 
       expect(result.status).toBe(0);
 

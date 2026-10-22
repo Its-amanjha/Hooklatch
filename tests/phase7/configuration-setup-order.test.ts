@@ -5,6 +5,8 @@ interface StreamRequestInit extends RequestInit {
   duplex: 'half';
 }
 
+const STREAM_MODE: StreamRequestInit = { duplex: 'half' };
+
 const VALID_GRAFANA_SECRET = 'grafana-order-test-valid-secret-2026';
 const VALID_POLAR_CURRENT_SECRET = 'whsec_c3VwZXItc2VjcmV0LWJhc2U2NC1rZXktZm9yLXBvbGFyLTIwMjY=';
 const DUMMY_BODY = new TextEncoder().encode('{"test":"setup-order"}');
@@ -212,7 +214,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
       };
 
       const stream = new ReadableStream<Uint8Array>({
-        start(controller) {
+        pull(controller) {
           if (clockRead) {
             bodyReadAfterClock = true;
           }
@@ -220,13 +222,13 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
           controller.enqueue(DUMMY_BODY);
           controller.close();
         },
-      });
+      }, { highWaterMark: 0 });
 
       const req = new Request('http://localhost/clock-test', {
         method: 'POST',
         headers: { 'x-grafana-alerting-signature': 'dummy' },
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       const options: VerifyOptions = {
@@ -285,7 +287,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       // SAFETY: Deliberately unknown provider to assert setup abort before body pull.
@@ -306,7 +308,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       const opts: VerifyOptions = {
@@ -327,7 +329,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       const opts: VerifyOptions = {
@@ -348,7 +350,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       // SAFETY: Empty providerOptions lacks required mode.
@@ -370,7 +372,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       const opts: VerifyOptions = {
@@ -392,7 +394,7 @@ describe('Phase 7 Stage B — Configuration Setup Ordering', () => {
         method: 'POST',
         headers: {},
         body: stream,
-        duplex: 'half',
+        ...STREAM_MODE,
       } satisfies StreamRequestInit);
 
       const opts: VerifyOptions = {
