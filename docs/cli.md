@@ -38,7 +38,30 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   relative target path and the file contents without writing anything.
 - `-h`, `--help` — print usage and exit 0.
 
+### Planned flags — Grafana and Polar (pending integration)
+
+The following flags are planned for the Grafana/Polar Stage B integration.
+They are **not available in the current built CLI** and do not change
+generated output until Codex completes public registration and qualification:
+
+- `--grafana-mode body|timestamped` — required only when `--provider grafana`;
+  selects whether the signature covers the raw body only or a timestamped
+  `timestamp:body` layout.
+- `--signature-header NAME` — grafana only; optional configured signature
+  header name. Defaults to `x-grafana-alerting-signature` when omitted. Must
+  be a nonempty RFC 9110 field-name token and must not be a reserved name
+  (`host`, `content-length`, `transfer-encoding`, `connection`, `upgrade`,
+  `trailer`, `te`, `proxy-authorization`, `proxy-authenticate`,
+  `authorization`, `cookie`, `set-cookie`).
+- `--timestamp-header NAME` — required for grafana timestamped mode; forbidden
+  in body mode.
+- `--polar-secret-mode current|legacy` — polar only; default `current`. Applies
+  to every configured secret in the accept-set; no mixed-era migration.
+- New environment variable names: `GRAFANA_WEBHOOK_SECRET`,
+  `POLAR_WEBHOOK_SECRET`.
+
 Duplicate flags, unknown flags, missing values, unknown providers/frameworks,
+wrong-provider, duplicate, invalid, colliding, or reserved names,
 non-integer or non-positive body limits, and malformed `--secret-env` names
 are all rejected before any filesystem change.
 

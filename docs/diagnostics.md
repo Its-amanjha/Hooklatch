@@ -54,7 +54,34 @@ interface Diagnostic {
 `possibleCauses`, `suggestions`) is intended for humans and may evolve between
 releases.
 
-## Redaction guarantees
+## Planned providers — Grafana and Polar (pending integration)
+
+The following guidance describes the planned Grafana and Polar diagnostic
+behavior. It is **static reference material only**; neither provider is
+registered in the current built CLI or diagnostics catalog.
+
+### Grafana
+
+There is no configuration context at diagnostic time, so `expectedHeaders` is
+`[]`. The `grammar` and `suggestions` fields describe the two explicit modes
+and configured header names; they do **not** claim that the default header is
+always expected.
+
+- Body mode: `signatureHeader` covers the raw body only; `timestampHeader` is
+  forbidden (even when empty or explicitly undefined).
+- Timestamped mode: `signatureHeader` plus a required `timestampHeader`;
+  timestamp text must be a canonical nonnegative safe decimal integer in
+  seconds; missing or blank timestamp → `missing-timestamp`.
+
+### Polar
+
+`expectedHeaders` lists the canonical Standard Webhooks headers
+(`webhook-id`, `webhook-timestamp`, `webhook-signature`). The `suggestions`
+field explains that the selected `secretMode` (`current` or `legacy`) is
+application configuration and applies to every configured secret in the
+accept-set; no mixed-era or dual-key migration is performed.
+
+### Redaction guarantees
 
 Diagnostics never echo:
 
@@ -137,6 +164,28 @@ try {
   }
 }
 ```
+
+## Source-typing migration impact (pending integration)
+
+The public `VerifyOptions` type changes from an interface to a union that
+discriminates on `provider`:
+
+```ts
+export type VerifyOptions = CommonVerifyOptions & (
+  | { readonly provider: Exclude<Provider, 'grafana' | 'polar'>; readonly providerOptions?: never }
+  | { readonly provider: 'grafana'; readonly providerOptions: GrafanaOptions }
+  | { readonly provider: 'polar'; readonly providerOptions?: PolarOptions }
+);
+```
+
+`GrafanaOptions` is a mode-discriminated union (`body` or `timestamped`);
+`PolarOptions` carries an optional `secretMode` (`current` | `legacy`).
+
+Source-typing impact: broad `Provider` variables and `interface extends`
+consumers may need narrowing, and `NextWebhookHandlerOptions` becomes an
+intersection type. Existing provider calls remain valid; `providerOptions` is
+required for `grafana` and optional for `polar`. This is a source-typing note
+only — no provider is registered yet.
 
 ## Purity
 
