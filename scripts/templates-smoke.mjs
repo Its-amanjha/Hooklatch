@@ -7,17 +7,18 @@
  *
  * The generation set is derived from the built registry
  * (`dist/providers/index.js` `SUPPORTED_PROVIDERS`), so registering a provider
- * extends the matrix automatically. Contract order is 18 providers; at the
- * 16-provider base this generates 16 x 4 = 64 handlers, and only a registry
- * that really contains Grafana/Polar may report 72. The expected secret-env
- * table is exhaustive for the frozen 18-provider contract (the existing 16 plus
- * GRAFANA_WEBHOOK_SECRET/POLAR_WEBHOOK_SECRET); names whose provider the
- * unregistered CLI rejects are asserted as expectations, not generated.
+ * extends the matrix automatically. The Phase 8 Stage A target is 19 providers;
+ * at the accepted 18-provider base readiness exits 3 (BLOCKED) before any temp
+ * allocation, packing or generation. Only a registry that really contains
+ * Linear reports 19 x 4 = 76 primary handlers. The expected secret-env table is
+ * exhaustive for the 19-provider target (the accepted 18 plus
+ * LINEAR_WEBHOOK_SECRET); names whose provider the CLI does not register never
+ * reach generation.
  *
  * Grafana's primary row is generated with an explicit body-mode configuration and
  * must carry it into the emitted options; the optional configured-variant block
- * adds timestamped custom headers and Polar legacy mode once those providers are
- * registered. Existing providers must stay config-free.
+ * adds timestamped custom headers and Polar legacy mode. Linear, like the
+ * existing providers, stays config-free.
  *
  * The script is standalone (no npm_execpath requirement). npm pack/install use
  * offline mode on the local tarball. Repository src and examples are never
@@ -35,9 +36,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Expected default secret env per provider, exhaustive for the frozen
- * 18-provider contract. `generate` is driven by the built registry, so names for
- * providers the CLI does not register yet never reach generation here.
+ * Expected default secret env per provider, exhaustive for the 19-provider
+ * target (the accepted 18-provider contract plus Linear). `generate` is driven by
+ * the built registry, so names for providers the CLI does not register never
+ * reach generation here.
  */
 const EXPECTED_SECRET_ENV = {
   stripe: 'STRIPE_WEBHOOK_SECRET',
@@ -58,7 +60,40 @@ const EXPECTED_SECRET_ENV = {
   sanity: 'SANITY_WEBHOOK_SECRET',
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
+  linear: 'LINEAR_WEBHOOK_SECRET',
 };
+
+/**
+ * Exact 19-provider target order: the accepted 18-provider prefix in contract
+ * order followed by Linear. Kept explicit so an accidental insertion in the
+ * middle cannot pass as an extension.
+ */
+const EXPECTED_PROVIDER_ORDER = [
+  'stripe',
+  'github',
+  'shopify',
+  'standard-webhooks',
+  'clerk',
+  'svix',
+  'razorpay',
+  'paddle',
+  'lemon-squeezy',
+  'dodo-payments',
+  'gitlab',
+  'replicate',
+  'workos',
+  'sentry',
+  'doppler',
+  'sanity',
+  'grafana',
+  'polar',
+  'linear',
+];
+
+const EXIT_PASS = 0;
+const EXIT_NOT_READY = 3;
+const TARGET_PROVIDERS = 19;
+const EXISTING_PROVIDER_COUNT = 18;
 
 /** Providers whose CLI configuration is required/forwarded by this contract. */
 const CONFIGURED_PROVIDERS = ['grafana', 'polar'];
@@ -152,6 +187,70 @@ function requireBuildArtifacts() {
   if (!existsSync(join(root, 'node_modules', 'typescript', 'lib', 'tsc.js'))) {
     fail('The pinned TypeScript toolchain is missing from this checkout; restore the prepared dependency snapshot.');
   }
+}
+
+/**
+ * This harness's own expectation tables must be exhaustive before a registry
+ * decision can be trusted. A missing Linear env/order entry is a harness defect,
+ * not acceptable success and not an upstream BLOCKED state.
+ */
+function assertExpectationCoverage() {
+  assert.deepEqual(FRAMEWORKS, ['express', 'nextjs', 'hono', 'cloudflare'],
+    'Template qualification must cover exactly the four supported frameworks.');
+  assert.equal(EXPECTED_PROVIDER_ORDER.length, EXISTING_PROVIDER_COUNT + 1,
+    `The expected provider order must append exactly one provider to the accepted ${EXISTING_PROVIDER_COUNT}.`);
+  assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS,
+    `The expected provider order must contain exactly ${TARGET_PROVIDERS} providers.`);
+  assert.equal(new Set(EXPECTED_PROVIDER_ORDER).size, TARGET_PROVIDERS,
+    'The expected provider order must not contain duplicate IDs.');
+  assert.deepEqual(Object.keys(EXPECTED_SECRET_ENV), EXPECTED_PROVIDER_ORDER,
+    'The secret-env expectation keys must exactly match the expected provider order.');
+  assert.equal(EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 1], 'linear',
+    'Linear must be appended after the accepted 18-provider prefix.');
+  assert.equal(EXPECTED_SECRET_ENV.linear, 'LINEAR_WEBHOOK_SECRET',
+    'The Linear secret-env expectation must be LINEAR_WEBHOOK_SECRET.');
+  assert.equal(Object.hasOwn(PRIMARY_CONFIGURATION, 'linear'), false,
+    'Linear must remain config-free; remove any primary configuration recipe.');
+  assert.equal(Object.hasOwn(CONFIGURED_VARIANTS, 'linear'), false,
+    'Linear must not define a configured variant.');
+
+  for (const provider of CONFIGURED_PROVIDERS) {
+    assert.equal(Object.hasOwn(EXPECTED_SECRET_ENV, provider), true,
+      `Configured provider ${provider} is missing from the secret-env expectation table.`);
+    assert.equal(Object.hasOwn(PRIMARY_CONFIGURATION, provider), true,
+      `Configured provider ${provider} has no primary generation recipe.`);
+    assert.equal(Object.hasOwn(CONFIGURED_VARIANTS, provider), true,
+      `Configured provider ${provider} has no configured variant recipe.`);
+  }
+}
+
+/** Pure readiness decision for the built registry (the 18-provider base blocks). */
+function decideReadiness(providers) {
+  if (!Array.isArray(providers) || providers.length === 0) {
+    return { ready: false, reason: 'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.' };
+  }
+
+  if (providers.length !== TARGET_PROVIDERS) {
+    return {
+      ready: false,
+      reason: `Registry has ${providers.length} providers; the 19-provider template matrix requires exactly ${TARGET_PROVIDERS} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus linear).`,
+    };
+  }
+
+  if (new Set(providers).size !== TARGET_PROVIDERS) {
+    return { ready: false, reason: 'Registry provider IDs are not unique.' };
+  }
+
+  for (let index = 0; index < TARGET_PROVIDERS; index += 1) {
+    if (providers[index] !== EXPECTED_PROVIDER_ORDER[index]) {
+      return {
+        ready: false,
+        reason: `Registry provider #${index} is ${JSON.stringify(providers[index])}; expected ${JSON.stringify(EXPECTED_PROVIDER_ORDER[index])} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus linear).`,
+      };
+    }
+  }
+
+  return { ready: true };
 }
 
 function locateNpmCli() {
@@ -318,47 +417,17 @@ function typecheckGeneratedFile(file, consumerRoot, label) {
 }
 
 async function main() {
+  assertExpectationCoverage();
   requireBuildArtifacts();
 
   const providers = await loadRegistryProviders();
+  const readiness = decideReadiness(providers);
 
-  assert.deepEqual(FRAMEWORKS, ['express', 'nextjs', 'hono', 'cloudflare'],
-    'Template qualification must cover exactly the four supported frameworks.');
+  if (!readiness.ready) {
+    console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${readiness.reason}`);
+    console.error('No temp root was allocated and no package was installed or generated.');
 
-  for (const provider of providers) {
-    if (!Object.hasOwn(EXPECTED_SECRET_ENV, provider)) {
-      fail(`Registry provider ${provider} has no expected secret env; extend the template expectation table.`);
-    }
-  }
-
-  for (const provider of CONFIGURED_PROVIDERS) {
-    if (!Object.hasOwn(EXPECTED_SECRET_ENV, provider)) {
-      fail(`Configured provider ${provider} is missing from the template expectation table.`);
-    }
-
-    if (!Object.hasOwn(PRIMARY_CONFIGURATION, provider)) {
-      fail(`Configured provider ${provider} has no primary generation recipe.`);
-    }
-
-    if (!Object.hasOwn(CONFIGURED_VARIANTS, provider)) {
-      fail(`Configured provider ${provider} has no configured variant recipe.`);
-    }
-  }
-
-  assert.equal(EXPECTED_SECRET_ENV.grafana, 'GRAFANA_WEBHOOK_SECRET');
-  assert.equal(EXPECTED_SECRET_ENV.polar, 'POLAR_WEBHOOK_SECRET');
-
-  if (providers.some((provider) => CONFIGURED_PROVIDERS.includes(provider))) {
-    // New providers must be appended after the existing sixteen, in contract
-    // order; a partially rebuilt registry is not a support claim.
-    const existingIds = Object.keys(EXPECTED_SECRET_ENV)
-      .filter((provider) => !CONFIGURED_PROVIDERS.includes(provider));
-
-    assert.deepEqual(providers.slice(0, existingIds.length), existingIds,
-      'The existing providers must remain registered first, in contract order.');
-    assert.deepEqual(providers.slice(existingIds.length),
-      CONFIGURED_PROVIDERS.filter((provider) => providers.includes(provider)),
-      'Configured providers must trail the existing providers in contract order.');
+    return EXIT_NOT_READY;
   }
 
   const npmCli = locateNpmCli();
@@ -394,6 +463,8 @@ async function main() {
 
     for (const name of ['express', 'hono', '@types/express', '@types/node']) linkFixedDependency(name, consumerRoot);
 
+    let primaryCount = 0;
+
     for (const provider of providers) {
       const secretEnv = EXPECTED_SECRET_ENV[provider];
       const primaryFlags = PRIMARY_CONFIGURATION[provider]?.flags ?? [];
@@ -426,13 +497,23 @@ async function main() {
 
         // Independent compiler program: one NodeNext child per generated file.
         typecheckGeneratedFile(firstPath, consumerRoot, label);
+        primaryCount += 1;
       }
     }
 
-    // Configured variants exercise explicit non-default forwarding. They are
-    // generated only for providers the packed CLI actually registers; running
-    // them earlier would fail the installed CLI, not prove configuration.
+    if (primaryCount !== TARGET_PROVIDERS * FRAMEWORKS.length) {
+      fail(`Primary matrix is reduced: ${primaryCount} handlers instead of ${TARGET_PROVIDERS * FRAMEWORKS.length}.`);
+    }
+
+    // Configured variants exercise explicit non-default forwarding. Readiness
+    // requires both configured providers, so a missing variant recipe is a real
+    // matrix failure rather than an acceptable partial run.
     const configuredRegistered = providers.filter((provider) => Object.hasOwn(CONFIGURED_VARIANTS, provider));
+
+    if (configuredRegistered.length !== CONFIGURED_PROVIDERS.length) {
+      fail(`Configured variant providers are reduced: [${configuredRegistered.join(', ')}] instead of [${CONFIGURED_PROVIDERS.join(', ')}].`);
+    }
+
     let variantCount = 0;
 
     for (const provider of configuredRegistered) {
@@ -461,6 +542,10 @@ async function main() {
       }
     }
 
+    if (variantCount !== CONFIGURED_PROVIDERS.length * FRAMEWORKS.length) {
+      fail(`Configured variant matrix is reduced: ${variantCount} handlers instead of ${CONFIGURED_PROVIDERS.length * FRAMEWORKS.length}.`);
+    }
+
     // The installed CLI must reject an unimplemented provider and write nothing.
     let invalidStatus;
 
@@ -476,9 +561,9 @@ async function main() {
 
     if (existsSync(join(consumerRoot, 'gen-invalid'))) fail('Installed CLI wrote output for a rejected provider.');
 
-    const variantNote = variantCount > 0 ? `; ${variantCount} configured variants independently typechecked` : '';
+    console.log(`PASS: ${primaryCount} primary generated handlers across ${providers.length} registered providers are complete, deterministic and semantically typechecked; ${variantCount} configured variants independently typechecked.`);
 
-    console.log(`PASS: ${providers.length * FRAMEWORKS.length} generated handlers across ${providers.length} registered providers are complete, deterministic and semantically typechecked${variantNote}.`);
+    return EXIT_PASS;
   } finally {
     const checked = resolve(tempRoot);
 
@@ -489,7 +574,7 @@ async function main() {
 }
 
 try {
-  await main();
+  process.exitCode = await main();
 } catch (error) {
   console.error(`FAIL: templates smoke (${error.message})`);
   process.exitCode = 1;

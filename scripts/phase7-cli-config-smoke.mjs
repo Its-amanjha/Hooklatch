@@ -1,5 +1,6 @@
 /**
- * Phase 7 configured generated-handler qualification.
+ * Phase 7 configured generated-handler qualification, extended for the Phase 8
+ * Stage A 19-provider target.
  *
  *   node scripts/phase7-cli-config-smoke.mjs            # normal run
  *   node scripts/phase7-cli-config-smoke.mjs --self-test # harness controls only
@@ -8,25 +9,25 @@
  * Run AFTER `npm run build`.
  *
  * WHAT THIS PROVES
- *   When the coordinator has integrated the 18-provider registry and the new
- *   configuration CLI flags, this script packs the local tarball, installs it
- *   offline into a checked OS-temp consumer, and drives the INSTALLED bin to
- *   generate every primary provider/framework combination plus the configured
- *   Grafana and Polar variants. Each generated file is checked structurally
- *   (comment-stripped providerOptions, never bare value substrings) for its exact
- *   location, byte determinism across two runs, forwarded provider options,
- *   secret-env placeholders and body limit, and is then compiled by an
- *   independent strict NodeNext program against the installed exports and the
- *   pinned peer trees. The tracked checkout bytes are snapshotted before and
- *   after to prove the run did not mutate the repository.
+ *   When the coordinator has integrated the 19-provider registry, Linear accepts
+ *   no providerOptions, and the existing configuration CLI flags still work, this
+ *   script packs the local tarball, installs it offline into a checked OS-temp
+ *   consumer, and drives the INSTALLED bin to generate every primary
+ *   provider/framework combination plus the configured Grafana and Polar variants.
+ *   Each generated file is checked structurally (comment-stripped providerOptions,
+ *   never bare value substrings) for its exact location, byte determinism across
+ *   two runs, forwarded provider options, secret-env placeholders and body limit,
+ *   and is then compiled by an independent strict NodeNext program against the
+ *   installed exports and the pinned peer trees. The tracked checkout bytes are
+ *   snapshotted before and after to prove the run did not mutate the repository.
  *
  * WHAT THIS DOES NOT PROVE
- *   At the 16-provider base the readiness gate exits 3 (BLOCKED) BEFORE any temp
- *   allocation, install, generation, or self-test control work. The `--self-test`
- *   controls prove only that this harness can detect its own failure modes and
- *   that the shared helpers work against real generated artifacts. They are NOT
- *   evidence of SDK support for Grafana or Polar. Nothing here claims provider,
- *   runtime or platform support.
+ *   At the accepted 18-provider base the readiness gate exits 3 (BLOCKED) BEFORE
+ *   any temp allocation, install, generation, or self-test control work. The
+ *   `--self-test` controls prove only that this harness can detect its own failure
+ *   modes and that the shared helpers work against real generated artifacts. They
+ *   are NOT evidence of SDK support for Linear, Grafana or Polar. Nothing here
+ *   claims provider, runtime or platform support.
  *
  * Exit codes:
  *   0  All selected real checks and cleanup passed.
@@ -72,9 +73,9 @@ const EXIT_USAGE = 2;
 const EXIT_NOT_READY = 3;
 
 const FRAMEWORKS = ['express', 'nextjs', 'hono', 'cloudflare'];
-const EXISTING_PROVIDER_COUNT = 16;
-const TARGET_PROVIDERS = 18;
-const NEW_PROVIDERS = ['grafana', 'polar'];
+const EXISTING_PROVIDER_COUNT = 18;
+const TARGET_PROVIDERS = 19;
+const NEW_PROVIDERS = ['linear'];
 
 const BODY_LIMIT = 4242;
 const TEMP_PREFIX = 'hooklatch-phase7-cli-config-';
@@ -82,8 +83,8 @@ const TARGET_PREFIX = 'hooklatch-phase7-target-';
 const MAX_CAPTURE_BYTES = 20000;
 
 /**
- * Exact expected 18-provider order: the existing 16 (registry order at this base)
- * followed by grafana and polar, per notes/phase-7/contract.md.
+ * Exact expected 19-provider order: the accepted 18-provider prefix (registry
+ * order at this base) followed by linear, per notes/phase-8/contract.md.
  */
 const EXPECTED_PROVIDER_ORDER = [
   'stripe',
@@ -104,12 +105,13 @@ const EXPECTED_PROVIDER_ORDER = [
   'sanity',
   'grafana',
   'polar',
+  'linear',
 ];
 
 /**
- * Exhaustive, independent secret-env expectation for all 18 providers. The 16
- * existing values mirror src/cli/args.ts DEFAULT_SECRET_ENV; grafana/polar are
- * the Stage B names from notes/phase-7/contract.md. This table is intentionally
+ * Exhaustive, independent secret-env expectation for all 19 providers. The 18
+ * existing values mirror src/cli/args.ts DEFAULT_SECRET_ENV; linear is the
+ * Phase 8 name from notes/phase-8/contract.md. This table is intentionally
  * duplicated here so the harness never trusts the production map it is checking.
  */
 const EXPECTED_SECRET_ENV = {
@@ -131,9 +133,10 @@ const EXPECTED_SECRET_ENV = {
   sanity: 'SANITY_WEBHOOK_SECRET',
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
+  linear: 'LINEAR_WEBHOOK_SECRET',
 };
 
-/** Flags the coordinator adds in Stage B; readiness requires help to advertise them. */
+/** Phase 7 Stage B flags; Linear adds no configuration flag. */
 const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp-header', '--polar-secret-mode'];
 
 /**
@@ -144,8 +147,9 @@ const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp
 const HOSTILE_VALID_HEADER = "x-weird'`+inj";
 
 /**
- * Primary matrix: every registered provider × four frameworks (18 × 4 = 72).
- * Grafana needs an explicit body mode and its providerOptions must carry it.
+ * Primary matrix: every registered provider × four frameworks (19 × 4 = 76).
+ * Grafana needs an explicit body mode and its providerOptions must carry it;
+ * Linear and the accepted existing providers remain config-free.
  */
 function primaryCases(providers) {
   const cases = [];
@@ -182,6 +186,7 @@ function primaryProviderOptions(provider) {
  * Configured variants: timestamped Grafana with custom headers, timestamped
  * Grafana with a hostile-but-valid header token, and Polar legacy. Each runs on
  * all four frameworks so providerOptions forwarding is proven per framework.
+ * Linear deliberately has no configured variant.
  */
 function configuredCases() {
   const cases = [];
@@ -537,6 +542,44 @@ function compareRunInputs(before, after, label) {
 /* ------------------------------------------------------------------ *
  * Readiness gates (pure decisions + thin I/O wrappers)
  * ------------------------------------------------------------------ */
+
+/**
+ * Pure coverage decision for this harness's own expectation tables. A missing
+ * Linear env entry or order entry is a harness defect; it must not surface as a
+ * reduced matrix or as an upstream BLOCKED state.
+ */
+function decideExpectationCoverage({ order = EXPECTED_PROVIDER_ORDER, secretEnv = EXPECTED_SECRET_ENV } = {}) {
+  if (!Array.isArray(order) || order.length !== TARGET_PROVIDERS) {
+    return {
+      ready: false,
+      reason: `Expected provider order has ${Array.isArray(order) ? order.length : 'no'} entries; expected ${TARGET_PROVIDERS}.`,
+    };
+  }
+
+  if (new Set(order).size !== TARGET_PROVIDERS) {
+    return { ready: false, reason: 'Expected provider order contains duplicate IDs.' };
+  }
+
+  const envKeys = Object.keys(secretEnv);
+
+  if (envKeys.length !== TARGET_PROVIDERS) {
+    return { ready: false, reason: `Secret-env expectation map has ${envKeys.length} entries; expected ${TARGET_PROVIDERS}.` };
+  }
+
+  if (envKeys.length !== order.length || envKeys.some((provider, index) => provider !== order[index])) {
+    return { ready: false, reason: 'Secret-env expectation keys do not exactly match the expected provider order.' };
+  }
+
+  if (order[order.length - 1] !== 'linear') {
+    return { ready: false, reason: 'Linear must be appended after the accepted 18-provider prefix.' };
+  }
+
+  if (secretEnv.linear !== 'LINEAR_WEBHOOK_SECRET') {
+    return { ready: false, reason: 'The Linear secret-env expectation must be LINEAR_WEBHOOK_SECRET.' };
+  }
+
+  return { ready: true };
+}
 
 /** Pure readiness decision for a built registry value (separately self-tested). */
 function decideRegistryReadiness(providers) {
@@ -1137,6 +1180,15 @@ function controlMissingFile(root) {
 }
 
 /**
+ * A semantic rejection is only accepted when tsc completed (not timed out),
+ * exited 2, and reported the expected diagnostic code. A bare status-2 crash is
+ * not a semantic error and can never satisfy a control.
+ */
+function isExpectedTypeScriptDiagnostic(result, code = 'TS2322') {
+  return !result.timedOut && result.status === 2 && `${result.stdout}${result.stderr}`.includes(`error ${code}`);
+}
+
+/**
  * Control: a real TypeScript diagnostic is detected by its exit code (2) AND the
  * specific diagnostic code. A crash/timeout (infrastructure) can never be
  * mistaken for controlled rejection.
@@ -1152,13 +1204,18 @@ function controlSemanticFailure(root) {
 
   const bad = runSync(process.execPath, [tscPath(), ...tscDiagnosticArgs(badFile)], directory);
 
-  if (bad.timedOut) fail('Semantic control infrastructure failure: tsc timed out.');
-
-  if (bad.status !== 2) fail(`Semantic control infrastructure failure: tsc exited ${bad.status}; expected diagnostics exit 2.`);
-
-  if (!`${bad.stdout}${bad.stderr}`.includes('error TS2322')) {
-    fail('Semantic control failed: expected TS2322 diagnostic was not reported.');
+  if (!isExpectedTypeScriptDiagnostic(bad)) {
+    fail(`Semantic control failed: tsc did not produce the expected TS2322 diagnostic (status ${bad.status}, timedOut ${bad.timedOut}).`);
   }
+
+  // A process that merely exits 2 without the diagnostic (compiler crash) is not
+  // a controlled rejection, and a timed-out run with the text is not either.
+  const crash = runSync(process.execPath, ['-e', 'process.exit(2)'], directory);
+
+  assert.equal(isExpectedTypeScriptDiagnostic(crash), false,
+    'Semantic control failed: a bare status-2 compiler crash was accepted as a diagnostic.');
+  assert.equal(isExpectedTypeScriptDiagnostic({ status: 2, stdout: 'error TS2322', stderr: '', timedOut: true }), false,
+    'Semantic control failed: a timed-out run was accepted as a diagnostic.');
 
   const ok = runSync(process.execPath, [tscPath(), ...tscDiagnosticArgs(okFile)], directory);
 
@@ -1250,20 +1307,24 @@ function controlNoSecret() {
 }
 
 /**
- * Control: readiness gates reject independently; the exact 18-provider order is
- * required; and an 18-shaped registry with the real (flag-less) built help is
- * BLOCKED without allocating any temp directory.
+ * Control: readiness gates reject independently; the exact 19-provider order is
+ * required; an 18-provider registry is BLOCKED without allocating any temp
+ * directory; and the expectation tables must cover Linear explicitly.
  */
 function controlReadiness() {
   const ready = [...EXPECTED_PROVIDER_ORDER];
 
-  assert.equal(decideRegistryReadiness(ready).ready, true, 'Readiness control: the exact 18-provider shape was rejected.');
+  assert.equal(decideRegistryReadiness(ready).ready, true, 'Readiness control: the exact 19-provider shape was rejected.');
   assert.equal(decideRegistryReadiness(EXPECTED_PROVIDER_ORDER.slice(0, EXISTING_PROVIDER_COUNT)).ready, false,
+    'Readiness control: an 18-provider registry was accepted.');
+  assert.equal(decideRegistryReadiness(EXPECTED_PROVIDER_ORDER.slice(0, 16)).ready, false,
     'Readiness control: a 16-provider registry was accepted.');
-  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 16), 'polar', 'grafana']).ready, false,
-    'Readiness control: a wrong-order 18-provider tail was accepted.');
-  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 17), 'grafana']).ready, false,
-    'Readiness control: a duplicate ID 18-provider registry was accepted.');
+  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 16), 'polar', 'grafana', 'linear']).ready, false,
+    'Readiness control: a wrong-order 19-provider tail was accepted.');
+  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 18), 'polar']).ready, false,
+    'Readiness control: a duplicate ID 19-provider registry was accepted.');
+  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER, 'extra']).ready, false,
+    'Readiness control: a 20-provider registry was accepted.');
   assert.equal(decideRegistryReadiness([]).ready, false, 'Readiness control: an empty registry was accepted.');
   assert.equal(decideRegistryReadiness(undefined).ready, false, 'Readiness control: a missing registry was accepted.');
 
@@ -1281,14 +1342,39 @@ function controlReadiness() {
 
   assert.equal(decideFlagsReadiness('').ready, false, 'Readiness control: empty help was accepted.');
 
-  // The expectation tables must cover exactly the 18 providers, uniquely.
-  assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS, 'Readiness control: expected order is not 18 long.');
+  // The expectation tables must cover exactly the 19 providers, uniquely, with
+  // Linear appended and its env name exact.
+  const coverage = decideExpectationCoverage();
+
+  assert.equal(coverage.ready, true, `Readiness control: expectation coverage is invalid: ${coverage.reason}`);
+  assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS, 'Readiness control: expected order is not 19 long.');
   assert.equal(new Set(EXPECTED_PROVIDER_ORDER).size, TARGET_PROVIDERS, 'Readiness control: expected order has duplicates.');
-  assert.equal(Object.keys(EXPECTED_SECRET_ENV).length, TARGET_PROVIDERS, 'Readiness control: secret-env map is not 18 long.');
+  assert.equal(Object.keys(EXPECTED_SECRET_ENV).length, TARGET_PROVIDERS, 'Readiness control: secret-env map is not 19 long.');
+  assert.equal(EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 1], 'linear',
+    'Readiness control: linear is not appended after the accepted 18-provider prefix.');
+  assert.equal(EXPECTED_SECRET_ENV.linear, 'LINEAR_WEBHOOK_SECRET',
+    'Readiness control: the Linear secret-env expectation is wrong.');
 
   for (const provider of EXPECTED_PROVIDER_ORDER) {
     assert(Object.hasOwn(EXPECTED_SECRET_ENV, provider), `Readiness control: no secret-env expectation for ${provider}.`);
   }
+
+  // Negative coverage fixtures: an 18-entry order, a missing Linear env entry,
+  // a wrong Linear env name, and a duplicate order entry must all be rejected.
+  assert.equal(decideExpectationCoverage({ order: EXPECTED_PROVIDER_ORDER.slice(0, -1), secretEnv: EXPECTED_SECRET_ENV }).ready,
+    false, 'Readiness control: an order without Linear was accepted.');
+  assert.equal(decideExpectationCoverage({
+    order: EXPECTED_PROVIDER_ORDER,
+    secretEnv: Object.fromEntries(Object.entries(EXPECTED_SECRET_ENV).filter(([provider]) => provider !== 'linear')),
+  }).ready, false, 'Readiness control: a secret-env map without Linear was accepted.');
+  assert.equal(decideExpectationCoverage({
+    order: EXPECTED_PROVIDER_ORDER,
+    secretEnv: { ...EXPECTED_SECRET_ENV, linear: 'WRONG_LINEAR_SECRET' },
+  }).ready, false, 'Readiness control: a wrong Linear secret-env name was accepted.');
+  assert.equal(decideExpectationCoverage({
+    order: [...EXPECTED_PROVIDER_ORDER.slice(0, -1), EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 2]],
+    secretEnv: EXPECTED_SECRET_ENV,
+  }).ready, false, 'Readiness control: a duplicate order entry was accepted.');
 
   // Authored negative help fixture: missing every required Stage B flag.
   const negativeHelp = 'Usage: hooklatch init webhook --provider <id> --framework <id> --out <dir>';
@@ -1297,10 +1383,10 @@ function controlReadiness() {
   assert.equal(negativeDecision.ready, false, 'Readiness control: authored flag-less help was accepted.');
   assert(negativeDecision.reason.includes('--grafana-mode'), 'Readiness control: the negative reason does not name a missing flag.');
 
-  // Authored positive help fixture: complete help with an 18-provider registry is ready.
+  // Authored positive help fixture: complete help with a 19-provider registry is ready.
   const authoredComplete = evaluateReadiness({ providers: ready, helpText: REQUIRED_CLI_FLAGS.join('\n') });
 
-  assert.equal(authoredComplete.ready, true, 'Readiness control: complete authored help with 18 providers was rejected.');
+  assert.equal(authoredComplete.ready, true, 'Readiness control: complete authored help with 19 providers was rejected.');
 
   // The REAL built help is accepted at whichever stage the base is at; never
   // assert that real readiness is false (Stage B makes the flags present).
@@ -1313,11 +1399,11 @@ function controlReadiness() {
     'Readiness control: combined readiness disagreed with the flags decision for real built help.');
   assert.equal(after, before, 'Readiness control: readiness evaluation allocated a temp directory.');
 
-  // Matrix shape: 72 primary + 12 configured, with explicit Grafana body mode.
+  // Matrix shape: 76 primary + 12 configured, with explicit Grafana body mode.
   const primary = primaryCases(ready);
   const configured = configuredCases();
 
-  assert.equal(primary.length, TARGET_PROVIDERS * FRAMEWORKS.length, 'Matrix control: primary count is not 72.');
+  assert.equal(primary.length, TARGET_PROVIDERS * FRAMEWORKS.length, 'Matrix control: primary count is not 76.');
 
   for (const caseSpec of primary.filter((entry) => entry.provider === 'grafana')) {
     assert(caseSpec.args.includes('--grafana-mode') && caseSpec.args.includes('body'),
@@ -1330,20 +1416,75 @@ function controlReadiness() {
     assert(!caseSpec.args.includes('--grafana-mode'), `Matrix control: ${caseSpec.id} should not carry --grafana-mode.`);
   }
 
+  // Old configured output invariants: every accepted existing provider and
+  // Linear stays config-free; only Grafana/Polar carry providerOptions.
+  for (const caseSpec of primary) {
+    if (caseSpec.provider !== 'grafana' && caseSpec.provider !== 'polar') {
+      assert.equal(caseSpec.expect.providerOptions, null,
+        `Matrix control: ${caseSpec.id} must remain config-free.`);
+    }
+  }
+
+  const linearPrimary = primary.filter((entry) => entry.provider === 'linear');
+
+  assert.equal(linearPrimary.length, FRAMEWORKS.length, 'Matrix control: Linear primary coverage is reduced.');
+
+  for (const caseSpec of linearPrimary) {
+    assert.equal(caseSpec.expect.providerOptions, null,
+      `Matrix control: ${caseSpec.id} must remain config-free.`);
+    assert(!caseSpec.args.includes('--grafana-mode') && !caseSpec.args.includes('--polar-secret-mode'),
+      `Matrix control: ${caseSpec.id} must not carry a configured-provider flag.`);
+  }
+
   assert.equal(configured.length, FRAMEWORKS.length * 3, 'Matrix control: configured variant count is wrong.');
+  assert.deepEqual([...new Set(configured.map((entry) => entry.provider))].sort(), ['grafana', 'polar'],
+    'Matrix control: configured variants must cover exactly Grafana and Polar.');
 
   for (const caseSpec of configured) {
     assert(Object.hasOwn(EXPECTED_SECRET_ENV, caseSpec.provider), `Matrix control: ${caseSpec.id} has no secret-env expectation.`);
+    assert(caseSpec.provider !== 'linear', `Matrix control: ${caseSpec.id} must not define a Linear configured variant.`);
   }
 
   assert.equal(expectedFileName('grafana', 'nextjs'), 'route.ts', 'File-name control: nextjs target is wrong.');
   assert.equal(expectedFileName('grafana', 'cloudflare'), 'grafana.cloudflare.ts', 'File-name control: cloudflare target is wrong.');
   assert.equal(expectedFileName('polar', 'hono'), 'polar.hono.ts', 'File-name control: hono target is wrong.');
   assert.equal(expectedFileName('polar', 'express'), 'polar.express.ts', 'File-name control: express target is wrong.');
+  assert.equal(expectedFileName('linear', 'express'), 'linear.express.ts', 'File-name control: linear express target is wrong.');
+  assert.equal(expectedFileName('linear', 'cloudflare'), 'linear.cloudflare.ts', 'File-name control: linear cloudflare target is wrong.');
 }
 
 function countTempWorkspaces() {
   return readdirSync(os.tmpdir()).filter((name) => name.startsWith(TEMP_PREFIX)).length;
+}
+
+/**
+ * Control: rejected provider/configuration input exits 2 and writes nothing.
+ * Harness evidence only; everything stays inside the self-test workspace.
+ */
+function controlNoWriteProbe(root) {
+  const cli = builtCliPath();
+
+  if (!existsSync(cli)) {
+    fail('No-write control infrastructure failure: dist/cli/index.js is missing; run npm run build first.');
+  }
+
+  const probes = [
+    { id: 'unknown-provider', args: ['--provider', 'does-not-exist', '--framework', 'express'] },
+    { id: 'grafana-missing-mode', args: ['--provider', 'grafana', '--framework', 'express'] },
+  ];
+
+  const parent = path.join(root, 'control-no-write');
+
+  for (const probe of probes) {
+    const out = path.join(parent, probe.id);
+    const result = runSync(process.execPath, [cli, 'init', 'webhook', ...probe.args, '--out', out], root);
+
+    expectExit(result, 2, `No-write control ${probe.id}`);
+
+    if (existsSync(out)) fail(`No-write control ${probe.id}: output was written despite exit 2.`);
+  }
+
+  if (existsSync(parent)) fail('No-write control: the output parent directory was created despite rejection.');
 }
 
 function grafanaControlCase(framework, providerOptions) {
@@ -1712,6 +1853,7 @@ function runSelfTests() {
     controlHeaderToken();
     controlNoSecret();
     controlReadiness();
+    controlNoWriteProbe(workspace.root);
     controlStructuralOptions();
     controlScopedOptions();
     controlSpreadOverrides();
@@ -1726,12 +1868,13 @@ function runSelfTests() {
 
   return [
     'inventory detects a missing generated file',
-    'a real TS2322 diagnostic (exit 2) is detected; a crash is not',
+    'a real TS2322 diagnostic is accepted; a status-2 crash or timeout is not',
     'changed regeneration is detected',
     'nonzero and timed-out exits are never classified as pass',
     'non-token header names are rejected and accepted names round-trip safely',
     'secrets and canaries are redacted',
     'readiness accepts authored complete help and never asserts real help is flag-less',
+    'rejected provider/configuration input exits 2 and writes nothing',
     'providerOptions is bound to the exported adapter call; dead decoys and unexported calls fail',
     'nested declarations cannot replace the live top-level options binding',
     'later spreads cannot override the inspected options unnoticed',
@@ -1748,7 +1891,7 @@ function runSelfTests() {
  * ------------------------------------------------------------------ */
 
 function printHelp() {
-  process.stdout.write(`Hooklatch Phase 7 configured CLI qualification
+  process.stdout.write(`Hooklatch configured CLI qualification (Phase 8 Stage A 19-provider target)
 
 Usage: node scripts/phase7-cli-config-smoke.mjs [options]
 
@@ -1760,12 +1903,12 @@ Options:
 Behaviour:
   A normal run first checks — BEFORE allocating any temp directory — that the
   built registry is exactly the ordered ${TARGET_PROVIDERS} providers
-  (${NEW_PROVIDERS.join(', ')} appended after the existing ${EXISTING_PROVIDER_COUNT}) and that the BUILT CLI
-  advertises the Stage B configuration flags. If either is missing it exits
-  ${EXIT_NOT_READY} (BLOCKED) with no temp allocation. When ready it rechecks the
-  INSTALLED CLI, then packs and installs the local tarball offline into a checked
-  OS-temp consumer and drives the INSTALLED bin to generate all
-  ${TARGET_PROVIDERS * FRAMEWORKS.length} primary provider/framework combinations plus Grafana
+  (${NEW_PROVIDERS.join(', ')} appended after the accepted ${EXISTING_PROVIDER_COUNT}) and that the BUILT CLI
+  advertises the Phase 7 Stage B configuration flags (Linear adds no new flag).
+  If either is missing it exits ${EXIT_NOT_READY} (BLOCKED) with no temp allocation.
+  When ready it rechecks the INSTALLED CLI, then packs and installs the local
+  tarball offline into a checked OS-temp consumer and drives the INSTALLED bin to
+  generate all ${TARGET_PROVIDERS * FRAMEWORKS.length} primary provider/framework combinations plus Grafana
   timestamped-header (incl. a hostile-but-valid token) and Polar legacy variants
   for all ${FRAMEWORKS.length} frameworks, binds each handler's providerOptions to its exported
   adapter call, typechecks it, and checks the full consumer tree (including
@@ -1857,6 +2000,7 @@ function runErrorProbes(cli, consumerRoot) {
     { id: 'timestamped-requires-header', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'timestamped'] },
     { id: 'polar-mode-on-grafana', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'body', '--polar-secret-mode', 'legacy'] },
     { id: 'grafana-flag-on-polar', args: ['--provider', 'polar', '--framework', 'express', '--grafana-mode', 'body'] },
+    { id: 'grafana-flag-on-linear', args: ['--provider', 'linear', '--framework', 'express', '--grafana-mode', 'body'] },
     { id: 'duplicate-grafana-mode', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'body', '--grafana-mode', 'timestamped'] },
     { id: 'invalid-polar-mode', args: ['--provider', 'polar', '--framework', 'express', '--polar-secret-mode', 'bogus'] },
     { id: 'unsafe-header-space', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'timestamped', '--timestamp-header', 'bad name'] },
@@ -1897,6 +2041,10 @@ function runErrorProbes(cli, consumerRoot) {
 }
 
 async function runQualification(providers, npmCli) {
+  if (providers.length !== TARGET_PROVIDERS) {
+    fail(`Refusing to qualify a reduced matrix: ${providers.length} providers instead of ${TARGET_PROVIDERS}.`);
+  }
+
   const workspace = createWorkspace();
   const consumerRoot = path.join(workspace.root, 'consumer');
   let result = EXIT_PASS;
@@ -1932,6 +2080,11 @@ async function runQualification(providers, npmCli) {
     for (const name of PEER_PACKAGES) linkPinnedDependency(workspace, name, consumerRoot);
 
     const cases = [...primaryCases(providers), ...configuredCases()];
+    const expectedCaseCount = TARGET_PROVIDERS * FRAMEWORKS.length + FRAMEWORKS.length * 3;
+
+    if (cases.length !== expectedCaseCount) {
+      fail(`Refusing to qualify a reduced matrix: ${cases.length} cases instead of ${expectedCaseCount}.`);
+    }
 
     for (const caseSpec of cases) {
       const fileName = expectedFileName(caseSpec.provider, caseSpec.framework);
@@ -1992,6 +2145,14 @@ async function main() {
     process.stderr.write('Invalid invocation: unexpected argument. Use --help.\n');
 
     return EXIT_USAGE;
+  }
+
+  const coverage = decideExpectationCoverage();
+
+  if (!coverage.ready) {
+    process.stderr.write(`FAIL: harness expectation coverage is invalid: ${coverage.reason}\n`);
+
+    return EXIT_FAIL;
   }
 
   const selfTest = argv.includes('--self-test');
@@ -2072,7 +2233,7 @@ async function main() {
 
     for (const control of controls) process.stdout.write(`  - ${control}\n`);
 
-    process.stdout.write('SELF-TEST NOTE: harness controls do not establish Grafana or Polar support.\n');
+    process.stdout.write('SELF-TEST NOTE: harness controls do not establish Linear, Grafana or Polar support.\n');
 
     return EXIT_PASS;
   }
