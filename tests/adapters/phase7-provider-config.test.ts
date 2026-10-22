@@ -10,13 +10,18 @@ import { createWebhookMiddleware as createHonoMiddleware } from '../../src/adapt
 import { isTcpAddress } from './signing.js';
 
 /**
- * Phase 7 Stage B Ã¢â‚¬â€ adapter configuration propagation and setup-before-body-read.
+ * Phase 7 Stage B repair — adapter configuration propagation and
+ * setup-before-body-read regressions.
  *
- * Uses shipped providers only for the GREEN adapter-contract cases. Grafana and
- * Polar cases are written against the frozen contract types and are RED at this
- * base: 'grafana'/'polar' are not yet in the Provider union and VerifyOptions
- * has no providerOptions field. Those RED failures are the expected
- * contract-branch state, not defects in this file.
+ * Repair pass (2026-10-22): Grafana signatures are bare 64-hex (not
+ * sha256= prefixed); Polar uses independent Base64/UTF-8 key derivation;
+ * timestamped cases use a fixed `now` matching the synthetic timestamp.
+ *
+ * GREEN cases use the shipped GitHub provider. Grafana/Polar cases are written
+ * against the frozen contract types and are RED at this base: 'grafana'/'polar'
+ * are not yet in the Provider union and VerifyOptions has no providerOptions
+ * field. Those RED failures are the expected contract-branch state, not defects
+ * in this file. No cast of unregistered provider IDs is used.
  *
  * No production code, shared helper, config, or other test file is changed.
  */
@@ -70,24 +75,24 @@ function sendRaw(app: express.Express, body: Uint8Array, headers: Record<string,
 // ---------------------------------------------------------------------------
 
 test('express re-normalizes options on every request', async () => {
-  const secrets = [GITHUB_SECRET];
+  const options = { provider: 'github' as const, secrets: [GITHUB_SECRET] };
   const app = express();
-  app.use(createWebhookMiddleware({ provider: 'github', secrets }));
+  app.use(createWebhookMiddleware(options));
   app.use((_req, res) => res.status(200).send('ok'));
 
-  // First request with the original secret.
   const first = await sendRaw(app, toBytes('hi'), { 'x-hub-signature-256': githubSig(toBytes('hi'), GITHUB_SECRET) });
   expect(first.status).toBe(200);
 
-  // Mutate the shared options object between requests.
-  secrets[0] = 'changed-secret';
+  // Mutate the shared options between requests.
+  // SAFETY: the cast targets the known secrets array property on the options object.
+  (options as MutableSecrets).secrets = ['changed-secret'];
 
-  // Second request: the adapter re-normalizes, so the mutated secret is used.
   const second = await sendRaw(app, toBytes('hi'), { 'x-hub-signature-256': githubSig(toBytes('hi'), 'changed-secret') });
   expect(second.status).toBe(200);
 
   // Restore.
-  secrets[0] = GITHUB_SECRET;
+  // SAFETY: the cast targets the known secrets array property on the options object.
+  (options as MutableSecrets).secrets = [GITHUB_SECRET];
 });
 
 test('express invalid config returns 500 before body read and does not call handler', async () => {
@@ -110,8 +115,6 @@ test('express does not derive options from request headers', async () => {
   app.use(createWebhookMiddleware({ provider: 'github', secrets: [GITHUB_SECRET] }));
   app.use((_req, res) => res.status(200).send('ok'));
 
-  // A request carrying a header whose name matches a config field must not
-  // override the adapter's configured secret.
   const r = await sendRaw(app, toBytes('hi'), {
     'x-hub-signature-256': githubSig(toBytes('hi'), 'wrong-secret'),
     'secrets': GITHUB_SECRET,
@@ -379,7 +382,7 @@ test('grafana body mode authenticates with default signature header', async () =
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': githubSig(toBytes('hi'), GITHUB_SECRET) },
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': 'd51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c' },
   }));
 
   expect(res.status).toBe(200);
@@ -398,7 +401,7 @@ test('grafana body mode rejects a wrong signature header name', async () => {
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': githubSig(toBytes('hi'), GITHUB_SECRET) },
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': 'd51444e75f143d82404d1fee9d2c5bb0ac250cde1671d5e32c391eabce56b17c' },
   }));
 
   expect(res.status).toBe(400);
@@ -421,7 +424,7 @@ test('grafana timestamped mode authenticates with configured headers', async () 
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
     body,
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': `sha256=${sig}`, 'x-grafana-timestamp': String(timestamp) },
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': sig, 'x-grafana-timestamp': String(timestamp) },
   }));
 
   expect(res.status).toBe(200);
@@ -429,17 +432,24 @@ test('grafana timestamped mode authenticates with configured headers', async () 
 });
 
 test('polar current mode authenticates a standard webhooks request', async () => {
+  const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
+  const key = Buffer.from(secret.slice('whsec_'.length), 'base64');
+  const id = 'msg_test';
+  const ts = 1700000100;
+  const body = 'hi';
+  const sig = createHmac('sha256', key).update(`${id}.${ts}.${body}`).digest('base64');
+
   const handler = createNextHandler({
     provider: 'polar',
-    secrets: [GITHUB_SECRET],
+    secrets: [secret],
     providerOptions: { secretMode: 'current' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
-    body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'webhook-id': 'msg_test', 'webhook-timestamp': '1700000100', 'webhook-signature': `v1,${Buffer.from(createHmac('sha256', GITHUB_SECRET).update('msg_test.1700000100.hi').digest()).toString('base64')}` },
+    body: toBytes(body),
+    headers: { 'content-type': 'application/octet-stream', 'webhook-id': id, 'webhook-timestamp': String(ts), 'webhook-signature': `v1,${sig}` },
   }));
 
   expect(res.status).toBe(200);
@@ -447,21 +457,52 @@ test('polar current mode authenticates a standard webhooks request', async () =>
 });
 
 test('polar legacy mode authenticates a standard webhooks request', async () => {
+  const secret = 'polar-legacy-secret-xyz';
+  const id = 'msg_test';
+  const ts = 1700000100;
+  const body = 'hi';
+  const sig = createHmac('sha256', secret).update(`${id}.${ts}.${body}`).digest('base64');
+
   const handler = createNextHandler({
     provider: 'polar',
-    secrets: [GITHUB_SECRET],
+    secrets: [secret],
     providerOptions: { secretMode: 'legacy' },
     handler: async (_req, success) => new Response(String(success.rawBody.byteLength), { status: 200 }),
   });
 
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
-    body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'webhook-id': 'msg_test', 'webhook-timestamp': '1700000100', 'webhook-signature': `v1,${Buffer.from(createHmac('sha256', GITHUB_SECRET).update('msg_test.1700000100.hi').digest()).toString('base64')}` },
+    body: toBytes(body),
+    headers: { 'content-type': 'application/octet-stream', 'webhook-id': id, 'webhook-timestamp': String(ts), 'webhook-signature': `v1,${sig}` },
   }));
 
   expect(res.status).toBe(200);
   expect(await res.text()).toBe('2');
+});
+
+test('polar cross-era: current-signed message rejected under legacy mode', async () => {
+  const secret = 'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw';
+  const key = Buffer.from(secret.slice('whsec_'.length), 'base64');
+  const id = 'msg_test';
+  const ts = 1700000100;
+  const body = 'hi';
+  const sig = createHmac('sha256', key).update(`${id}.${ts}.${body}`).digest('base64');
+
+  const handler = createNextHandler({
+    provider: 'polar',
+    secrets: [secret],
+    providerOptions: { secretMode: 'legacy' },
+    handler: async () => new Response('ok', { status: 200 }),
+  });
+
+  const res = await handler(new Request('https://example.test/webhook', {
+    method: 'POST',
+    body: toBytes(body),
+    headers: { 'content-type': 'application/octet-stream', 'webhook-id': id, 'webhook-timestamp': String(ts), 'webhook-signature': `v1,${sig}` },
+  }));
+
+  expect(res.status).toBe(400);
+  expect(await res.text()).toBe('Bad Request');
 });
 
 test('grafana invalid config returns 500 before body read', async () => {
@@ -485,6 +526,8 @@ test('grafana invalid config returns 500 before body read', async () => {
 });
 
 test('grafana handler receives verified bytes and exact signed identity', async () => {
+  const body = toBytes('hi');
+
   const handler = createNextHandler({
     provider: 'grafana',
     secrets: [GITHUB_SECRET],
@@ -494,8 +537,8 @@ test('grafana handler receives verified bytes and exact signed identity', async 
 
   const res = await handler(new Request('https://example.test/webhook', {
     method: 'POST',
-    body: toBytes('hi'),
-    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': githubSig(toBytes('hi'), GITHUB_SECRET) },
+    body,
+    headers: { 'content-type': 'application/octet-stream', 'x-grafana-alerting-signature': hmacHex(body, GITHUB_SECRET) },
   }));
 
   expect(res.status).toBe(200);
@@ -507,6 +550,49 @@ test('grafana handler receives verified bytes and exact signed identity', async 
   expect(parsed.identity.eventId).toBeNull();
   expect(parsed.identity.timestamp).toBeNull();
   expect(parsed.identity.authenticatedFields).toEqual([]);
+});
+
+// Grafana own-undefined and throwing-getter traps (setup invalid -> 500, no leak).
+test('grafana own-undefined providerOptions is invalid', async () => {
+  const handler = createNextHandler({
+    provider: 'grafana',
+    secrets: [GITHUB_SECRET],
+    providerOptions: { mode: 'body', signatureHeader: undefined },
+    handler: async () => new Response('ok', { status: 200 }),
+  });
+
+  const req = new Request('https://example.test/webhook', {
+    method: 'POST',
+    body: toBytes('hi'),
+    headers: { 'content-type': 'application/octet-stream' },
+  });
+
+  const res = await handler(req);
+  expect(res.status).toBe(500);
+  expect(await res.text()).toBe('Internal Server Error');
+  expect(req.bodyUsed).toBe(false);
+});
+
+test('grafana throwing getter in providerOptions yields generic 500', async () => {
+  const options = {
+    provider: 'grafana',
+    secrets: [GITHUB_SECRET],
+    get providerOptions() { throw new Error('secret getter boom'); },
+    handler: async () => new Response('ok', { status: 200 }),
+  };
+
+  const handler = createNextHandler(options);
+
+  const req = new Request('https://example.test/webhook', {
+    method: 'POST',
+    body: toBytes('hi'),
+    headers: { 'content-type': 'application/octet-stream' },
+  });
+
+  const res = await handler(req);
+  expect(res.status).toBe(500);
+  expect(await res.text()).toBe('Internal Server Error');
+  expect(req.bodyUsed).toBe(false);
 });
 
 // ---------------------------------------------------------------------------
