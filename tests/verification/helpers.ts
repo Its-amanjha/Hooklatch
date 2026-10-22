@@ -37,6 +37,8 @@ export interface FixtureCase {
     readonly toleranceSeconds?: number;
     readonly now: number;
     readonly maxBodyBytes?: number;
+    /** Typed provider configuration for Grafana/Polar (Phase 7). */
+    readonly providerOptions?: unknown;
   };
   readonly expected: FixtureExpected;
   /** Explicit outcome after WHATWG Headers trims outer whitespace. */
@@ -50,6 +52,11 @@ const PROVIDER_FILES: Partial<Record<Provider, string>> = {
   github: '../fixtures/github.json',
   shopify: '../fixtures/shopify.json',
   'standard-webhooks': '../fixtures/standard-webhooks.json',
+  // Phase 7 explicit mappings. These keys are not yet members of Provider (base
+  // has 16 providers); the entries are RED at this base and become valid once
+  // Codex adds 'grafana' and 'polar' to the Provider union in Stage B.
+  grafana: '../fixtures/grafana.json',
+  polar: '../fixtures/polar.json',
 };
 
 function isString(value: unknown): value is string { return typeof value === 'string'; }
@@ -108,6 +115,12 @@ export function isFixtureFile(value: unknown): value is FixtureFile {
 
     if ('maxBodyBytes' in entry.options && typeof entry.options.maxBodyBytes !== 'number') return false;
 
+    if ('providerOptions' in entry.options) {
+      const providerOptions: unknown = entry.options.providerOptions;
+
+      if (typeof providerOptions !== 'object' || providerOptions === null || Array.isArray(providerOptions)) return false;
+    }
+
     if (!('expected' in entry) || !isFixtureExpected(entry.expected)) return false;
 
     if ('webHeadersExpected' in entry && !isFixtureExpected(entry.webHeadersExpected)) return false;
@@ -153,6 +166,8 @@ export function fixtureBytes(case_: FixtureCase): Uint8Array {
 
 type MutableVerifyOptions = { -readonly [Key in keyof VerifyOptions]: VerifyOptions[Key] };
 
+type MutableVerifyOptionsWithProviderOptions = MutableVerifyOptions & { providerOptions?: unknown };
+
 export function fixtureOptions(provider: Provider, case_: FixtureCase): VerifyOptions {
   const options: MutableVerifyOptions = {
     provider,
@@ -163,6 +178,17 @@ export function fixtureOptions(provider: Provider, case_: FixtureCase): VerifyOp
   if (case_.options.toleranceSeconds !== undefined) options.toleranceSeconds = case_.options.toleranceSeconds;
 
   if (case_.options.maxBodyBytes !== undefined) options.maxBodyBytes = case_.options.maxBodyBytes;
+
+  // Preserve typed providerOptions when present. VerifyOptions does not yet carry
+  // providerOptions at this base (Grafana/Polar are unregistered), so the
+  // assignment is a type error here. SAFETY: this field is forwarded verbatim to
+  // the future VerifyOptions union member; no transformation or defaulting.
+  if (case_.options.providerOptions !== undefined) {
+    // SAFETY: VerifyOptions has no providerOptions field at this base; the
+    // named mutable type forwards the validated fixture value to the future
+    // union member without discarding the known option evidence.
+    (options as MutableVerifyOptionsWithProviderOptions).providerOptions = case_.options.providerOptions;
+  }
 
   return options;
 }
