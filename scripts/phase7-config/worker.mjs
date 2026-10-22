@@ -1,162 +1,155 @@
-/**
- * Neutral Web-standard worker for workerd qualification of Grafana and Polar.
- *
- * Strictly zero Node builtins, no process, and no Buffer imports.
- * Communicates via standard Web Fetch Request / Response.
- */
-
-function isString(val) {
-  return Object.prototype.toString.call(val) === '[object String]';
+/** Web-only executor shared by Node and workerd qualification. */
+function isCallable(value) {
+  return Object.prototype.toString.call(value) === '[object Function]'
+    || Object.prototype.toString.call(value) === '[object AsyncFunction]';
 }
 
-function isCallable(val) {
-  return Object.prototype.toString.call(val) === '[object Function]' ||
-    Object.prototype.toString.call(val) === '[object AsyncFunction]';
-}
+function buildOptions(wire) {
+  const options = { ...wire, secrets: [...wire.secrets] };
 
-function buildVerifyOptions(specOptions) {
-  const options = {
-    provider: specOptions.provider,
-    secrets: specOptions.secrets,
-  };
+  if (Object.hasOwn(wire, 'providerOptions')) options.providerOptions = { ...wire.providerOptions };
 
-  if (specOptions.toleranceSeconds !== undefined) {
-    options.toleranceSeconds = specOptions.toleranceSeconds;
-  }
-
-  if (specOptions.now !== undefined) {
-    const rawNow = specOptions.now;
-
-    options.now = isCallable(rawNow) ? rawNow : () => rawNow;
-  }
-
-  if (specOptions.providerOptions !== undefined) {
-    const providerOpts = {};
-
-    for (const [key, value] of Object.entries(specOptions.providerOptions)) {
-      if (value !== undefined) {
-        providerOpts[key] = value;
-      }
-    }
-
-    options.providerOptions = providerOpts;
+  if (Object.hasOwn(wire, 'now')) {
+    const now = wire.now;
+    options.now = () => now;
   }
 
   return options;
 }
 
+function packResult(result) {
+  return {
+    ok: result.ok, provider: result.provider, reason: result.reason,
+    identity: result.identity,
+    bytes: result.rawBody instanceof Uint8Array ? Array.from(result.rawBody) : undefined,
+  };
+}
+
+function packError(sdk, error) {
+  if (error instanceof sdk.HooklatchError) return { isHooklatchError: true, errorCode: error.code };
+
+  return { isInfrastructureFailure: true, errorCategory: 'sdk-exception' };
+}
+
+/** Observe a real awaited rejection, with stream auto-pull disabled. */
+async function setupBeforeRead(sdk, options) {
+  let pulls = 0;
+
+  const stream = new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(new Uint8Array([0, 255, 1]));
+      controller.close();
+    },
+  }, { highWaterMark: 0 });
+
+  const request = new Request('https://qualification.test/setup', {
+    method: 'POST', body: stream, duplex: 'half',
+  });
+
+  let outcome;
+
+  try {
+    outcome = packResult(await sdk.verifyRequest(request, options));
+  } catch (error) {
+    outcome = packError(sdk, error);
+  }
+
+  await Promise.resolve();
+  outcome.bodyPulls = pulls;
+  outcome.bodyUsed = request.bodyUsed;
+  await stream.cancel();
+
+  return outcome;
+}
+
+/** Each invocation owns options and byte views; catalogue fixtures never mutate. */
+export async function executeSdkCase(sdk, spec, api) {
+  const options = buildOptions(spec.options);
+
+  if (spec.scenario === 'setup-before-read') return setupBeforeRead(sdk, options);
+  const rawBody = new Uint8Array(spec.bytes);
+  const original = new Uint8Array(rawBody);
+  const headers = new Headers(spec.headers);
+
+  const mutate = () => {
+    if (spec.scenario === 'config-snapshot') {
+      if (options.provider === 'grafana') {
+        options.providerOptions.mode = 'invalid-after-setup';
+        options.providerOptions.signatureHeader = 'x-after-setup';
+        options.providerOptions.timestampHeader = 'x-after-setup-time';
+      } else options.providerOptions.secretMode = 'invalid-after-setup';
+    }
+
+    if (spec.scenario === 'secret-snapshot') options.secrets[0] = 'mutated-synthetic-key';
+  };
+
+  try {
+    let pending;
+
+    if (api === 'createVerifier') {
+      const verifier = sdk.createVerifier(options);
+      mutate();
+      pending = verifier({ rawBody, headers });
+    } else if (api === 'verifyRequest') {
+      const stream = new ReadableStream({
+        pull(controller) {
+          controller.enqueue(rawBody);
+          controller.close();
+        },
+      }, { highWaterMark: 0 });
+
+      const request = new Request('https://qualification.test/webhook', {
+        method: 'POST', headers, body: stream, duplex: 'half',
+      });
+
+      pending = sdk.verifyRequest(request, options);
+      mutate();
+    } else if (api === 'verify') {
+      pending = sdk.verify({ rawBody, headers }, options);
+      mutate();
+    } else return { isInfrastructureFailure: true, errorCategory: 'unknown-api' };
+
+    // Direct APIs snapshot before crypto awaits. Request bodies are asynchronous:
+    // their returned bytes must be independent of the source after the read.
+    if (spec.scenario === 'byte-snapshot' && api !== 'verifyRequest') rawBody.fill(0);
+    const result = await pending;
+
+    if (spec.scenario === 'byte-snapshot' && api === 'verifyRequest') rawBody.fill(0);
+    const packed = packResult(result);
+
+    if (spec.scenario === 'byte-snapshot') {
+      packed.snapshotSourceChanged = rawBody.some((byte, index) => byte !== original[index]);
+    }
+
+    return packed;
+  } catch (error) {
+    return packError(sdk, error);
+  }
+}
+
 export default {
   async fetch(request) {
-    const url = new URL(request.url);
-
-    if (url.pathname === '/runtime') {
+    if (new URL(request.url).pathname === '/runtime') {
       return Response.json({
         userAgent: globalThis.navigator?.userAgent ?? 'unavailable',
-        hasProcess: typeof process !== 'undefined',
-        hasBuffer: typeof Buffer !== 'undefined',
+        hasProcess: Object.hasOwn(globalThis, 'process'),
+        hasBuffer: Object.hasOwn(globalThis, 'Buffer'),
       });
     }
-
-    if (url.pathname === '/health') {
-      return Response.json({ status: 'healthy', environment: 'workerd' });
-    }
-
-    let sdkModule;
 
     try {
-      sdkModule = await import('../../dist/index.js');
+      const spec = await request.json();
+      const sdk = await import('../../dist/index.js');
+
+      if (!isCallable(sdk.verify) || !isCallable(sdk.verifyRequest)
+        || !isCallable(sdk.createVerifier) || !isCallable(sdk.HooklatchError)) {
+        return Response.json({ errorCategory: 'sdk-exports' }, { status: 500 });
+      }
+
+      return Response.json(await executeSdkCase(sdk, spec, spec.api));
     } catch {
-      return Response.json({
-        ok: false,
-        errorCategory: 'module-load-failure',
-        errorCode: 'dist-import-failed',
-      }, { status: 500 });
+      return Response.json({ errorCategory: 'worker-execution' }, { status: 500 });
     }
-
-    if (url.pathname === '/sdk-info') {
-      return Response.json({
-        loaded: isCallable(sdkModule.verify),
-        providers: sdkModule.SUPPORTED_PROVIDERS ?? [],
-      });
-    }
-
-    const isVerifyRequest = url.pathname.startsWith('/verify-request');
-
-    const isVerify = url.pathname.startsWith('/verify');
-
-    const isCreateVerifier = url.pathname.startsWith('/create-verifier');
-
-    if (isVerifyRequest || isVerify || isCreateVerifier) {
-      const caseHeader = request.headers.get('x-test-case');
-
-      if (!caseHeader) {
-        return Response.json({
-          ok: false,
-          errorCategory: 'request-error',
-          errorCode: 'missing-case-header',
-        }, { status: 400 });
-      }
-
-      let spec;
-
-      try {
-        spec = JSON.parse(caseHeader);
-      } catch {
-        return Response.json({
-          ok: false,
-          errorCategory: 'request-error',
-          errorCode: 'malformed-case-header',
-        }, { status: 400 });
-      }
-
-      try {
-        if (!isCallable(sdkModule.verify)) {
-          return Response.json({
-            ok: false,
-            errorCategory: 'system',
-            errorCode: 'sdk-verify-not-callable',
-          }, { status: 501 });
-        }
-
-        const verifyOptions = buildVerifyOptions(spec.options);
-
-        let result;
-
-        if (isVerifyRequest) {
-          // Tests setup-before-body-pull directly through public API without pre-reading body
-          result = await sdkModule.verifyRequest(request, verifyOptions);
-        } else if (isCreateVerifier) {
-          const rawBody = new Uint8Array(await request.arrayBuffer());
-
-          const verifier = sdkModule.createVerifier(verifyOptions);
-
-          result = await verifier({ rawBody, headers: request.headers });
-        } else {
-          const rawBody = new Uint8Array(await request.arrayBuffer());
-
-          result = await sdkModule.verify({ rawBody, headers: request.headers }, verifyOptions);
-        }
-
-        return Response.json({
-          ok: result.ok,
-          provider: result.provider,
-          reason: result.reason,
-          identity: result.identity,
-          bytes: result.rawBody ? Array.from(result.rawBody) : undefined,
-        });
-      } catch (err) {
-        const isHooklatch = err.name === 'HooklatchError' ||
-          Boolean(err.code && isString(err.code));
-
-        return Response.json({
-          ok: false,
-          isHooklatchError: isHooklatch,
-          errorCode: isHooklatch ? err.code : 'internal-error',
-          errorCategory: isHooklatch ? 'verification' : 'system',
-        }, { status: 200 });
-      }
-    }
-
-    return new Response('Not Found', { status: 404 });
   },
 };

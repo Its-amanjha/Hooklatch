@@ -1,513 +1,59 @@
 #!/usr/bin/env node
-
-/**
- * Phase 7 Configuration and Runtime Qualification Runner.
- *
- * Standalone qualification tooling for Grafana and Polar typed provider configurations.
- * Supports:
- *   --json       Emit structured JSON document strictly after cleanup and integrity checks.
- *   --self-test  Execute independent synthetic harness controls and report status.
- *   --help, -h   Display command usage and exit 0.
- *
- * Base 16 Contract:
- *   When run at base 16 (where Grafana and Polar are not yet registered in core),
- *   normal execution exits with code 3 (BLOCKED) BEFORE any temp resource allocation.
- */
-
+/** Standalone Phase7 tooling. Selftests are harness evidence, never provider qualification. */
+import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { fork, spawnSync, execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { executeSdkCase } from './phase7-config/worker.mjs';
 
-// ---------------------------------------------------------------------------
-// Boundary type predicates (satisfies anti-slop/no-runtime-typeof)
-// ---------------------------------------------------------------------------
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const WORKSPACE_ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
+const WORKER_SOURCE_PATH = path.join(WORKSPACE_ROOT, 'scripts/phase7-config/worker.mjs');
 
-function isString(val) {
-  return Object.prototype.toString.call(val) === '[object String]';
-}
+const EXPECTED_18_PROVIDERS = ['stripe', 'github', 'shopify', 'standard-webhooks',
+  'clerk', 'svix', 'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab',
+  'replicate', 'workos', 'sentry', 'doppler', 'sanity', 'grafana', 'polar'];
 
-function isObject(val) {
-  return Object.prototype.toString.call(val) === '[object Object]';
-}
-
-function isArray(val) {
-  return Array.isArray(val);
-}
-
-function isFunction(val) {
-  return Object.prototype.toString.call(val) === '[object Function]' ||
-    Object.prototype.toString.call(val) === '[object AsyncFunction]';
-}
-
-// ---------------------------------------------------------------------------
-// Constants & Paths
-// ---------------------------------------------------------------------------
-
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-
-const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, '..');
-
-const WORKER_SOURCE_PATH = path.join(SCRIPT_DIR, 'phase7-config', 'worker.mjs');
-
-const BASE_SHA = 'e947b8216d7a21095f64530f34ef5e8153e73bc9';
-
-const EXPECTED_18_PROVIDERS = [
-  'stripe',
-  'github',
-  'shopify',
-  'standard-webhooks',
-  'clerk',
-  'svix',
-  'razorpay',
-  'paddle',
-  'lemon-squeezy',
-  'dodo-payments',
-  'gitlab',
-  'replicate',
-  'workos',
-  'sentry',
-  'doppler',
-  'sanity',
-  'grafana',
-  'polar',
-];
-
-const REQUIRED_CLI_FLAGS = [
-  '--grafana-mode',
-  '--signature-header',
-  '--timestamp-header',
-  '--polar-secret-mode',
-];
-
+const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp-header', '--polar-secret-mode'];
 const PINNED_GRAFANA_COLON_DIGEST = 'f6cdebb3d45820628f1a70ffe07a4074d9127cc57f20fe59a0010391c2ab5714';
+const APIS = ['verify', 'verifyRequest', 'createVerifier'];
+const RUNTIMES = ['node', 'worker'];
+const MAX_REPORT_BYTES = 131072;
 
-// ---------------------------------------------------------------------------
-// Asynchronous Operation Bounding Helper
-// ---------------------------------------------------------------------------
+function isObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]';
+}
 
-async function withTimeout(promise, ms, label) {
+function isCallable(value) {
+  return Object.prototype.toString.call(value) === '[object Function]'
+    || Object.prototype.toString.call(value) === '[object AsyncFunction]';
+}
+
+function within(root, target) {
+  const relative = path.relative(root, target);
+
+  return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`)
+    && !path.isAbsolute(relative);
+}
+
+function requireCheck(condition, category) {
+  if (!condition) throw new Error(category);
+}
+
+async function withTimeout(promise, ms) {
   let timer;
 
-  const timeoutPromise = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`Operation timed out: ${label} exceeded ${ms}ms`));
-    }, ms);
-  });
-
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race([promise, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('operation-timeout')), ms);
+    })]);
   } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
+    clearTimeout(timer);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Redaction & Sanitization
-// ---------------------------------------------------------------------------
-
-const CANARY_PATTERNS = [
-  /whsec_[A-Za-z0-9+/=_-]{16,}/g,
-  /CANARY_[A-Za-z0-9_]+/g,
-  /[0-9a-fA-F]{64}/g,
-];
-
-function redactSensitiveText(input) {
-  if (!isString(input)) {
-    return input;
-  }
-
-  let result = input;
-
-  for (const pattern of CANARY_PATTERNS) {
-    result = result.replace(pattern, '[REDACTED]');
-  }
-
-  return result;
-}
-
-function sanitizeValue(val) {
-  if (isString(val)) {
-    return redactSensitiveText(val);
-  }
-
-  if (isArray(val)) {
-    const sanitizedArray = [];
-
-    for (const item of val) {
-      sanitizedArray.push(sanitizeValue(item));
-    }
-
-    return sanitizedArray;
-  }
-
-  if (isObject(val)) {
-    const sanitizedObj = {};
-
-    for (const [key, value] of Object.entries(val)) {
-      sanitizedObj[key] = sanitizeValue(value);
-    }
-
-    return sanitizedObj;
-  }
-
-  return val;
-}
-
-// ---------------------------------------------------------------------------
-// Byte-Level Workspace Integrity Tracking
-// ---------------------------------------------------------------------------
-
-function computeFileHash(filePath) {
-  try {
-    const buffer = fs.readFileSync(filePath);
-
-    return crypto.createHash('sha256').update(buffer).digest('hex');
-  } catch {
-    return null;
-  }
-}
-
-function getTrackedConfigFiles(workspaceRoot) {
-  const relPaths = [
-    'package.json',
-    'tsconfig.json',
-    'tsconfig.check.json',
-    'tsconfig.cli.json',
-    'src/index.ts',
-    'src/core.ts',
-    'src/types.ts',
-    'src/errors.ts',
-    'src/providers/index.ts',
-  ];
-
-  const hashes = {};
-
-  for (const rel of relPaths) {
-    const full = path.join(workspaceRoot, rel);
-
-    if (fs.existsSync(full)) {
-      hashes[rel] = computeFileHash(full);
-    }
-  }
-
-  return hashes;
-}
-
-function verifyByteIntegrity(beforeHashes, workspaceRoot) {
-  const discrepancies = [];
-
-  for (const [rel, beforeHash] of Object.entries(beforeHashes)) {
-    const full = path.join(workspaceRoot, rel);
-
-    const currentHash = computeFileHash(full);
-
-    if (currentHash !== beforeHash) {
-      discrepancies.push({ file: rel, expected: beforeHash, actual: currentHash });
-    }
-  }
-
-  return {
-    intact: discrepancies.length === 0,
-    discrepancies,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Authoritative Resource Management & Safe Cleanup
-// ---------------------------------------------------------------------------
-
-class AuthoritativeResourceManager {
-  constructor(basePrefix) {
-    this.basePrefix = path.resolve(basePrefix);
-
-    this.allocatedDirs = new Set();
-
-    this.allocatedLinks = new Set();
-
-    this.failedUnlinks = new Set();
-
-    this.activeWorkers = new Set();
-
-    this.cleanupErrors = [];
-
-    this.uncertainTermination = false;
-  }
-
-  createTempDir(prefix) {
-    const dir = fs.mkdtempSync(path.join(this.basePrefix, prefix));
-
-    const resolved = path.resolve(dir);
-
-    this.allocatedDirs.add(resolved);
-
-    return resolved;
-  }
-
-  createJunction(target, linkPath) {
-    const resolvedLink = path.resolve(linkPath);
-
-    fs.symlinkSync(target, resolvedLink, 'junction');
-
-    this.allocatedLinks.add(resolvedLink);
-
-    return resolvedLink;
-  }
-
-  registerWorker(runtimeInstance) {
-    this.activeWorkers.add(runtimeInstance);
-  }
-
-  async disposeWorker(runtimeInstance) {
-    if (!this.activeWorkers.has(runtimeInstance)) {
-      return;
-    }
-
-    try {
-      await withTimeout(runtimeInstance.dispose(), 5000, 'worker-disposal');
-
-      this.activeWorkers.delete(runtimeInstance);
-    } catch {
-      this.uncertainTermination = true;
-
-      this.cleanupErrors.push('Worker disposal failure or timeout');
-    }
-  }
-
-  isWithinPrefix(targetPath) {
-    const resolved = path.resolve(targetPath);
-
-    const rel = path.relative(this.basePrefix, resolved);
-
-    return !rel.startsWith('..') && !path.isAbsolute(rel) && rel !== '';
-  }
-
-  safeUnlink(linkPath) {
-    const resolved = path.resolve(linkPath);
-
-    if (!this.isWithinPrefix(resolved)) {
-      this.cleanupErrors.push('Unlink target outside temporary root');
-
-      return false;
-    }
-
-    try {
-      const lstat = fs.lstatSync(resolved, { throwIfNoEntry: false });
-
-      if (!lstat) {
-        return true;
-      }
-
-      if (!lstat.isSymbolicLink()) {
-        this.cleanupErrors.push('Refusing to unlink non-symbolic-link');
-
-        this.failedUnlinks.add(resolved);
-
-        return false;
-      }
-
-      fs.unlinkSync(resolved);
-
-      const check = fs.lstatSync(resolved, { throwIfNoEntry: false });
-
-      if (check) {
-        this.failedUnlinks.add(resolved);
-
-        this.cleanupErrors.push('Link still exists after unlinkSync');
-
-        return false;
-      }
-
-      return true;
-    } catch {
-      this.failedUnlinks.add(resolved);
-
-      this.cleanupErrors.push('Exception during junction unlink');
-
-      return false;
-    }
-  }
-
-  safeRemoveDir(dirPath) {
-    const resolved = path.resolve(dirPath);
-
-    if (!this.isWithinPrefix(resolved)) {
-      this.cleanupErrors.push('Directory removal target outside temporary root');
-
-      return false;
-    }
-
-    if (this.uncertainTermination) {
-      // Retain artifacts on uncertain worker termination for forensics
-      return false;
-    }
-
-    // If any junction failed to unlink within this directory, DO NOT remove parent directory
-    for (const failedLink of this.failedUnlinks) {
-      const rel = path.relative(resolved, failedLink);
-
-      if (!rel.startsWith('..') && !path.isAbsolute(rel)) {
-        this.cleanupErrors.push('Retaining directory because an unlinked junction remains inside it');
-
-        return false;
-      }
-    }
-
-    try {
-      if (fs.existsSync(resolved)) {
-        fs.rmSync(resolved, { recursive: true, force: true });
-      }
-
-      return true;
-    } catch {
-      this.cleanupErrors.push('Exception during directory removal');
-
-      return false;
-    }
-  }
-
-  async cleanupAll() {
-    for (const worker of this.activeWorkers) {
-      await this.disposeWorker(worker);
-    }
-
-    for (const link of this.allocatedLinks) {
-      this.safeUnlink(link);
-    }
-
-    if (this.uncertainTermination || this.failedUnlinks.size > 0) {
-      return {
-        ok: false,
-        retained: true,
-        errors: this.cleanupErrors,
-      };
-    }
-
-    for (const dir of this.allocatedDirs) {
-      this.safeRemoveDir(dir);
-    }
-
-    return {
-      ok: this.cleanupErrors.length === 0,
-      retained: false,
-      errors: this.cleanupErrors,
-    };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Base 16 Readiness Inspection
-// ---------------------------------------------------------------------------
-
-async function inspectProviderReadiness(workspaceRoot) {
-  const missing = [];
-
-  const details = [];
-
-  // 1. Built providers index
-  const distProvidersPath = path.join(workspaceRoot, 'dist', 'providers', 'index.js');
-
-  if (!fs.existsSync(distProvidersPath)) {
-    return {
-      ready: false,
-      reason: 'Built artifacts missing: dist/providers/index.js not found. Full build required.',
-      missing: ['grafana', 'polar'],
-      details: ['dist-providers-missing'],
-    };
-  }
-
-  try {
-    const providersUrl = pathToFileURL(distProvidersPath).href;
-
-    const providersModule = await import(providersUrl);
-
-    const actualProviders = providersModule.SUPPORTED_PROVIDERS;
-
-    if (!isArray(actualProviders) || actualProviders.length !== EXPECTED_18_PROVIDERS.length) {
-      details.push(`supported-providers-count-mismatch:${actualProviders?.length ?? 0}`);
-    }
-
-    for (const provider of ['grafana', 'polar']) {
-      if (!actualProviders?.includes(provider)) {
-        missing.push(provider);
-
-        details.push(`provider-not-in-built-registry:${provider}`);
-      }
-    }
-  } catch {
-    return {
-      ready: false,
-      reason: 'Failed to import dist/providers/index.js artifact.',
-      missing: ['grafana', 'polar'],
-      details: ['dist-providers-import-error'],
-    };
-  }
-
-  // 2. Built CLI flags readiness checked via executing --help
-  const distCliPath = path.join(workspaceRoot, 'dist', 'cli', 'index.js');
-
-  if (!fs.existsSync(distCliPath)) {
-    details.push('built-cli-missing');
-  } else {
-    try {
-      const helpOutput = execFileSync(process.execPath, [distCliPath, '--help'], {
-        encoding: 'utf8',
-        timeout: 5000,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-
-      for (const flag of REQUIRED_CLI_FLAGS) {
-        if (!helpOutput.includes(flag)) {
-          details.push(`cli-flag-missing:${flag}`);
-        }
-      }
-    } catch {
-      details.push('built-cli-execution-failed');
-    }
-  }
-
-  // 3. Option types readiness
-  const distTypesPath = path.join(workspaceRoot, 'dist', 'types.d.ts');
-
-  if (fs.existsSync(distTypesPath)) {
-    const typesContent = fs.readFileSync(distTypesPath, 'utf8');
-
-    // Strip comments to ensure declarations are real
-    const cleanTypes = typesContent
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*/g, '');
-
-    if (!cleanTypes.includes('GrafanaOptions') || !cleanTypes.includes('PolarOptions')) {
-      details.push('option-types-missing');
-    }
-  } else {
-    details.push('dist-types-missing');
-  }
-
-  if (missing.length > 0 || details.length > 0) {
-    return {
-      ready: false,
-      reason: `SDK is not ready for Phase 7 qualification. Missing: ${details.join(', ')}`,
-      missing,
-      details,
-    };
-  }
-
-  return {
-    ready: true,
-    reason: 'All required 18 providers and CLI options are present in built artifacts.',
-    missing: [],
-    details: [],
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Case Registry & Unified Classifier
-// ---------------------------------------------------------------------------
 
 function buildExecutableCaseCatalogue() {
   const cases = new Map();
@@ -1155,6 +701,61 @@ function buildExecutableCaseCatalogue() {
     },
   });
 
+  for (const def of cases.values()) {
+    if (def.expected.ok && !def.expected.identity) {
+      def.expected.identity = def.provider === 'grafana'
+        ? { deliveryId: null, eventId: null, timestamp: 1700000000, authenticatedFields: ['timestamp'] }
+        : { deliveryId: null, eventId: polarId, timestamp: 1700000000, authenticatedFields: ['eventId', 'timestamp'] };
+    }
+  }
+
+  const cloneCase = (id, baseId, scenario) => {
+    const base = cases.get(baseId);
+    cases.set(id, { ...base, id, scenario });
+  };
+
+  for (const [prefix, baseId] of [
+    ['grafana-body', 'grafana-body-valid'], ['grafana-timestamped', 'grafana-timestamped-valid'],
+    ['polar-current', 'polar-current-valid'], ['polar-legacy', 'polar-legacy-valid'],
+  ]) {
+    for (const scenario of ['config-snapshot', 'secret-snapshot', 'byte-snapshot']) {
+      cloneCase(`${prefix}-${scenario}`, baseId, scenario);
+    }
+  }
+
+  cases.set('grafana-wrong-layout', {
+    ...cases.get('grafana-timestamped-valid'), id: 'grafana-wrong-layout',
+    headers: { 'x-grafana-alerting-signature': grafanaBodySig, 'x-grafana-timestamp': grafanaTimestamp },
+    expected: { ok: false, reason: 'invalid-signature' },
+  });
+  cases.set('polar-current-mac-in-legacy', {
+    ...cases.get('polar-current-valid'), id: 'polar-current-mac-in-legacy',
+    options: { ...cases.get('polar-current-valid').options, providerOptions: { secretMode: 'legacy' } },
+    expected: { ok: false, reason: 'invalid-signature' },
+  });
+  cases.set('polar-legacy-mac-in-current', {
+    ...cases.get('polar-current-valid'), id: 'polar-legacy-mac-in-current',
+    headers: { 'webhook-id': polarId, 'webhook-timestamp': polarTimestamp,
+      'webhook-signature': `v1,${crypto.createHmac('sha256', polarSecretCurrent).update(polarPayload).digest('base64')}` },
+    expected: { ok: false, reason: 'invalid-signature' },
+  });
+  cases.set('setup-invalid-secret-before-read', {
+    id: 'setup-invalid-secret-before-read', provider: 'github', scenario: 'setup-before-read',
+    options: { provider: 'github', secrets: [''] }, rawBody: new Uint8Array(), headers: {},
+    expected: { expectedError: 'invalid-secret' },
+  });
+
+  cases.set('setup-grafana-config-before-read', {
+    id: 'setup-grafana-config-before-read', provider: 'grafana', scenario: 'setup-before-read',
+    options: { provider: 'grafana', secrets: [grafanaSecret], providerOptions: { mode: 'invalid' } },
+    rawBody: new Uint8Array(), headers: {}, expected: { expectedError: 'invalid-options' },
+  });
+  cases.set('setup-polar-config-before-read', {
+    id: 'setup-polar-config-before-read', provider: 'polar', scenario: 'setup-before-read',
+    options: { provider: 'polar', secrets: [polarSecretCurrent], providerOptions: { secretMode: 'invalid' } },
+    rawBody: new Uint8Array(), headers: {}, expected: { expectedError: 'invalid-options' },
+  });
+
   return cases;
 }
 
@@ -1189,1195 +790,694 @@ const REQUIRED_CASE_IDS = [
   'polar-legacy-valid',
   'polar-legacy-no-prefix',
   'polar-wrong-mode-reject',
+  'grafana-body-config-snapshot', 'grafana-body-secret-snapshot', 'grafana-body-byte-snapshot',
+  'grafana-timestamped-config-snapshot', 'grafana-timestamped-secret-snapshot', 'grafana-timestamped-byte-snapshot',
+  'polar-current-config-snapshot', 'polar-current-secret-snapshot', 'polar-current-byte-snapshot',
+  'polar-legacy-config-snapshot', 'polar-legacy-secret-snapshot', 'polar-legacy-byte-snapshot',
+  'grafana-wrong-layout', 'polar-current-mac-in-legacy', 'polar-legacy-mac-in-current',
+  'setup-invalid-secret-before-read', 'setup-grafana-config-before-read', 'setup-polar-config-before-read',
 ];
 
-const RUNTIMES = ['node', 'worker'];
+function allowedKeys(value, keys) {
+  return isObject(value) && Object.keys(value).every((key) => keys.includes(key));
+}
 
-const APIS = ['verify', 'verifyRequest', 'createVerifier'];
+function exactIdentity(actual, expected) {
+  if (!allowedKeys(actual, ['deliveryId', 'eventId', 'timestamp', 'authenticatedFields'])) return false;
 
-function buildRequiredExecutionKeys() {
+  if (actual.deliveryId !== expected.deliveryId || actual.eventId !== expected.eventId
+    || actual.timestamp !== expected.timestamp || !Array.isArray(actual.authenticatedFields)) return false;
+
+  return actual.authenticatedFields.length === expected.authenticatedFields.length
+    && actual.authenticatedFields.every((field, index) => field === expected.authenticatedFields[index]);
+}
+
+function classifyVerificationResult(def, outcome) {
+  const fail = (reason) => ({ pass: false, reason });
+
+  if (!isObject(outcome)) return fail('malformed-result');
+
+  if (outcome.isInfrastructureFailure) return fail('infrastructure-failure');
+
+  if (def.expected.expectedError) {
+    if (!allowedKeys(outcome, ['isHooklatchError', 'errorCode', 'bodyPulls', 'bodyUsed'])
+      || outcome.isHooklatchError !== true || outcome.errorCode !== def.expected.expectedError) {
+      return fail('setup-error-identity-or-code');
+    }
+
+    if (def.scenario === 'setup-before-read'
+      && (outcome.bodyPulls !== 0 || outcome.bodyUsed !== false)) return fail('body-read-before-setup');
+
+    return { pass: true };
+  }
+
+  if (!allowedKeys(outcome, ['ok', 'provider', 'reason', 'identity', 'bytes', 'snapshotSourceChanged'])
+    || outcome.provider !== def.provider || outcome.ok !== def.expected.ok) return fail('verification-shape');
+
+  if (!def.expected.ok) {
+    return outcome.reason === def.expected.reason ? { pass: true } : fail('failure-reason');
+  }
+
+  if (outcome.reason !== undefined || !exactIdentity(outcome.identity, def.expected.identity)) return fail('identity');
+
+  if (!Array.isArray(outcome.bytes) || outcome.bytes.length !== def.rawBody.length
+    || !outcome.bytes.every((byte, index) => Number.isInteger(byte) && byte >= 0 && byte <= 255
+      && byte === def.rawBody[index])) return fail('preserved-bytes');
+
+  if (def.scenario === 'byte-snapshot' && outcome.snapshotSourceChanged !== true) return fail('mutation-not-observed');
+
+  return { pass: true };
+}
+
+function apisFor(id) {
+  return ['setup-invalid-secret-before-read', 'setup-grafana-config-before-read', 'setup-polar-config-before-read'].includes(id)
+    ? ['verifyRequest'] : APIS;
+}
+
+function requiredKeys() {
   const keys = new Set();
 
-  for (const caseId of REQUIRED_CASE_IDS) {
+  for (const id of REQUIRED_CASE_IDS) {
     for (const runtime of RUNTIMES) {
-      for (const api of APIS) {
-        keys.add(`${caseId}::${runtime}::${api}`);
-      }
+      for (const api of apisFor(id)) keys.add(`${id}::${runtime}::${api}`);
     }
   }
 
   return keys;
 }
 
-const REQUIRED_EXECUTION_KEYS = buildRequiredExecutionKeys();
+function validateBatchCoverage(catalogue, results) {
+  const required = requiredKeys();
+  const failures = [];
 
-function classifyVerificationResult(caseDef, outcome, context) {
-  if (outcome?.isInfrastructureFailure) {
-    return {
-      pass: false,
-      reason: 'Infrastructure failure: execution crashed or threw unexpectedly',
-      isInfrastructureFailure: true,
-    };
+  if (catalogue.size !== REQUIRED_CASE_IDS.length
+    || REQUIRED_CASE_IDS.some((id) => !catalogue.has(id))) failures.push('catalogue-inventory');
+
+  for (const key of required) {
+    if (!results.has(key)) failures.push(`missing:${key}`);
   }
 
-  // Handle expected errors (such as invalid-options, invalid-secret)
-  if (caseDef.expected.expectedError) {
-    const errorCode = outcome.isHooklatchError ? outcome.errorCode : outcome.error;
+  for (const [key, outcome] of results) {
+    const def = catalogue.get(key.split('::')[0]);
 
-    if (errorCode === caseDef.expected.expectedError) {
-      return { pass: true };
+    if (!required.has(key) || !def) failures.push('extra-result');
+    else {
+      const classification = classifyVerificationResult(def, outcome);
+
+      if (!classification.pass) failures.push(`${key}:${classification.reason}`);
     }
-
-    return {
-      pass: false,
-      reason: `Expected error ${caseDef.expected.expectedError}, observed: ${errorCode ?? 'none'}`,
-    };
   }
 
-  if (outcome.isHooklatchError || outcome.isException) {
-    return {
-      pass: false,
-      reason: `Unexpected exception thrown: ${outcome.errorCode ?? 'unknown-error'}`,
-    };
-  }
-
-  if (caseDef.expected.ok === true) {
-    if (outcome.ok !== true) {
-      return {
-        pass: false,
-        reason: `Expected ok:true, got ok:false with reason: ${outcome.reason}`,
-      };
-    }
-
-    if (outcome.provider && outcome.provider !== caseDef.provider) {
-      return {
-        pass: false,
-        reason: `Expected provider ${caseDef.provider}, got ${outcome.provider}`,
-      };
-    }
-
-    if (caseDef.expected.identity && outcome.identity) {
-      const expId = caseDef.expected.identity;
-
-      const actId = outcome.identity;
-
-      if (expId.deliveryId !== undefined && expId.deliveryId !== actId.deliveryId) {
-        return { pass: false, reason: 'deliveryId mismatch in identity' };
-      }
-
-      if (expId.eventId !== undefined && expId.eventId !== actId.eventId) {
-        return { pass: false, reason: 'eventId mismatch in identity' };
-      }
-
-      if (expId.timestamp !== undefined && expId.timestamp !== actId.timestamp) {
-        return { pass: false, reason: 'timestamp mismatch in identity' };
-      }
-
-      if (expId.authenticatedFields !== undefined && isArray(actId.authenticatedFields)) {
-        if (expId.authenticatedFields.length !== actId.authenticatedFields.length) {
-          return { pass: false, reason: 'authenticatedFields length mismatch in identity' };
-        }
-
-        for (const field of expId.authenticatedFields) {
-          if (!actId.authenticatedFields.includes(field)) {
-            return { pass: false, reason: `Missing authenticatedField: ${field}` };
-          }
-        }
-      }
-    }
-
-    // Byte preservation check
-    const returnedBytes = outcome.bytes ? new Uint8Array(outcome.bytes) : outcome.rawBody;
-
-    if (returnedBytes && caseDef.rawBody) {
-      if (returnedBytes.length !== caseDef.rawBody.length) {
-        return { pass: false, reason: 'Preserved byte length mismatch' };
-      }
-
-      for (let i = 0; i < returnedBytes.length; i += 1) {
-        if (returnedBytes[i] !== caseDef.rawBody[i]) {
-          return { pass: false, reason: `Byte mismatch at index ${i}` };
-        }
-      }
-    }
-
-    return { pass: true };
-  }
-
-  if (caseDef.expected.ok === false) {
-    if (outcome.ok !== false) {
-      return {
-        pass: false,
-        reason: `False pass: outcome.ok is true in ${context?.runtime}:${context?.api} but case expected failure.`,
-      };
-    }
-
-    if (caseDef.expected.reason && outcome.reason !== caseDef.expected.reason) {
-      return {
-        pass: false,
-        reason: `Expected reason ${caseDef.expected.reason}, got ${outcome.reason}`,
-      };
-    }
-
-    return { pass: true };
-  }
-
-  return { pass: false, reason: 'Unrecognized expectation contract.' };
+  return { valid: failures.length === 0, failures };
 }
 
-function validateBatchCoverage(caseCatalogue, resultsByKey) {
-  const missingKeys = [];
-
-  const extraKeys = [];
-
-  const failedKeys = [];
-
-  for (const reqKey of REQUIRED_EXECUTION_KEYS) {
-    if (!resultsByKey.has(reqKey)) {
-      missingKeys.push(reqKey);
-    }
-  }
-
-  for (const observedKey of resultsByKey.keys()) {
-    if (!REQUIRED_EXECUTION_KEYS.has(observedKey)) {
-      extraKeys.push(observedKey);
-    }
-  }
-
-  for (const [key, outcome] of resultsByKey.entries()) {
-    const parts = key.split('::');
-
-    const caseId = parts[0];
-
-    const runtime = parts[1];
-
-    const api = parts[2];
-
-    const caseDef = caseCatalogue.get(caseId);
-
-    if (!caseDef) {
-      continue;
-    }
-
-    const classification = classifyVerificationResult(caseDef, outcome, { runtime, api });
-
-    if (!classification.pass) {
-      failedKeys.push({ key, reason: classification.reason });
-    }
-  }
-
-  return {
-    valid: missingKeys.length === 0 && extraKeys.length === 0 && failedKeys.length === 0,
-    missingKeys,
-    extraKeys,
-    failedKeys,
-  };
+function wireCase(def, api) {
+  return { options: def.options, headers: def.headers, bytes: Array.from(def.rawBody), scenario: def.scenario, api };
 }
 
-// ---------------------------------------------------------------------------
-// Stage B Qualification Execution
-// ---------------------------------------------------------------------------
+async function inspectProviderReadiness(root) {
+  const missing = [];
 
-async function runStageBQualification(resourceManager) {
-  const distIndexPath = path.join(WORKSPACE_ROOT, 'dist', 'index.js');
+  try {
+    const providers = await import(pathToFileURL(path.join(root, 'dist/providers/index.js')).href);
 
-  if (!fs.existsSync(distIndexPath)) {
-    throw new Error('Stage B qualification requires built dist/index.js. Build is absent.');
+    if (!Array.isArray(providers.SUPPORTED_PROVIDERS)
+      || providers.SUPPORTED_PROVIDERS.length !== EXPECTED_18_PROVIDERS.length
+      || EXPECTED_18_PROVIDERS.some((id, index) => providers.SUPPORTED_PROVIDERS[index] !== id)) {
+      missing.push('exact-ordered-18-provider-registry');
+    }
+
+    const output = execFileSync(process.execPath, [path.join(root, 'dist/cli/index.js'), '--help'], {
+      cwd: root, encoding: 'utf8', timeout: 5000, maxBuffer: MAX_REPORT_BYTES,
+      windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'],
+    });
+
+    if (REQUIRED_CLI_FLAGS.some((flag) => !output.includes(flag))) missing.push('built-cli-flags');
+
+    // Declarations are a readiness check, not a semantic TypeScript qualification.
+    const declarations = fs.readFileSync(path.join(root, 'dist/types.d.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '');
+
+    const publicTypes = fs.readFileSync(path.join(root, 'dist/index.d.ts'), 'utf8');
+
+    if (!/\b(?:type|interface)\s+GrafanaOptions\b/.test(declarations)
+      || !/\b(?:type|interface)\s+PolarOptions\b/.test(declarations)
+      || !publicTypes.includes('GrafanaOptions') || !publicTypes.includes('PolarOptions')) missing.push('public-option-types');
+  } catch {
+    missing.push('built-artifact-readiness-error');
   }
 
-  const distUrl = pathToFileURL(distIndexPath).href;
+  return { ready: missing.length === 0, missing };
+}
 
-  const sdk = await withTimeout(import(distUrl), 5000, 'sdk-import');
-
-  if (
-    !sdk ||
-    !isFunction(sdk.verify) ||
-    !isFunction(sdk.verifyRequest) ||
-    !isFunction(sdk.createVerifier)
-  ) {
-    throw new Error('Stage B public SDK APIs (verify, verifyRequest, createVerifier) are missing from dist/index.js');
+/** Only directories allocated under the parent-owned private scratch root are removed. */
+class Resources {
+  constructor(root) {
+    this.root = fs.realpathSync(root);
+    this.directories = [];
+    this.links = [];
+    this.workers = new Set();
+    this.errors = [];
+    this.uncertain = false;
   }
+  directory(prefix) {
+    const created = fs.mkdtempSync(path.join(this.root, prefix));
+    requireCheck(within(this.root, created), 'allocation-containment');
+    this.directories.push(created);
 
-  const caseCatalogue = buildExecutableCaseCatalogue();
-
-  const resultsByKey = new Map();
-
-  // 1. Execute all 3 APIs across Node runtime
-  for (const [caseId, caseDef] of caseCatalogue.entries()) {
-    const verifyOpts = {
-      ...caseDef.options,
-      now: isFunction(caseDef.options.now)
-        ? caseDef.options.now
-        : (caseDef.options.now !== undefined ? () => caseDef.options.now : undefined),
-    };
-
-    // Node verify
+    return created;
+  }
+  async dispose(runtime) {
     try {
-      let outcome;
-
-      if (caseDef.expected.expectedError) {
-        try {
-          const res = await sdk.verify({ rawBody: caseDef.rawBody, headers: caseDef.headers }, verifyOpts);
-
-          outcome = { ok: res.ok, provider: res.provider, reason: res.reason };
-        } catch (err) {
-          outcome = { isHooklatchError: err.name === 'HooklatchError', errorCode: err.code };
-        }
-      } else {
-        const res = await sdk.verify({ rawBody: caseDef.rawBody, headers: caseDef.headers }, verifyOpts);
-
-        outcome = {
-          ok: res.ok,
-          provider: res.provider,
-          reason: res.reason,
-          identity: res.identity,
-          rawBody: res.rawBody,
-        };
-      }
-
-      resultsByKey.set(`${caseId}::node::verify`, outcome);
+      await withTimeout(runtime.dispose(), 5000);
+      this.workers.delete(runtime);
     } catch {
-      resultsByKey.set(`${caseId}::node::verify`, { isInfrastructureFailure: true });
+      this.uncertain = true;
+      this.errors.push('worker-disposal');
+    }
+  }
+  async cleanup() {
+    for (const runtime of this.workers) await this.dispose(runtime);
+
+    for (const link of this.links) {
+      try {
+        requireCheck(within(this.root, link), 'link-containment');
+        const stat = fs.lstatSync(link, { throwIfNoEntry: false });
+
+        if (stat) {
+          requireCheck(stat.isSymbolicLink(), 'link-identity');
+          fs.unlinkSync(link);
+          requireCheck(!fs.lstatSync(link, { throwIfNoEntry: false }), 'link-retained');
+        }
+      } catch {
+        this.uncertain = true;
+        this.errors.push('link-cleanup');
+      }
     }
 
-    // Node verifyRequest
-    try {
-      let outcome;
+    if (!this.uncertain) {
+      for (const directory of this.directories) {
+        try {
+          requireCheck(within(this.root, directory) && !containsLink(directory), 'directory-containment');
+          fs.rmSync(directory, { recursive: true, force: true });
+        } catch {
+          this.errors.push('directory-cleanup');
+        }
+      }
+    }
 
-      const req = new Request('https://example.test/webhook', {
-        method: 'POST',
-        headers: caseDef.headers,
-        body: caseDef.rawBody,
+    return { ok: this.errors.length === 0 && !this.uncertain, retained: this.uncertain, errors: this.errors };
+  }
+}
+
+function containsLink(directory) {
+  const stat = fs.lstatSync(directory, { throwIfNoEntry: false });
+
+  if (!stat) return false;
+
+  if (stat.isSymbolicLink()) return true;
+
+  if (!stat.isDirectory()) return false;
+
+  return fs.readdirSync(directory).some((name) => containsLink(path.join(directory, name)));
+}
+
+async function createRuntime(resources) {
+  requireCheck(process.env.ESBUILD_WORKER_THREADS === '0', 'synchronous-bundler-policy');
+  const esbuild = await import('esbuild');
+
+  // buildSync launches a synchronous one-shot child; no persistent esbuild service.
+  // The owning runner child is externally bounded, including blocked synchronous work.
+  const built = esbuild.buildSync({
+    entryPoints: [WORKER_SOURCE_PATH], bundle: true, write: false, platform: 'neutral',
+    format: 'esm', target: 'es2022', conditions: ['workerd', 'worker', 'browser'], logLevel: 'silent',
+  });
+
+  const directory = resources.directory('worker-');
+  const scriptPath = path.join(directory, 'worker.mjs');
+  fs.writeFileSync(scriptPath, built.outputFiles[0].text);
+  const { Miniflare } = await import('miniflare');
+
+  try {
+    const runtime = new Miniflare({ modules: true, modulesRoot: directory, scriptPath,
+      compatibilityDate: '2025-01-01', compatibilityFlags: [] });
+
+    resources.workers.add(runtime);
+
+    return runtime;
+  } catch {
+    resources.uncertain = true;
+    throw new Error('runtime-construction');
+  }
+}
+
+async function workerCase(runtime, def, api) {
+  try {
+    return await withTimeout((async () => {
+      const response = await runtime.dispatchFetch('https://qualification.test/case', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(wireCase(def, api)),
       });
 
-      if (caseDef.expected.expectedError) {
-        try {
-          const res = await sdk.verifyRequest(req, verifyOpts);
+      requireCheck(response.status === 200, 'worker-http-status');
+      const body = await response.text();
+      requireCheck(Buffer.byteLength(body) <= MAX_REPORT_BYTES, 'worker-body-limit');
 
-          outcome = { ok: res.ok, provider: res.provider, reason: res.reason };
-        } catch (err) {
-          outcome = { isHooklatchError: err.name === 'HooklatchError', errorCode: err.code };
-        }
-      } else {
-        const res = await sdk.verifyRequest(req, verifyOpts);
+      return JSON.parse(body);
+    })(), 5000);
+  } catch {
+    return { isInfrastructureFailure: true, errorCategory: 'worker-response' };
+  }
+}
 
-        outcome = {
-          ok: res.ok,
-          provider: res.provider,
-          reason: res.reason,
-          identity: res.identity,
-          rawBody: res.rawBody,
-        };
+async function runQualification(resources) {
+  const sdk = await import(pathToFileURL(path.join(WORKSPACE_ROOT, 'dist/index.js')).href);
+  requireCheck(APIS.every((api) => isCallable(sdk[api])) && isCallable(sdk.HooklatchError), 'sdk-exports');
+  const catalogue = buildExecutableCaseCatalogue();
+  const results = new Map();
+  const runtime = await createRuntime(resources);
+
+  for (const [id, def] of catalogue) {
+    for (const api of apisFor(id)) {
+      try {
+        const outcome = await withTimeout(executeSdkCase(sdk, wireCase(def, api), api), 5000);
+        results.set(`${id}::node::${api}`, outcome);
+      } catch {
+        // A timer bounds waiting, not execution. The outer process deadline owns
+        // termination; retain scratch if work might still be active.
+        resources.uncertain = true;
+        results.set(`${id}::node::${api}`, { isInfrastructureFailure: true });
+        throw new Error('node-execution-timeout');
       }
 
-      resultsByKey.set(`${caseId}::node::verifyRequest`, outcome);
+      const outcome = await workerCase(runtime, def, api);
+      results.set(`${id}::worker::${api}`, outcome);
+
+      if (outcome.isInfrastructureFailure) {
+        resources.uncertain = true;
+        throw new Error('worker-response-infrastructure');
+      }
+    }
+  }
+
+  return { ok: validateBatchCoverage(catalogue, results).valid,
+    kind: 'actual-public-api-qualification', cases: catalogue.size, executions: results.size,
+    validation: validateBatchCoverage(catalogue, results) };
+}
+
+function successfulOutcome(def) {
+  return { ok: true, provider: def.provider, identity: def.expected.identity, bytes: Array.from(def.rawBody) };
+}
+
+async function runSelfTests(resources) {
+  const controls = [];
+
+  async function control(id, action) {
+    try {
+      await action();
+      controls.push({ id, passed: true });
     } catch {
-      resultsByKey.set(`${caseId}::node::verifyRequest`, { isInfrastructureFailure: true });
+      controls.push({ id, passed: false, category: 'control-failed' });
+    }
+  }
+
+  const catalogue = buildExecutableCaseCatalogue();
+  const valid = catalogue.get('grafana-timestamped-valid');
+  await control('pinned-colon-anchor', () => {
+    const digest = crypto.createHmac('sha256', valid.options.secrets[0])
+      .update(`1700000000:${Buffer.from(valid.rawBody).toString('utf8')}`).digest('hex');
+
+    assert.equal(digest, PINNED_GRAFANA_COLON_DIGEST);
+  });
+  await control('strict-success-shape', () => {
+    assert.equal(classifyVerificationResult(valid, successfulOutcome(valid)).pass, true);
+
+    for (const field of ['provider', 'identity', 'bytes']) {
+      const outcome = successfulOutcome(valid);
+      delete outcome[field];
+      assert.equal(classifyVerificationResult(valid, outcome).pass, false);
     }
 
-    // Node createVerifier
-    try {
+    const outcome = successfulOutcome(valid);
+    outcome.identity = { ...valid.expected.identity };
+    delete outcome.identity.authenticatedFields;
+    assert.equal(classifyVerificationResult(valid, outcome).pass, false);
+    outcome.identity = { ...valid.expected.identity, timestamp: 0 };
+    assert.equal(classifyVerificationResult(valid, outcome).pass, false);
+    outcome.identity = valid.expected.identity;
+    outcome.bytes[0] ^= 1;
+    assert.equal(classifyVerificationResult(valid, outcome).pass, false);
+  });
+  await control('same-ok-reason-and-provider', () => {
+    const def = catalogue.get('grafana-body-invalid-sig');
+    assert.equal(classifyVerificationResult(def, { ok: false, provider: 'grafana', reason: 'missing-signature' }).pass, false);
+    assert.equal(classifyVerificationResult(def, { ok: false, provider: 'polar', reason: 'invalid-signature' }).pass, false);
+    assert.equal(classifyVerificationResult(def, { ok: true, provider: 'grafana' }).pass, false);
+    assert.equal(classifyVerificationResult(def, { isInfrastructureFailure: true }).pass, false);
+  });
+  await control('setup-error-contract', () => {
+    const def = catalogue.get('grafana-body-reserved-header');
+    assert.equal(classifyVerificationResult(def, { error: 'invalid-options' }).pass, false);
+    assert.equal(classifyVerificationResult(def, { errorCode: 'invalid-options' }).pass, false);
+    assert.equal(classifyVerificationResult(def, { isHooklatchError: true, errorCode: 'invalid-secret' }).pass, false);
+  });
+  await control('missing-extra-and-removed-catalogue', () => {
+    const results = new Map();
+
+    for (const key of requiredKeys()) {
+      const def = catalogue.get(key.split('::')[0]);
       let outcome;
 
-      if (caseDef.expected.expectedError) {
-        try {
-          const verifier = sdk.createVerifier(verifyOpts);
+      if (def.expected.expectedError) outcome = { isHooklatchError: true, errorCode: def.expected.expectedError };
+      else if (def.expected.ok) outcome = successfulOutcome(def);
+      else outcome = { ok: false, provider: def.provider, reason: def.expected.reason };
 
-          const res = await verifier({ rawBody: caseDef.rawBody, headers: caseDef.headers });
+      if (def.scenario === 'setup-before-read') Object.assign(outcome, { bodyPulls: 0, bodyUsed: false });
 
-          outcome = { ok: res.ok, provider: res.provider, reason: res.reason };
-        } catch (err) {
-          outcome = { isHooklatchError: err.name === 'HooklatchError', errorCode: err.code };
-        }
-      } else {
-        const verifier = sdk.createVerifier(verifyOpts);
-
-        const res = await verifier({ rawBody: caseDef.rawBody, headers: caseDef.headers });
-
-        outcome = {
-          ok: res.ok,
-          provider: res.provider,
-          reason: res.reason,
-          identity: res.identity,
-          rawBody: res.rawBody,
-        };
-      }
-
-      resultsByKey.set(`${caseId}::node::createVerifier`, outcome);
-    } catch {
-      resultsByKey.set(`${caseId}::node::createVerifier`, { isInfrastructureFailure: true });
+      if (def.scenario === 'byte-snapshot') outcome.snapshotSourceChanged = true;
+      results.set(key, outcome);
     }
-  }
 
-  // 2. Bundle worker & execute in real workerd via Miniflare
-  const esbuildModule = await withTimeout(import('esbuild'), 5000, 'esbuild-import');
+    assert.equal(validateBatchCoverage(catalogue, results).valid, true);
+    const removedKey = requiredKeys().values().next().value;
+    const removed = results.get(removedKey);
+    results.delete(removedKey);
+    assert.equal(validateBatchCoverage(catalogue, results).valid, false);
+    results.set(removedKey, removed);
+    results.set('unexpected::node::verify', { ok: true });
+    assert.equal(validateBatchCoverage(catalogue, results).valid, false);
+    results.delete('unexpected::node::verify');
+    const incomplete = new Map(catalogue);
+    incomplete.delete('grafana-body-valid');
+    assert.equal(validateBatchCoverage(incomplete, results).valid, false);
+  });
+  await control('comment-only-built-readiness', async () => {
+    const root = resources.directory('readiness-');
+    fs.mkdirSync(path.join(root, 'dist/providers'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'package.json'), '{"type":"module"}');
+    fs.writeFileSync(path.join(root, 'dist/providers/index.js'),
+      `/* export const SUPPORTED_PROVIDERS = ${JSON.stringify(EXPECTED_18_PROVIDERS)}; */\nexport const SUPPORTED_PROVIDERS = [];`);
+    assert.equal((await inspectProviderReadiness(root)).ready, false);
+  });
+  const sdk = await import(pathToFileURL(path.join(WORKSPACE_ROOT, 'dist/index.js')).href);
+  const baselineBody = new Uint8Array([0, 255, 128, 123, 10, 125]);
+  const baselineSecret = 'synthetic-baseline-key';
 
-  const buildResult = await withTimeout(
-    esbuildModule.build({
-      entryPoints: [WORKER_SOURCE_PATH],
-      bundle: true,
-      write: false,
-      platform: 'neutral',
-      format: 'esm',
-      target: 'es2022',
-      conditions: ['workerd', 'worker', 'browser'],
-    }),
-    10000,
-    'worker-bundling'
-  );
+  const baseline = {
+    id: 'baseline-github-control', provider: 'github', options: { provider: 'github', secrets: [baselineSecret] },
+    headers: { 'x-hub-signature-256': `sha256=${crypto.createHmac('sha256', baselineSecret).update(baselineBody).digest('hex')}` },
+    rawBody: baselineBody, expected: { ok: true,
+      identity: { deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [] } },
+  };
 
-  const workerDir = resourceManager.createTempDir('hooklatch-stageb-worker-');
+  const runtime = await createRuntime(resources);
+  const runtimeEvidence = { stage: 'dispatch', httpStatus: null, userAgent: 'not-observed', hasProcess: null, hasBuffer: null };
 
-  const bundlePath = path.join(workerDir, 'worker.mjs');
+  await control('actual-workerd-runtime', async () => {
+    const facts = await withTimeout((async () => {
+      const response = await runtime.dispatchFetch('https://qualification.test/runtime');
+      runtimeEvidence.stage = 'response';
+      runtimeEvidence.httpStatus = response.status;
+      assert.equal(response.status, 200);
 
-  fs.writeFileSync(bundlePath, buildResult.outputFiles[0].text, 'utf8');
+      return response.json();
+    })(), 5000);
 
-  const { Miniflare } = await withTimeout(import('miniflare'), 5000, 'miniflare-import');
+    runtimeEvidence.stage = 'identity';
+    runtimeEvidence.userAgent = facts.userAgent === 'Cloudflare-Workers' ? 'Cloudflare-Workers' : 'other';
+    runtimeEvidence.hasProcess = facts.hasProcess;
+    runtimeEvidence.hasBuffer = facts.hasBuffer;
+    assert.equal(facts.userAgent, 'Cloudflare-Workers');
+    assert.equal(facts.hasProcess, false);
+    assert.equal(facts.hasBuffer, false);
+  });
+  await control('actual-baseline-sdk-six-paths', async () => {
+    for (const api of APIS) {
+      assert.equal(classifyVerificationResult(baseline, await executeSdkCase(sdk, wireCase(baseline, api), api)).pass, true);
+      assert.equal(classifyVerificationResult(baseline, await workerCase(runtime, baseline, api)).pass, true);
+    }
+  });
+  await control('actual-corrupt-mac-execution', async () => {
+    const corrupt = { ...baseline, headers: { 'x-hub-signature-256': 'sha256=' + '0'.repeat(64) } };
+    const expected = { ...corrupt, expected: { ok: false, reason: 'invalid-signature' } };
 
-  const runtime = new Miniflare({
-    modules: true,
-    modulesRoot: workerDir,
-    scriptPath: bundlePath,
-    compatibilityDate: '2025-01-01',
-    compatibilityFlags: [],
+    for (const api of APIS) {
+      for (const outcome of [await executeSdkCase(sdk, wireCase(corrupt, api), api), await workerCase(runtime, corrupt, api)]) {
+        assert.equal(classifyVerificationResult(baseline, outcome).pass, false);
+        assert.equal(classifyVerificationResult(expected, outcome).pass, true);
+      }
+    }
+  });
+  await control('actual-invalid-secret-before-body-pull', async () => {
+    const def = catalogue.get('setup-invalid-secret-before-read');
+    const node = await executeSdkCase(sdk, wireCase(def, 'verifyRequest'), 'verifyRequest');
+    const worker = await workerCase(runtime, def, 'verifyRequest');
+    assert.equal(classifyVerificationResult(def, node).pass, true);
+    assert.equal(classifyVerificationResult(def, worker).pass, true);
+  });
+  await control('actual-baseline-secret-and-byte-snapshots', async () => {
+    for (const scenario of ['secret-snapshot', 'byte-snapshot']) {
+      const def = { ...baseline, scenario };
+
+      for (const api of APIS) {
+        assert.equal(classifyVerificationResult(def, await executeSdkCase(sdk, wireCase(def, api), api)).pass, true);
+        assert.equal(classifyVerificationResult(def, await workerCase(runtime, def, api)).pass, true);
+      }
+    }
+  });
+  await control('dangling-junction-cleanup', () => {
+    const directory = resources.directory('links-');
+    const target = path.join(directory, 'target');
+    const link = path.join(directory, 'link');
+    fs.mkdirSync(target);
+    fs.symlinkSync(target, link, 'junction');
+    resources.links.push(link);
+    fs.rmdirSync(target);
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), true);
   });
 
-  resourceManager.registerWorker(runtime);
-
-  for (const [caseId, caseDef] of caseCatalogue.entries()) {
-    const headers = new Headers();
-
-    for (const [k, v] of Object.entries(caseDef.headers)) {
-      headers.set(k, v);
-    }
-
-    headers.set('x-test-case', JSON.stringify({ options: caseDef.options }));
-
-    // Worker verifyRequest
-    try {
-      const res = await withTimeout(
-        runtime.dispatchFetch('https://example.test/verify-request', {
-          method: 'POST',
-          headers,
-          body: caseDef.rawBody,
-        }),
-        5000,
-        `dispatch-verify-request-${caseId}`
-      );
-
-      resultsByKey.set(`${caseId}::worker::verifyRequest`, await res.json());
-    } catch {
-      resultsByKey.set(`${caseId}::worker::verifyRequest`, { isInfrastructureFailure: true });
-    }
-
-    // Worker verify
-    try {
-      const res = await withTimeout(
-        runtime.dispatchFetch('https://example.test/verify', {
-          method: 'POST',
-          headers,
-          body: caseDef.rawBody,
-        }),
-        5000,
-        `dispatch-verify-${caseId}`
-      );
-
-      resultsByKey.set(`${caseId}::worker::verify`, await res.json());
-    } catch {
-      resultsByKey.set(`${caseId}::worker::verify`, { isInfrastructureFailure: true });
-    }
-
-    // Worker createVerifier
-    try {
-      const res = await withTimeout(
-        runtime.dispatchFetch('https://example.test/create-verifier', {
-          method: 'POST',
-          headers,
-          body: caseDef.rawBody,
-        }),
-        5000,
-        `dispatch-create-verifier-${caseId}`
-      );
-
-      resultsByKey.set(`${caseId}::worker::createVerifier`, await res.json());
-    } catch {
-      resultsByKey.set(`${caseId}::worker::createVerifier`, { isInfrastructureFailure: true });
-    }
-  }
-
-  await resourceManager.disposeWorker(runtime);
-
-  const batchValidation = validateBatchCoverage(caseCatalogue, resultsByKey);
-
-  return {
-    ok: batchValidation.valid,
-    validation: batchValidation,
-  };
+  return { ok: controls.every((item) => item.passed), kind: 'harness-controls-on-baseline-sdk', controls,
+    newProviderQualification: 'NOT-RUN', runtimeEvidence };
 }
 
-// ---------------------------------------------------------------------------
-// Self-Test Controls (Controls 1 - 12)
-// ---------------------------------------------------------------------------
+function workspaceHashes() {
+  const names = execFileSync('git', ['ls-files', '-z'], {
+    cwd: WORKSPACE_ROOT, encoding: 'utf8', timeout: 10000, maxBuffer: 5242880, windowsHide: true,
+  }).split('\0');
 
-async function runSelfTestControls(resourceManager) {
-  const controlResults = [];
+  const hashes = {};
 
-  const caseCatalogue = buildExecutableCaseCatalogue();
-
-  // Control 1: Independent node:crypto anchor computation with colon separator
-  try {
-    const secret = 'CANARY_SECRET_GRAFANA_99';
-
-    const timestamp = '1700000000';
-
-    const body = '{"status":"firing","alerts":[{"rule":"cpu_high"}]}';
-
-    // Grafana body mode
-    const grafanaBodyExpected = crypto
-      .createHmac('sha256', secret)
-      .update(body)
-      .digest('hex');
-
-    // Grafana timestamped mode with COLON separator
-    const grafanaTimestampedColon = crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}:${body}`)
-      .digest('hex');
-
-    // Negative control: verify dot separator produces DIFFERENT digest
-    const grafanaTimestampedDot = crypto
-      .createHmac('sha256', secret)
-      .update(`${timestamp}.${body}`)
-      .digest('hex');
-
-    if (grafanaTimestampedColon === grafanaTimestampedDot) {
-      throw new Error('Colon and dot separators produced identical digests unexpectedly.');
-    }
-
-    if (grafanaTimestampedColon !== PINNED_GRAFANA_COLON_DIGEST) {
-      throw new Error('Pinned Grafana colon digest mismatch.');
-    }
-
-    // Polar current mode (Base64 key)
-    const polarRawKey = Buffer.from('0123456789abcdef0123456789abcdef', 'utf8');
-
-    const polarId = 'msg_test_12345';
-
-    const polarPayload = `${polarId}.${timestamp}.${body}`;
-
-    const polarCurrentExpected = crypto
-      .createHmac('sha256', polarRawKey)
-      .update(polarPayload)
-      .digest('base64');
-
-    // Polar legacy mode (literal UTF-8 string key)
-    const polarLegacySecret = 'whsec_literal_utf8_secret_canary';
-
-    const polarLegacyExpected = crypto
-      .createHmac('sha256', Buffer.from(polarLegacySecret, 'utf8'))
-      .update(polarPayload)
-      .digest('base64');
-
-    if (
-      !isString(grafanaBodyExpected) ||
-      grafanaBodyExpected.length !== 64 ||
-      !isString(polarCurrentExpected) ||
-      !isString(polarLegacyExpected)
-    ) {
-      throw new Error('Computed crypto anchors did not match expected lengths.');
-    }
-
-    controlResults.push({
-      control: 'control_1_crypto_anchors',
-      passed: true,
-      detail: 'Independent HMAC-SHA256 anchors computed; pinned Grafana colon digest verified.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_1_crypto_anchors',
-      passed: false,
-      error: err.message,
-    });
+  for (const name of names) {
+    if (name === '') continue;
+    hashes[name] = crypto.createHash('sha256').update(fs.readFileSync(path.join(WORKSPACE_ROOT, name))).digest('hex');
   }
 
-  // Control 2: Authoritative case inventory definition & coverage set verification
+  return hashes;
+}
+
+function integrity(before) {
   try {
-    for (const reqId of REQUIRED_CASE_IDS) {
-      if (!caseCatalogue.has(reqId)) {
-        throw new Error(`Required case ${reqId} is missing from case catalogue.`);
-      }
-    }
+    const after = workspaceHashes();
 
-    // Negative check: verify that batch validation catches a missing key
-    const syntheticResults = new Map();
+    return { intact: Object.keys(before).length === Object.keys(after).length
+      && Object.entries(before).every(([name, hash]) => after[name] === hash), files: Object.keys(before).length,
+      before: crypto.createHash('sha256').update(JSON.stringify(before)).digest('hex'),
+      after: crypto.createHash('sha256').update(JSON.stringify(after)).digest('hex') };
+  } catch {
+    return { intact: false, category: 'integrity-read' };
+  }
+}
 
-    for (const key of REQUIRED_EXECUTION_KEYS) {
-      const caseId = key.split('::')[0];
+/** No shell interpolation. Deadline failure retains scratch even when tree kill succeeds. */
+function ownedChild(mode, root, timeoutMs) {
+  return new Promise((resolve) => {
+    let report;
+    let bytes = 0;
+    const diagnosticCategories = new Set();
+    let timedOut = false;
+    let closed = false;
+    let fallback;
 
-      const def = caseCatalogue.get(caseId);
+    const child = fork(SCRIPT_PATH, ['--qualification-internal', mode, root ?? ''], {
+      cwd: WORKSPACE_ROOT, windowsHide: true, detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'], serialization: 'json',
+      env: { ...process.env, ESBUILD_WORKER_THREADS: '0' },
+    });
 
-      if (def.expected.expectedError) {
-        syntheticResults.set(key, { ok: false, error: def.expected.expectedError });
-      } else {
-        syntheticResults.set(key, {
-          ok: def.expected.ok,
-          provider: def.provider,
-          reason: def.expected.reason,
-          identity: def.expected.identity,
-          rawBody: def.rawBody,
+    const finish = (result) => {
+      if (closed) return;
+      closed = true;
+      clearTimeout(timer);
+      clearTimeout(fallback);
+      resolve(result);
+    };
+
+    const terminate = () => {
+      if (timedOut || closed) return;
+      timedOut = true;
+
+      if (process.platform === 'win32') {
+        spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+          windowsHide: true, timeout: 10000, stdio: 'ignore', shell: false,
         });
-      }
-    }
-
-    const validBatch = validateBatchCoverage(caseCatalogue, syntheticResults);
-
-    if (!validBatch.valid) {
-      throw new Error('Synthetic complete batch failed validation.');
-    }
-
-    const testKeyToRemove = 'grafana-body-valid::node::verify';
-
-    syntheticResults.delete(testKeyToRemove);
-
-    const missingBatch = validateBatchCoverage(caseCatalogue, syntheticResults);
-
-    if (missingBatch.valid || !missingBatch.missingKeys.includes(testKeyToRemove)) {
-      throw new Error('Batch validation failed to detect missing execution key.');
-    }
-
-    controlResults.push({
-      control: 'control_2_case_inventory',
-      passed: true,
-      detail: `Validated 30 case definitions and ${REQUIRED_EXECUTION_KEYS.size} execution channels.`,
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_2_case_inventory',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 3: Corrupted MAC detection traversing verification boundary
-  try {
-    const validCase = caseCatalogue.get('grafana-body-valid');
-
-    const rawSecret = validCase.options.secrets[0];
-
-    const validSig = crypto.createHmac('sha256', rawSecret).update(validCase.rawBody).digest('hex');
-
-    // Corrupt the signature by flipping one character
-    const corruptedSig = validSig.slice(0, -1) + (validSig.endsWith('0') ? '1' : '0');
-
-    // Real HMAC verification
-    const computedHmac = crypto.createHmac('sha256', rawSecret).update(validCase.rawBody).digest('hex');
-
-    const matched = crypto.timingSafeEqual(Buffer.from(corruptedSig, 'hex'), Buffer.from(computedHmac, 'hex'));
-
-    const realOutcome = matched
-      ? { ok: true, provider: 'grafana' }
-      : { ok: false, provider: 'grafana', reason: 'invalid-signature' };
-
-    const classification = classifyVerificationResult(validCase, realOutcome, { runtime: 'node', api: 'verify' });
-
-    if (classification.pass) {
-      throw new Error('Corrupted MAC outcome was falsely accepted as passing.');
-    }
-
-    controlResults.push({
-      control: 'control_3_corrupted_mac_detection',
-      passed: true,
-      detail: 'Corrupted signature executed through verification boundary and flagged as non-passing.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_3_corrupted_mac_detection',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 4: False-pass detection on negative case
-  try {
-    const invalidSigCase = caseCatalogue.get('grafana-body-invalid-sig');
-
-    const falsePassOutcome = { ok: true, provider: 'grafana' };
-
-    const classification = classifyVerificationResult(invalidSigCase, falsePassOutcome, { runtime: 'node', api: 'verify' });
-
-    if (classification.pass) {
-      throw new Error('Harness failed to detect false-pass outcome.');
-    }
-
-    controlResults.push({
-      control: 'control_4_false_pass_detection',
-      passed: true,
-      detail: 'Fabricated positive outcome on negative case correctly rejected.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_4_false_pass_detection',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 5: Wrong reason, identity, and byte discrepancy detection
-  try {
-    const validCase = caseCatalogue.get('grafana-timestamped-valid');
-
-    // Outcome with wrong reason
-    const wrongReasonOutcome = { ok: false, provider: 'grafana', reason: 'missing-signature' };
-
-    const reasonCheck = classifyVerificationResult(validCase, wrongReasonOutcome, { runtime: 'node', api: 'verify' });
-
-    if (reasonCheck.pass) {
-      throw new Error('Wrong failure reason was not flagged.');
-    }
-
-    // Outcome with wrong identity
-    const wrongIdentityOutcome = {
-      ok: true,
-      provider: 'grafana',
-      identity: { deliveryId: null, eventId: null, timestamp: 9999999, authenticatedFields: [] },
-    };
-
-    const identityCheck = classifyVerificationResult(validCase, wrongIdentityOutcome, { runtime: 'node', api: 'verify' });
-
-    if (identityCheck.pass) {
-      throw new Error('Wrong identity was not flagged.');
-    }
-
-    // Outcome with byte mutation
-    const corruptedBytes = Buffer.from(validCase.rawBody);
-
-    corruptedBytes[0] ^= 1;
-
-    const byteCheck = classifyVerificationResult(
-      validCase,
-      { ok: true, provider: 'grafana', rawBody: corruptedBytes, identity: validCase.expected.identity },
-      { runtime: 'node', api: 'verify' }
-    );
-
-    if (byteCheck.pass) {
-      throw new Error('Corrupted byte preservation was not flagged.');
-    }
-
-    controlResults.push({
-      control: 'control_5_wrong_reason_identity_bytes',
-      passed: true,
-      detail: 'Classifier correctly caught wrong reason, invalid identity, and mutated preserved bytes.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_5_wrong_reason_identity_bytes',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 6: Negative readiness control (fake declarations in comments do not trick readiness)
-  try {
-    const mockRoot = resourceManager.createTempDir('hooklatch-mock-readiness-');
-
-    const mockDist = path.join(mockRoot, 'dist', 'providers');
-
-    fs.mkdirSync(mockDist, { recursive: true });
-
-    // Write a mock dist file containing provider names ONLY in comments
-    const mockContent = `
-      /*
-        export const SUPPORTED_PROVIDERS = [
-          'stripe', 'github', 'shopify', 'standard-webhooks',
-          'clerk', 'svix', 'razorpay', 'paddle', 'lemon-squeezy',
-          'dodo-payments', 'gitlab', 'replicate', 'workos',
-          'sentry', 'doppler', 'sanity', 'grafana', 'polar'
-        ];
-      */
-      export const SUPPORTED_PROVIDERS = [
-        'stripe',
-        'github'
-      ];
-    `;
-
-    fs.writeFileSync(path.join(mockDist, 'index.js'), mockContent, 'utf8');
-
-    const mockReadiness = await inspectProviderReadiness(mockRoot);
-
-    if (mockReadiness.ready !== false || mockReadiness.missing.length !== 2) {
-      throw new Error('Readiness check was tricked by declarations inside comments.');
-    }
-
-    controlResults.push({
-      control: 'control_6_negative_readiness',
-      passed: true,
-      detail: 'Confirmed readiness check rejects declarations hidden inside comments.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_6_negative_readiness',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 7: Bundling neutral worker with esbuild
-  let bundledWorkerText = '';
-
-  try {
-    const esbuildModule = await withTimeout(import('esbuild'), 5000, 'esbuild-import');
-
-    const buildResult = await withTimeout(
-      esbuildModule.build({
-        entryPoints: [WORKER_SOURCE_PATH],
-        bundle: true,
-        write: false,
-        platform: 'neutral',
-        format: 'esm',
-        target: 'es2022',
-        conditions: ['workerd', 'worker', 'browser'],
-      }),
-      10000,
-      'worker-bundling'
-    );
-
-    bundledWorkerText = buildResult.outputFiles[0].text;
-
-    const nodeImports = [
-      ...bundledWorkerText.matchAll(
-        /(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'](node:[a-z0-9_./-]+)["']/gi
-      ),
-    ].map((m) => m[1]);
-
-    if (nodeImports.length > 0) {
-      throw new Error(`Worker bundle contains Node builtins: ${nodeImports.join(', ')}`);
-    }
-
-    controlResults.push({
-      control: 'control_7_worker_bundling',
-      passed: true,
-      detail: 'Bundled neutral worker without node: builtins.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_7_worker_bundling',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 8: Real workerd Miniflare dispatch smoke test
-  try {
-    const { Miniflare } = await withTimeout(import('miniflare'), 5000, 'miniflare-import');
-
-    const tempWorkerDir = resourceManager.createTempDir('hooklatch-selftest-workerd-');
-
-    const tempBundlePath = path.join(tempWorkerDir, 'worker.mjs');
-
-    fs.writeFileSync(tempBundlePath, bundledWorkerText, 'utf8');
-
-    const runtime = new Miniflare({
-      modules: true,
-      modulesRoot: tempWorkerDir,
-      scriptPath: tempBundlePath,
-      compatibilityDate: '2025-01-01',
-      compatibilityFlags: [],
-    });
-
-    resourceManager.registerWorker(runtime);
-
-    const res = await withTimeout(runtime.dispatchFetch('https://example.test/runtime'), 5000, 'runtime-fetch');
-
-    const facts = await res.json();
-
-    if (facts.userAgent !== 'Cloudflare-Workers') {
-      throw new Error(`Unexpected userAgent in workerd: ${facts.userAgent}`);
-    }
-
-    if (facts.hasProcess !== false || facts.hasBuffer !== false) {
-      throw new Error('Expected process and Buffer to be false in workerd.');
-    }
-
-    await resourceManager.disposeWorker(runtime);
-
-    controlResults.push({
-      control: 'control_8_workerd_smoke',
-      passed: true,
-      detail: 'Miniflare runtime returned Cloudflare-Workers userAgent without process or Buffer.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_8_workerd_smoke',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 9: Recursive array and object canary redaction
-  try {
-    const canaryPayload = {
-      directSecret: 'whsec_CANARY_SECRET_DIRECT_0123456789abcdef',
-      nestedArray: [
-        'safe item',
-        ['level-2', 'CANARY_IN_SUB_ARRAY_12345'],
-        {
-          deepObject: [
-            {
-              token: 'CANARY_DEEP_TOKEN_999',
-              hash: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
-            },
-          ],
-        },
-      ],
-    };
-
-    const sanitized = sanitizeValue(canaryPayload);
-
-    const serialized = JSON.stringify(sanitized);
-
-    if (
-      serialized.includes('CANARY_SECRET_DIRECT_0123456789abcdef') ||
-      serialized.includes('CANARY_IN_SUB_ARRAY_12345') ||
-      serialized.includes('CANARY_DEEP_TOKEN_999') ||
-      serialized.includes('a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90')
-    ) {
-      throw new Error('Canaries leaked into sanitized JSON output.');
-    }
-
-    controlResults.push({
-      control: 'control_9_output_redaction',
-      passed: true,
-      detail: 'Deeply nested array and object canaries successfully redacted.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_9_output_redaction',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 10: Authoritative cleanup, dangling junction handling, and parent directory retention
-  try {
-    const tempTestRoot = resourceManager.createTempDir('hooklatch-cleanup-test-');
-
-    const dummyTarget = path.join(tempTestRoot, 'target-dir');
-
-    const dummyLink = path.join(tempTestRoot, 'link-junction');
-
-    fs.mkdirSync(dummyTarget);
-
-    resourceManager.createJunction(dummyTarget, dummyLink);
-
-    // Delete target to create a dangling junction
-    fs.rmSync(dummyTarget, { recursive: true, force: true });
-
-    // Safe unlink handles dangling link using lstat
-    const unlinked = resourceManager.safeUnlink(dummyLink);
-
-    if (!unlinked) {
-      throw new Error('Failed to unlink dangling junction.');
-    }
-
-    controlResults.push({
-      control: 'control_10_safe_cleanup',
-      passed: true,
-      detail: 'Authoritative cleanup handled dangling junction; temp paths strictly bounded.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_10_safe_cleanup',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 11: Infrastructure failure isolation
-  try {
-    const validCase = caseCatalogue.get('grafana-body-valid');
-
-    const crashOutcome = {
-      isInfrastructureFailure: true,
-      error: 'TypeError: Cannot read properties of undefined',
-    };
-
-    const classification = classifyVerificationResult(validCase, crashOutcome, { runtime: 'node', api: 'verify' });
-
-    if (classification.pass || !classification.isInfrastructureFailure) {
-      throw new Error('Crash was not correctly classified as an infrastructure failure.');
-    }
-
-    controlResults.push({
-      control: 'control_11_infrastructure_failure',
-      passed: true,
-      detail: 'Infrastructure exception correctly isolated and not counted as a pass.',
-    });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_11_infrastructure_failure',
-      passed: false,
-      error: err.message,
-    });
-  }
-
-  // Control 12: Measured setup-before-body-pull via stream pull counter
-  try {
-    let pullCount = 0;
-
-    const stream = new ReadableStream({
-      pull(controller) {
-        pullCount += 1;
-
-        controller.enqueue(new Uint8Array([1, 2, 3]));
-
-        controller.close();
-      },
-    });
-
-    const trackingReq = new Request('https://example.test', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: stream,
-      duplex: 'half',
-    });
-
-    // Simulated prepare() error on invalid options before body consumption
-    function simulatePrepareAndPull(req, options) {
-      if (options.provider !== 'valid') {
-        throw new Error('Invalid options rejected prior to body read.');
+      } else {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch { /* Absence is checked by close below. */ }
       }
 
-      return req.arrayBuffer();
-    }
+      fallback = setTimeout(() => {
+        child.unref();
+        child.stdout.destroy();
+        child.stderr.destroy();
 
-    let caughtError = false;
+        if (child.connected) child.disconnect();
+        finish({ ok: false, closed: false, timedOut: true, category: 'unconfirmed-child-termination' });
+      }, 5000);
+    };
 
-    try {
-      simulatePrepareAndPull(trackingReq, { provider: 'invalid' });
-    } catch {
-      caughtError = true;
-    }
-
-    if (!caughtError || pullCount !== 0 || trackingReq.bodyUsed) {
-      throw new Error('Stream chunks were pulled or bodyUsed was true on options rejection.');
-    }
-
-    controlResults.push({
-      control: 'control_12_measured_setup_before_body_pull',
-      passed: true,
-      detail: 'Stream counter proved zero body chunks pulled when options were rejected.',
+    const timer = setTimeout(terminate, timeoutMs);
+    child.on('message', (message) => {
+      // One bounded report is accepted; IPC objects never contain SDK exception text.
+      if (report !== undefined || Buffer.byteLength(JSON.stringify(message)) > MAX_REPORT_BYTES) terminate();
+      else report = message;
     });
-  } catch (err) {
-    controlResults.push({
-      control: 'control_12_measured_setup_before_body_pull',
-      passed: false,
-      error: err.message,
+
+    const discard = (chunk) => {
+      bytes += chunk.length;
+      const text = chunk.toString('utf8');
+
+      for (const [marker, category] of [['ReferenceError', 'reference-error'], ['SyntaxError', 'syntax-error'],
+        ['TypeError', 'type-error'], ['ERR_', 'node-runtime-error'], ['workerd', 'worker-runtime-output']]) {
+        if (text.includes(marker)) diagnosticCategories.add(category);
+      }
+
+      if (bytes > MAX_REPORT_BYTES) terminate();
+    };
+
+    child.stdout.on('data', discard);
+    child.stderr.on('data', discard);
+    child.on('error', () => {
+      if (child.pid) terminate();
+      else finish({ ok: false, closed: true, category: 'child-startup' });
     });
+    child.on('close', (code, signal) => finish({ ok: code === 0 && !timedOut && isObject(report),
+      closed: true, timedOut, report, exitCode: code, signal, pid: child.pid,
+      diagnosticCategories: [...diagnosticCategories], category: timedOut ? 'child-deadline' : 'child-exit' }));
+  });
+}
+
+async function internalMain(mode, root) {
+  if (mode === 'readiness') return inspectProviderReadiness(WORKSPACE_ROOT);
+  requireCheck(root && within(fs.realpathSync(os.tmpdir()), fs.realpathSync(root)), 'scratch-containment');
+  const resources = new Resources(root);
+  let result;
+  let cleanup;
+
+  try {
+    result = mode === 'self-test' ? await runSelfTests(resources) : await runQualification(resources);
+  } catch {
+    result = { ok: false, category: 'execution-failure' };
+  } finally {
+    cleanup = await resources.cleanup();
   }
 
-  const allPassed = controlResults.every((c) => c.passed === true);
-
-  return {
-    ok: allPassed,
-    controls: controlResults,
-  };
+  return { result, cleanup };
 }
 
-// ---------------------------------------------------------------------------
-// Help & Usage
-// ---------------------------------------------------------------------------
-
-function printUsage() {
-  process.stdout.write(`
-Hooklatch Phase 7 Qualification Runner
-
-Usage:
-  node scripts/phase7-config-qualification.mjs [options]
-
-Options:
-  --self-test    Execute independent synthetic controls (Controls 1-12).
-  --json         Emit structured JSON result strictly after cleanup.
-  --help, -h     Show this help message and exit 0.
-
-Exit Codes:
-  0  All checks and cleanup passed successfully.
-  1  Test failure or assertion error.
-  2  Usage / invalid CLI arguments.
-  3  BLOCKED (missing Stage B providers) or cleanup/integrity failure.
-\n`);
+function usage() {
+  process.stdout.write('Usage: node scripts/phase7-config-qualification.mjs [--json] [--self-test] [--help]\n'
+    + 'Exit0: checks and cleanup passed;1: failure;2: usage;3: StageB not ready.\n'
+    + 'Selftests exercise harness controls and the accepted baseline SDK, not new provider support.\n');
 }
-
-// ---------------------------------------------------------------------------
-// Main Entrypoint
-// ---------------------------------------------------------------------------
 
 async function main() {
-  const argv = process.argv.slice(2);
+  const args = process.argv.slice(2);
 
-  let jsonMode = false;
+  if (args.some((arg) => !['--json', '--self-test', '--help', '-h'].includes(arg))
+    || new Set(args).size !== args.length) {
+    usage();
 
-  let selfTestMode = false;
-
-  for (const arg of argv) {
-    if (arg === '--json') {
-      jsonMode = true;
-    } else if (arg === '--self-test') {
-      selfTestMode = true;
-    } else if (arg === '--help' || arg === '-h') {
-      printUsage();
-
-      return 0;
-    } else {
-      process.stderr.write(`Unknown option: ${arg}\n`);
-
-      printUsage();
-
-      return 2;
-    }
+    return 2;
   }
 
-  // Preflight: record byte-level workspace hashes before any runner operations
-  const initialWorkspaceHashes = getTrackedConfigFiles(WORKSPACE_ROOT);
+  if (args.includes('--help') || args.includes('-h')) {
+    usage();
 
-  const resourceManager = new AuthoritativeResourceManager(os.tmpdir());
-
-  // Self-Test Mode: execute synthetic harness controls
-  if (selfTestMode) {
-    process.stderr.write('[phase7-qualification] Running harness self-tests...\n');
-
-    let selfTestResult;
-
-    try {
-      selfTestResult = await runSelfTestControls(resourceManager);
-    } catch {
-      selfTestResult = {
-        ok: false,
-        controls: [{ control: 'self-test-runner', passed: false, error: 'Self-test exception' }],
-      };
-    }
-
-    const cleanupStatus = await resourceManager.cleanupAll();
-
-    const integrityStatus = verifyByteIntegrity(initialWorkspaceHashes, WORKSPACE_ROOT);
-
-    const overallOk = selfTestResult.ok && cleanupStatus.ok && integrityStatus.intact;
-
-    const exitCode = cleanupStatus.ok && integrityStatus.intact ? (selfTestResult.ok ? 0 : 1) : 3;
-
-    const report = sanitizeValue({
-      mode: 'self-test',
-      status: overallOk ? 'PASSED' : 'FAILED',
-      exitCode,
-      baseSha: BASE_SHA,
-      controls: selfTestResult.controls,
-      cleanup: cleanupStatus,
-      byteIntegrity: integrityStatus,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (jsonMode) {
-      process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-    } else {
-      for (const ctrl of selfTestResult.controls) {
-        const marker = ctrl.passed ? 'PASS' : 'FAIL';
-
-        process.stderr.write(`[${marker}] ${ctrl.control}: ${ctrl.detail || ctrl.error}\n`);
-      }
-
-      if (!cleanupStatus.ok) {
-        process.stderr.write(`[CLEANUP_FAIL] Cleanup failed: ${cleanupStatus.errors.join(', ')}\n`);
-      }
-
-      if (!integrityStatus.intact) {
-        process.stderr.write('[INTEGRITY_FAIL] Byte integrity discrepancy detected.\n');
-      }
-
-      process.stderr.write(`\nSelf-test overall status: ${report.status}\n`);
-    }
-
-    return exitCode;
+    return 0;
   }
 
-  // Normal Mode: inspect provider readiness at current base
-  const readiness = await inspectProviderReadiness(WORKSPACE_ROOT);
-
-  if (!readiness.ready) {
-    // Contract requirement: exit 3 (BLOCKED) BEFORE allocating any temporary resources!
-    const integrityStatus = verifyByteIntegrity(initialWorkspaceHashes, WORKSPACE_ROOT);
-
-    const blockedReport = sanitizeValue({
-      mode: 'qualification',
-      status: 'BLOCKED',
-      exitCode: 3,
-      baseSha: BASE_SHA,
-      reason: readiness.reason,
-      missingProviders: readiness.missing,
-      details: readiness.details,
-      byteIntegrity: integrityStatus,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (jsonMode) {
-      process.stdout.write(JSON.stringify(blockedReport, null, 2) + '\n');
-    } else {
-      process.stderr.write(
-        `[BLOCKED] ${blockedReport.reason}\nPhase 7 Stage A qualification is blocked pending Stage B coordinator integration.\nExit code 3.\n`
-      );
-    }
-
-    return 3;
-  }
-
-  // Stage B: Execute full qualification once providers and CLI options are present
-  process.stderr.write('[phase7-qualification] Built providers present. Executing Stage B qualification...\n');
-
-  let stageBResult;
+  const before = workspaceHashes();
+  const selfTest = args.includes('--self-test');
+  let root;
+  let child;
+  let result;
+  let cleanup = { ok: true, retained: false };
+  let exitCode = 1;
 
   try {
-    stageBResult = await runStageBQualification(resourceManager);
+    if (!selfTest) {
+      const readiness = await ownedChild('readiness', undefined, 15000);
+
+      if (!readiness.ok) {
+        result = { status: 'FAILED', category: 'readiness-infrastructure' };
+      } else if (!readiness.report.ready) {
+        result = { status: 'BLOCKED', readiness: readiness.report };
+        exitCode = 3;
+      }
+    }
+
+    if (!result) {
+      const tempBase = fs.realpathSync(os.tmpdir());
+      root = fs.mkdtempSync(path.join(tempBase, 'hooklatch-phase7-runtime-'));
+      requireCheck(within(tempBase, root), 'owned-root-containment');
+      child = await ownedChild(selfTest ? 'self-test' : 'qualification', root, selfTest ? 120000 : 180000);
+      result = child.ok ? child.report.result : { ok: false, category: child.category,
+        childExitCode: child.exitCode, childSignal: child.signal, childPid: child.pid, diagnosticCategories: child.diagnosticCategories };
+
+      if (child.ok && child.report.cleanup?.ok === true && child.report.cleanup.retained === false) {
+        requireCheck(!containsLink(root), 'remaining-link');
+        fs.rmSync(root, { recursive: true, force: true });
+        cleanup = { ok: !fs.existsSync(root), retained: false };
+      } else cleanup = { ok: false, retained: true, category: 'owned-child-or-resource-cleanup' };
+      exitCode = child.ok && result.ok && cleanup.ok ? 0 : 1;
+    }
   } catch {
-    stageBResult = {
-      ok: false,
-      error: 'Stage B execution error',
-    };
+    result = { ok: false, category: 'runner-failure' };
+    cleanup = { ok: root === undefined, retained: root !== undefined };
+    exitCode = 1;
   }
 
-  const cleanupStatus = await resourceManager.cleanupAll();
+  const byteIntegrity = integrity(before);
 
-  const integrityStatus = verifyByteIntegrity(initialWorkspaceHashes, WORKSPACE_ROOT);
+  if (!byteIntegrity.intact || !cleanup.ok) exitCode = 1;
 
-  const overallOk = stageBResult.ok && cleanupStatus.ok && integrityStatus.intact;
+  const report = { mode: selfTest ? 'self-test' : 'qualification',
+    status: exitCode === 0 ? 'PASSED' : exitCode === 3 ? 'BLOCKED' : 'FAILED',
+    exitCode, result, cleanup, byteIntegrity };
 
-  const exitCode = cleanupStatus.ok && integrityStatus.intact ? (stageBResult.ok ? 0 : 1) : 3;
+  if (cleanup.retained) report.retainedScratch = root;
 
-  const report = sanitizeValue({
-    mode: 'stage-b-qualification',
-    status: overallOk ? 'PASSED' : 'FAILED',
-    exitCode,
-    baseSha: BASE_SHA,
-    result: stageBResult,
-    cleanup: cleanupStatus,
-    byteIntegrity: integrityStatus,
-    timestamp: new Date().toISOString(),
-  });
-
-  if (jsonMode) {
-    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-  } else {
-    process.stderr.write(`\nStage B qualification overall status: ${report.status}\n`);
-  }
+  if (args.includes('--json')) process.stdout.write(JSON.stringify(report) + '\n');
+  else process.stdout.write(`${report.status}: exit ${exitCode}\n`);
 
   return exitCode;
 }
 
-main()
-  .catch((err) => {
-    const sanitizedMsg = redactSensitiveText(err.message);
-
-    process.stderr.write(`Unhandled runner exception: ${sanitizedMsg}\n`);
-
-    return 1;
-  })
-  .then((code) => {
-    process.exit(code);
+if (process.argv[2] === '--qualification-internal' && isCallable(process.send)) {
+  internalMain(process.argv[3], process.argv[4]).then((report) => {
+    requireCheck(Buffer.byteLength(JSON.stringify(report)) <= MAX_REPORT_BYTES, 'report-limit');
+    process.send(report, () => {
+      process.exitCode = 0;
+      process.disconnect();
+    });
+  }).catch(() => {
+    process.send({ result: { ok: false, category: 'internal-failure' }, cleanup: { ok: false, retained: true } },
+      () => {
+        process.exitCode = 1;
+        process.disconnect();
+      });
   });
+} else {
+  main().then((code) => { process.exitCode = code; }).catch(() => {
+    process.stderr.write('Qualification runner infrastructure failure.\n');
+    process.exitCode = 1;
+  });
+}
