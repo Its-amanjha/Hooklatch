@@ -360,6 +360,7 @@ const UTF8_STRICT = new TextDecoder('utf-8', { fatal: true });
  * charset, padding position and canonical pad bits for every block.
  */
 function independentBase64Bytes(value: string): Uint8Array {
+  if (value.length % 4 !== 0) throw new Error('Incomplete Base64 block.');
   const bytes: number[] = [];
 
   for (let index = 0; index < value.length; index += 4) {
@@ -425,7 +426,10 @@ function headerMapOf(case_: LinearCaseMirror, view: LinearHeaderView): Map<strin
   for (const [name, value] of Object.entries(case_.request.headers)) {
     const text = Array.isArray(value) ? value.join(', ') : value;
 
-    map.set(name.toLowerCase(), view === 'web' ? text.trim() : text);
+    const key = name.toLowerCase();
+    const normalized = view === 'web' ? text.trim() : text;
+    const previous = map.get(key);
+    map.set(key, previous === undefined ? normalized : `${previous}, ${normalized}`);
   }
 
   return map;
@@ -1172,5 +1176,24 @@ describe('mutation controls on a cloned corpus', () => {
     });
 
     expect(defects.some((defect) => defect.startsWith('guard-rejected'))).toBe(true);
+  });
+});
+
+
+describe('independent model boundary controls', () => {
+  it('rejects incomplete Base64 blocks', () => {
+    for (const input of ['A', 'AA', 'AAA', 'AAAA=']) {
+      expect(() => independentBase64Bytes(input)).toThrow();
+    }
+  });
+
+  it('combines case-folded duplicate signature fields in both input views', () => {
+    const duplicate = cloneCase('positive-baseline');
+    Object.defineProperty(duplicate.request.headers, 'Linear-Signature', {
+      value: recordedSignatureOf('positive-baseline'), enumerable: true,
+    });
+
+    expect(linearOutcome(duplicate, 'record')).toEqual({ ok: false, reason: 'malformed-signature' });
+    expect(linearOutcome(duplicate, 'web')).toEqual({ ok: false, reason: 'malformed-signature' });
   });
 });

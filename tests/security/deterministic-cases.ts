@@ -3,7 +3,7 @@ import type { EventIdentity, Provider } from '../../src/types.js';
 
 /**
  * Deterministic, independently signed adversarial corpus for the eventual
- * eighteen public providers. Signing is implemented here from the documented
+ * nineteen public providers. Signing is implemented here from the documented
  * recipes with test-only `node:crypto`; it never calls production parse/decode
  * or signed-content helpers. Every value is synthetic and this corpus is not
  * an official provider conformance certificate.
@@ -57,6 +57,7 @@ export const SECURITY_PROVIDERS = [
   'sanity',
   'grafana',
   'polar',
+  'linear',
 ] as const satisfies readonly SecurityProvider[];
 
 export type SignatureEncoding = 'hex' | 'base64' | 'base64url';
@@ -305,6 +306,13 @@ const SIGNING_RECIPES: Readonly<Record<SecurityProvider, SigningRecipe>> = {
 
       return `t=${timestampText},v1=${token}`;
     },
+  },
+  linear: {
+    encoding: 'hex',
+    timestamped: false,
+    key: literalKeyBytes,
+    signedContent: (body) => Buffer.from(body),
+    signatureValue: (token) => token,
   },
   sentry: {
     encoding: 'hex',
@@ -641,6 +649,13 @@ function buildCase(provider: SecurityProvider, index: number, seed: number): Det
         unsignedHeaders['X-Razorpay-Event-Id'] = razorpayEventHeader;
       }
 
+      break;
+    case 'linear':
+      signatureHeader = 'Linear-Signature';
+      headers[signatureHeader] = signatureValue;
+      unsignedHeaders['Linear-Timestamp'] = String(BASE_TIMESTAMP * 1000);
+      unsignedHeaders['Linear-Delivery'] = 'hooklatch-synthetic-linear-delivery';
+      unsignedHeaders['Linear-Event'] = 'Issue';
       break;
     case 'sentry':
       signatureHeader = 'Sentry-Hook-Signature';

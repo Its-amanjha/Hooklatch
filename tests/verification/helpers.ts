@@ -79,11 +79,10 @@ const PROVIDER_FILES: Partial<Record<FixtureProvider, string>> = {
   github: '../fixtures/github.json',
   shopify: '../fixtures/shopify.json',
   'standard-webhooks': '../fixtures/standard-webhooks.json',
-  // grafana/polar are not Provider members at this base (public support is 16);
-  // these explicit entries are an honest contract-first RED seam until Codex
-  // extends the Provider union and VerifyOptions in Stage B integration.
+  // Configured-provider and Linear corpora are mapped explicitly; no inferred fallback.
   grafana: '../fixtures/grafana.json',
   polar: '../fixtures/polar.json',
+  linear: '../fixtures/linear.json',
 };
 
 function isString(value: unknown): value is string { return typeof value === 'string'; }

@@ -32,7 +32,7 @@ import type {
 } from './deterministic-cases.js';
 
 /**
- * Adversarial qualification of the eventual eighteen public providers through
+ * Adversarial qualification of the nineteen public providers through
  * the public root only, preserving the original sixteen-provider records as a
  * byte-identical prefix. All signatures are generated independently in
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
@@ -48,7 +48,7 @@ const TIMESTAMPED_PROVIDERS = [
 ] as const;
 
 /** Providers whose signature covers the raw body only (no timestamp). */
-const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy', 'sentry', 'doppler'] as const;
+const BODY_ONLY_PROVIDERS = ['github', 'shopify', 'razorpay', 'lemon-squeezy', 'sentry', 'doppler', 'linear'] as const;
 
 const STANDARD_WEBHOOKS_PROVIDERS = [
   'standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate', 'polar',
@@ -355,9 +355,9 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
   });
 
-  test('covers the exact eventual eighteen-provider registry with no unmapped branch', () => {
+  test('covers the exact nineteen-provider registry with no unmapped branch', () => {
     expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
-    expect(SECURITY_PROVIDERS).toHaveLength(18);
+    expect(SECURITY_PROVIDERS).toHaveLength(19);
     expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
 
     for (const provider of SUPPORTED_PROVIDERS) {
