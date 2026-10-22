@@ -1,14 +1,13 @@
 # Provider guide
 
-Reference for eighteen locally qualified provider IDs plus Linear pending
-integration and qualification. Paddle support covers Billing webhooks only.
+Reference for nineteen locally qualified provider IDs. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Qualified provider protocols
 
-These eighteen providers are integrated and locally qualified in the current codebase.
+These nineteen providers are integrated and locally qualified in the current codebase.
 The package has not yet been published to npm.
 
 | ID | Header | Signed content | Secret form | Identity |
@@ -29,6 +28,7 @@ The package has not yet been published to npm.
 | sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null |
 | doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null |
 | sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated |
+| linear | `linear-signature` | raw body | Literal string | all identity fields null; no freshness extraction |
 
 ### Authenticated vs unsigned identity
 
@@ -258,17 +258,7 @@ from the payload. Retry consistency follows each provider's documented rules.
 - **Source:** https://github.com/sanity-io/webhook-toolkit/blob/e0c211ed6cd80465a70829e335c9e219f37839ba/src/signature.ts
 - **Status:** implemented and locally qualified.
 
-## Providers pending integration and qualification
-
-The following provider ID is documented here only as a planned protocol mapping.
-It is **not registered or qualified for public verification**. Do not treat
-anything in this section as advertised support.
-
-| ID | Header | Signed content | Secret form | Identity | Status |
-|---|---|---|---|---|---|
-| linear | `linear-signature` | raw body | Literal string | all identity fields null | Pending |
-
-### Linear signature authentication
+## Linear signature authentication
 
 - **Provider id:** `linear`.
 - **Header:** `linear-signature` — exactly 64 ASCII hex characters, either hex
@@ -280,15 +270,14 @@ anything in this section as advertised support.
 - **Signed content:** the exact `rawBody` bytes — HMAC-SHA256 over the raw
   body view. No UTF-8 decode, no JSON parse, no body parsing. Binary,
   invalid UTF-8, NUL, and empty bodies are accepted as opaque bytes.
-- **Secret:** nonempty literal untrimmed UTF-8 string via
-  `decodeLiteralSecret(secret, 'Linear')`. Empty → `invalid-secret`.
+- **Secret:** nonempty literal untrimmed UTF-8 string. Empty → `invalid-secret`.
   Whitespace-only or non-ASCII bytes are literal keys; no inferred prefix
   stripping, no Base64 decoding, no invented UI-length bound.
 - **Identity:** `deliveryId`, `eventId`, and `timestamp` are all `null`;
   `authenticatedFields` is empty. `Linear-Delivery`, `Linear-Event`,
   `linear-timestamp`, and alien auth headers are ignored. Never derive
   identity or time from the body — the body contains authenticated bytes,
-  not extracted claims.
+  not extracted claims. Their original bytes remain authenticated by the MAC.
 - **Freshness:** no freshness enforcement for `linear`. It is body-only
   authentication. Old or future unsigned timestamps cannot change
   authenticity or become replay protection. Do not claim full Linear SDK
@@ -296,7 +285,7 @@ anything in this section as advertised support.
   parsing/freshness after verification is outside core and this phase.
 - **Sources:** https://linear.app/developers/webhooks;
   https://linear.app/developers/sdk-webhooks.
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified (signature authentication only).
 
 ## Configured provider protocols
 
@@ -389,7 +378,7 @@ for the entire accept-set. These choices come from trusted application code.
   content.
 - **Key form:** literal nonempty untrimmed UTF-8 secrets are used by Stripe,
   GitHub, Shopify, Razorpay, Paddle, Lemon Squeezy, WorkOS, Sentry App,
-  Doppler and Sanity. Standard Webhooks-family providers (standard-webhooks,
+  Doppler, Sanity and Linear. Standard Webhooks-family providers (standard-webhooks,
   Clerk, Svix, Dodo Payments, GitLab, Replicate) strip an optional `whsec_`
   prefix and Base64-decode the key, requiring 24–64 decoded bytes. A prefix alone never selects a
   protocol.

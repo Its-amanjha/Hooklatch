@@ -88,6 +88,7 @@ payload schemas.
 | Sanity | `t.body`, with millisecond `t` | Literal secret string | Signed; default 300 seconds (receiver policy) | Signed timestamp only |
 | Grafana | Body or `timestamp:body`, explicitly selected | Literal secret string | Timestamped mode only; default 300 seconds | Signed timestamp in timestamped mode |
 | Polar | `id.timestamp.body` | Explicit current (Base64) or legacy (literal) key mode | Signed; default 300 seconds | Signed message ID + timestamp |
+| Linear | Body only | Literal secret string | Body timestamp is not extracted or freshness-checked | None extracted |
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are
@@ -95,6 +96,12 @@ never assembled together. Standard Webhooks, Clerk and Svix require decoded
 signing keys of 24–64 bytes, as do Dodo, GitLab and Replicate; shorter
 reference-library examples are rejected. GitLab requires a signing token;
 legacy `X-Gitlab-Token` alone is not accepted.
+Linear support authenticates the signature over exact body bytes. It does not
+parse `webhookTimestamp` or enforce freshness. The body claims remain covered by
+the MAC, but Hooklatch does not extract them into identity. `Linear-Timestamp`,
+`Linear-Delivery` and `Linear-Event` headers are unsigned and ignored. Applications
+that need replay checks must validate authenticated body claims after success.
+
 See the [provider guide](docs/providers.md) for exact headers, identity fields,
 and protocol-specific limits. Paddle support covers Billing webhooks only.
 
@@ -102,7 +109,7 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-22):** The core, eighteen provider descriptors,
+> **Implementation status (2026-10-23):** The core, nineteen provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for

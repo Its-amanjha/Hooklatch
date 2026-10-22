@@ -15,7 +15,7 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
   `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`,
-  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, or `sanity`. The list comes from the
+  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, or `linear`. The list comes from the
   package's internal provider registry; pending providers are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
 
@@ -31,7 +31,8 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   `RAZORPAY_WEBHOOK_SECRET`, `PADDLE_WEBHOOK_SECRET`,
   `LEMON_SQUEEZY_WEBHOOK_SECRET`, `DODO_WEBHOOK_SECRET`,
   `GITLAB_WEBHOOK_SECRET`, `REPLICATE_WEBHOOK_SECRET`, `WORKOS_WEBHOOK_SECRET`,
-  `SENTRY_WEBHOOK_SECRET`, `DOPPLER_WEBHOOK_SECRET`, `SANITY_WEBHOOK_SECRET`.
+  `SENTRY_WEBHOOK_SECRET`, `DOPPLER_WEBHOOK_SECRET`, `SANITY_WEBHOOK_SECRET`,
+  `GRAFANA_WEBHOOK_SECRET`, `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`.
 - `--body-limit <bytes>` — positive safe integer body limit baked into the
   generated options. Default: `1048576`.
 - `--dry-run` — validate arguments and the target path, then print the
@@ -106,3 +107,10 @@ example `--out app/api/webhooks/stripe`).
 
 Error output is a single static summary line on stderr: no stack traces, no
 absolute paths, and no secret environment variable values.
+
+## Linear authentication scope
+
+`--provider linear` generates signature verification using `LINEAR_WEBHOOK_SECRET`
+by default. Linear has no provider-specific CLI flags. The generated handler
+preserves authenticated bytes and leaves parsing and body-timestamp freshness
+validation to application code; unsigned headers do not establish freshness.

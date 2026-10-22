@@ -191,3 +191,11 @@ for `grafana`, optional for `polar`, and forbidden for the other providers.
 `diagnose` is synchronous and performs no I/O, network access, provider
 detection, or freshness bypass. It works in any runtime including Cloudflare
 Workers.
+
+## Linear signature authentication
+
+Linear diagnostics list `Linear-Signature` and the bare 64-hex raw-body signature
+grammar. They describe signature authentication only. A successful result does
+not establish freshness: Hooklatch does not extract the body timestamp, and the
+unsigned timestamp header cannot establish it. Diagnostic text is static and
+never reproduces the request body, secret, signature, or caller error message.
