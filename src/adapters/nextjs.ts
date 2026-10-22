@@ -10,6 +10,13 @@ export function createWebhookHandler(options: NextWebhookHandlerOptions): (reque
   try {
     const { handler, ...verifyOptions } = options;
 
+    // Object rest omits non-enumerable fields; own configuration presence is meaningful.
+    if (Object.hasOwn(options, 'providerOptions') && !Object.hasOwn(verifyOptions, 'providerOptions')) {
+      Object.defineProperty(verifyOptions, 'providerOptions', {
+        value: options.providerOptions, enumerable: true, configurable: true, writable: true,
+      });
+    }
+
     return requestHandler(verifyOptions, handler);
   } catch {
     // Contain caller-owned accessors without exposing their thrown values.

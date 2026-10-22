@@ -33,7 +33,7 @@ export function snapshotGrafanaOptions(value: Configuration | undefined): Grafan
   const signature = hasSignature && 'signatureHeader' in value ? value.signatureHeader : undefined;
 
   if (hasSignature && !isString(signature)) invalidOptions();
-  const signatureOptions = signature !== undefined ? { signatureHeader: signature.toLowerCase() } : {};
+  const signatureOptions = signature !== undefined ? { signatureHeader: signature } : {};
   let snapshot: GrafanaOptions;
 
   if (mode === 'body') {
@@ -46,7 +46,7 @@ export function snapshotGrafanaOptions(value: Configuration | undefined): Grafan
 
     if (!isString(timestamp)) invalidOptions();
 
-    snapshot = { mode, ...signatureOptions, timestampHeader: timestamp.toLowerCase() };
+    snapshot = { mode, ...signatureOptions, timestampHeader: timestamp };
   } else {
     return invalidOptions();
   }
@@ -54,7 +54,12 @@ export function snapshotGrafanaOptions(value: Configuration | undefined): Grafan
   // The pure factory remains the authority for RFC field names, reservations and collisions.
   createGrafanaDescriptor(snapshot);
 
-  return snapshot;
+  // Validate original code points first: Unicode case conversion can produce ASCII.
+  const normalizedSignature = signature !== undefined ? { signatureHeader: signature.toLowerCase() } : {};
+
+  return snapshot.mode === 'body'
+    ? { mode: snapshot.mode, ...normalizedSignature }
+    : { mode: snapshot.mode, ...normalizedSignature, timestampHeader: snapshot.timestampHeader.toLowerCase() };
 }
 
 export function snapshotPolarOptions(value: Configuration | undefined): PolarOptions {
