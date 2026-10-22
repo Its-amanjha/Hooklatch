@@ -1,233 +1,205 @@
-import { readFileSync } from 'node:fs';
-
 import { createVerifier, verify, verifyRequest } from '../../src/index.js';
-import type { HeaderInput, VerificationResult, VerifyOptions } from '../../src/types.js';
-import type { FixtureCase } from '../verification/helpers.js';
-import { fixtureBytes, isFixtureFile, representationsOf } from '../verification/helpers.js';
+import type {
+  HeaderInput, VerificationResult, VerificationSuccess,
+} from '../../src/types.js';
+import type { FixtureCase, FixtureExpected, FixtureProvider } from '../verification/helpers.js';
+import { fixtureBytes, fixtureOptions, loadFixture, representationsOf } from '../verification/helpers.js';
 
 /**
- * Phase 7 GLM Stage B — public fixture replay for Grafana and Polar.
+ * Phase 7 Stage B — public fixture replay for Grafana and Polar (GLM).
  *
- * Replays all 50 Grafana + 40 Polar cases through verify / verifyRequest /
- * createVerifier, across record, tuple and WHATWG Headers representations.
+ * Every corpus row, from tests/fixtures/grafana.json (50) and polar.json (40),
+ * is replayed through the public verify / verifyRequest / createVerifier entry
+ * points. Record and tuple representations preserve outer header whitespace;
+ * the WHATWG Headers representation may trim, so rows that distinguish the two
+ * carry a webHeadersExpected override which also governs the verifyRequest view.
  *
- * Base has 16 providers and no Grafana/Polar option types. The correlated
- * literal branches below are RED at this base by design; they become valid once
- * Codex adds the two providers and their option types in Stage B. Do not
- * replace them with casts or flattened dictionaries.
+ * This base registers 16 providers and carries no Grafana/Polar option types,
+ * so all replay expectations are contract-first RED by design:
+ * normalizeOptions rejects the literal provider name with the public
+ * 'unknown-provider' code before any provider code runs. Assertions become
+ * exact once Codex's Stage B integration registers both providers. No casts,
+ * fallback outcomes, partial reasons or flattened option dictionaries are used
+ * here or in helpers.ts.
  */
 
-function loadCases(fileName: string): readonly FixtureCase[] {
-  const parsed: unknown = JSON.parse(readFileSync(new URL(`../fixtures/${fileName}`, import.meta.url), 'utf8'));
+const GRAFANA_CASES = loadFixture('grafana');
+const POLAR_CASES = loadFixture('polar');
 
-  if (!isFixtureFile(parsed)) throw new Error(`Invalid fixture file ${fileName}`);
-
-  return parsed.cases;
+interface ReplayView {
+  readonly label: 'record' | 'tuple' | 'whatwg-headers';
+  readonly headers: HeaderInput;
+  readonly expected: FixtureExpected;
 }
 
-const GRAFANA_CASES = loadCases('grafana.json');
-const POLAR_CASES = loadCases('polar.json');
+/** The three header representations the contract declares equivalent. */
+function replayViews(case_: FixtureCase): readonly ReplayView[] {
+  const representations = representationsOf(case_);
 
-const ENTRYPOINTS = ['verify', 'verifyRequest', 'createVerifier'] as const;
-
-type EntryPoint = (typeof ENTRYPOINTS)[number];
-
-function casesFor(provider: 'grafana' | 'polar'): readonly FixtureCase[] {
-  return provider === 'grafana' ? GRAFANA_CASES : POLAR_CASES;
+  return [
+    { label: 'record', headers: representations[0]!, expected: case_.expected },
+    { label: 'tuple', headers: representations[1]!, expected: case_.expected },
+    { label: 'whatwg-headers', headers: representations[2]!, expected: case_.webHeadersExpected ?? case_.expected },
+  ];
 }
 
-function firstPositive(provider: 'grafana' | 'polar'): FixtureCase {
-  const fixture = casesFor(provider).find((entry) => entry.expected.ok);
-
-  if (fixture === undefined) throw new Error(`Missing positive fixture for ${provider}`);
-
-  return fixture;
+function isVerifySuccess(result: VerificationResult): result is VerificationSuccess {
+  return result.ok;
 }
 
-// Correlated literal branches: the provider literal determines the options shape.
-// RED at this base: 'grafana' and 'polar' are not yet members of Provider and
-// VerifyOptions has no providerOptions field. These branches become valid once
-// Codex adds both in Stage B.
-type GrafanaFixtureOptions = {
-  provider: 'grafana';
-  secrets: readonly string[];
-  now: () => number;
-  toleranceSeconds?: number;
-  maxBodyBytes?: number;
-  providerOptions: unknown;
-};
-
-type PolarFixtureOptions = {
-  provider: 'polar';
-  secrets: readonly string[];
-  now: () => number;
-  toleranceSeconds?: number;
-  maxBodyBytes?: number;
-  providerOptions?: unknown;
-};
-
-function optionsFor(provider: 'grafana' | 'polar', fixture: FixtureCase): GrafanaFixtureOptions | PolarFixtureOptions {
-  if (provider === 'grafana') {
-    const options: GrafanaFixtureOptions = {
-      provider: 'grafana',
-      secrets: [...fixture.options.secrets],
-      now: () => fixture.options.now,
-      providerOptions: fixture.options.providerOptions,
-    };
-
-    if (fixture.options.toleranceSeconds !== undefined) options.toleranceSeconds = fixture.options.toleranceSeconds;
-
-    if (fixture.options.maxBodyBytes !== undefined) options.maxBodyBytes = fixture.options.maxBodyBytes;
-
-    return options;
-  }
-
-  const options: PolarFixtureOptions = {
-    provider: 'polar',
-    secrets: [...fixture.options.secrets],
-    now: () => fixture.options.now,
-  };
-
-  if (fixture.options.providerOptions !== undefined) options.providerOptions = fixture.options.providerOptions;
-
-  if (fixture.options.toleranceSeconds !== undefined) options.toleranceSeconds = fixture.options.toleranceSeconds;
-
-  if (fixture.options.maxBodyBytes !== undefined) options.maxBodyBytes = fixture.options.maxBodyBytes;
-
-  // SAFETY: same invariant as above — fixture validation already checked types.
-  return options;
+/** Printable rendering of signed bytes for leak-safe message checks. */
+function readableBody(rawBody: Uint8Array): string {
+  return Array.from(rawBody, (byte) => (byte >= 32 && byte < 127 ? String.fromCharCode(byte) : '?')).join('');
 }
 
-function webHeaders(input: HeaderInput): Headers {
-  if (input instanceof Headers) return new Headers(input);
-
-  const headers = new Headers();
-
-  if (Array.isArray(input)) {
-    for (const [name, value] of input) headers.append(name, value);
-  } else {
-    for (const [name, value] of Object.entries(input)) {
-      if (value === undefined) continue;
-
-      if (Array.isArray(value)) {
-        for (const part of value) headers.append(name, part);
-      } else headers.append(name, value);
+function assertOutcome(provider: FixtureProvider, case_: FixtureCase, expected: FixtureExpected, rawBody: Uint8Array, result: VerificationResult): void {
+  if (expected.ok) {
+    if (!isVerifySuccess(result)) {
+      throw new Error(`Expected success for ${provider}/${case_.id}, got failure reason ${result.reason}`);
     }
+
+    expect(result.provider).toBe(provider);
+    expect(result.rawBody).toEqual(rawBody);
+
+    const pinned = expected.identity;
+
+    if (pinned === undefined) throw new Error(`Missing expected identity pin for ${provider}/${case_.id}`);
+
+    expect([...result.identity.authenticatedFields].sort()).toEqual([...pinned.authenticatedFields].sort());
+    expect(result.identity.deliveryId).toBe(pinned.deliveryId);
+    expect(result.identity.eventId).toBe(pinned.eventId);
+    expect(result.identity.timestamp).toBe(pinned.timestamp);
+
+    return;
   }
 
-  return headers;
+  if (isVerifySuccess(result)) {
+    throw new Error(`Expected failure for ${provider}/${case_.id}, got ok`);
+  }
+
+  expect(result.provider).toBe(provider);
+  expect(result.reason).toBe(expected.reason);
+  expect(result.message.length).toBeGreaterThan(0);
+
+  const bodyText = readableBody(rawBody);
+
+  if (bodyText.length > 0) expect(result.message.includes(bodyText)).toBe(false);
+
+  for (const secret of case_.options.secrets) {
+    expect(result.message.includes(secret)).toBe(false);
+  }
 }
 
-async function invoke(entrypoint: EntryPoint, rawBody: Uint8Array, headers: HeaderInput, options: VerifyOptions): Promise<VerificationResult> {
-  if (entrypoint === 'verify') return verify({ rawBody, headers }, options);
+async function verifyViews(provider: FixtureProvider, case_: FixtureCase): Promise<void> {
+  const options = fixtureOptions(provider, case_);
 
-  if (entrypoint === 'createVerifier') return createVerifier(options)({ rawBody, headers });
+  for (const view of replayViews(case_)) {
+    const rawBody = fixtureBytes(case_);
+    const result = await verify({ rawBody, headers: view.headers }, options);
 
-  return verifyRequest(new Request('https://hooklatch.test/webhook', {
-    method: 'POST', headers: webHeaders(headers), body: new Uint8Array(rawBody),
-  }), options);
+    assertOutcome(provider, case_, view.expected, rawBody, result);
+  }
 }
 
-describe('Phase 7 public fixture enumeration', () => {
-  test('grafana has 50 cases with unique ids', () => {
+const WEBHOOK_URL = 'https://hooklatch.test/webhook';
+
+async function verifyRequestCase(provider: FixtureProvider, case_: FixtureCase): Promise<void> {
+  const options = fixtureOptions(provider, case_);
+  const views = replayViews(case_);
+  const rawBody = fixtureBytes(case_);
+  const webSource = views[2]!.headers;
+
+  if (!(webSource instanceof Headers)) throw new Error('The third fixture representation must be WHATWG Headers');
+
+  // The WHATWG node trims outer header whitespace exactly like the Headers view.
+  const request = new Request(WEBHOOK_URL, { method: 'POST', headers: webSource, body: new Uint8Array(rawBody) });
+  const result = await verifyRequest(request, options);
+
+  assertOutcome(provider, case_, views[2]!.expected, rawBody, result);
+}
+
+async function snapshotCase(provider: FixtureProvider, case_: FixtureCase): Promise<void> {
+  const options = fixtureOptions(provider, case_);
+  const views = replayViews(case_);
+  const verifier = createVerifier(options);
+
+  // Same correlated options object decodes the direct call and the factory call.
+  const directBytes = fixtureBytes(case_);
+  const direct = await verify({ rawBody: directBytes, headers: views[0]!.headers }, options);
+
+  const recordBytes = fixtureBytes(case_);
+  const recordResult = await verifier({ rawBody: recordBytes, headers: views[0]!.headers });
+
+  assertOutcome(provider, case_, views[0]!.expected, recordBytes, recordResult);
+  expect(recordResult).toEqual(direct);
+
+  const repeatBytes = fixtureBytes(case_);
+  const repeatResult = await verifier({ rawBody: repeatBytes, headers: views[0]!.headers });
+
+  assertOutcome(provider, case_, views[0]!.expected, repeatBytes, repeatResult);
+  expect(repeatResult).toEqual(recordResult);
+
+  const webBytes = fixtureBytes(case_);
+  const webResult = await verifier({ rawBody: webBytes, headers: views[2]!.headers });
+
+  assertOutcome(provider, case_, views[2]!.expected, webBytes, webResult);
+}
+
+describe('Phase 7 public fixture inventory (contract-first)', () => {
+  test('grafana enumerates all 50 rows with unique ids and local provenance', () => {
     expect(GRAFANA_CASES).toHaveLength(50);
-    expect(new Set(GRAFANA_CASES.map((entry) => entry.id)).size).toBe(GRAFANA_CASES.length);
+    expect(new Set(GRAFANA_CASES.map((case_) => case_.id)).size).toBe(GRAFANA_CASES.length);
+    expect(GRAFANA_CASES.every((case_) => case_.provenance.class === 'local')).toBe(true);
   });
 
-  test('polar has 40 cases with unique ids', () => {
+  test('polar enumerates all 40 rows with unique ids and local provenance', () => {
     expect(POLAR_CASES).toHaveLength(40);
-    expect(new Set(POLAR_CASES.map((entry) => entry.id)).size).toBe(POLAR_CASES.length);
+    expect(new Set(POLAR_CASES.map((case_) => case_.id)).size).toBe(POLAR_CASES.length);
+    expect(POLAR_CASES.every((case_) => case_.provenance.class === 'local')).toBe(true);
+  });
+
+  test('every grafana row carries typed providerOptions (mode correlation on load)', () => {
+    expect(GRAFANA_CASES.every((case_) => case_.options.providerOptions !== undefined)).toBe(true);
+  });
+
+  test('three grafana rows and one polar row pin WHATWG Headers overrides', () => {
+    expect(GRAFANA_CASES.filter((case_) => case_.webHeadersExpected !== undefined)).toHaveLength(3);
+    expect(POLAR_CASES.filter((case_) => case_.webHeadersExpected !== undefined)).toHaveLength(1);
+  });
+
+  test('grafana boundary rows omit toleranceSeconds; zero-width rows pin 0', () => {
+    const plus300 = GRAFANA_CASES.find((case_) => case_.id === 'boundary-plus300-ok');
+    const expiredBeyond = GRAFANA_CASES.find((case_) => case_.id === 'boundary-minus301-expired');
+
+    if (plus300 === undefined || expiredBeyond === undefined) throw new Error('Missing grafana boundary fixture rows');
+
+    expect(fixtureOptions('grafana', plus300).toleranceSeconds).toBeUndefined();
+    expect(fixtureOptions('grafana', expiredBeyond).toleranceSeconds).toBeUndefined();
+    expect(GRAFANA_CASES.filter((case_) => case_.options.toleranceSeconds === 0)).toHaveLength(3);
+  });
+
+  test('polar boundary rows omit toleranceSeconds; zero-width rows pin 0', () => {
+    const plus300 = POLAR_CASES.find((case_) => case_.id === 'boundary-plus300-ok');
+    const expiredBeyond = POLAR_CASES.find((case_) => case_.id === 'boundary-minus301-expired');
+
+    if (plus300 === undefined || expiredBeyond === undefined) throw new Error('Missing polar boundary fixture rows');
+
+    expect(fixtureOptions('polar', plus300).toleranceSeconds).toBeUndefined();
+    expect(fixtureOptions('polar', expiredBeyond).toleranceSeconds).toBeUndefined();
+    expect(POLAR_CASES.filter((case_) => case_.options.toleranceSeconds === 0)).toHaveLength(3);
   });
 });
 
-describe.each(['grafana', 'polar'] as const)('%s public fixture replay', (provider) => {
-  const fixtures = provider === 'grafana' ? GRAFANA_CASES : POLAR_CASES;
-
-  describe.each(ENTRYPOINTS)('%s', (entrypoint) => {
-    test.each(fixtures)('$id has exact outcomes across record, tuples and Headers', async (fixture) => {
-      const body = fixtureBytes(fixture);
-
-      for (const headers of representationsOf(fixture)) {
-        const expected = headers instanceof Headers ? (fixture.webHeadersExpected ?? fixture.expected) : fixture.expected;
-        const result = await invoke(entrypoint, body, headers, optionsFor(provider, fixture));
-
-        expect(result.ok).toBe(expected.ok);
-        expect(result.provider).toBe(provider);
-
-        if (result.ok) {
-          expect(fixture.expected.identity).toBeDefined();
-          expect(result.identity).toEqual(expected.identity ?? fixture.expected.identity);
-          expect(result.rawBody).toEqual(body);
-        } else {
-          expect(result.reason).toBe(expected.reason);
-        }
-      }
-    });
+describe.each([['grafana', GRAFANA_CASES], ['polar', POLAR_CASES]] as const)('%s public replay', (provider, cases) => {
+  test.each(cases)('$id · verify across record, tuple and WHATWG Headers views', async (case_) => {
+    await verifyViews(provider, case_);
   });
 
-  test('createVerifier uses the same correlated options as verify', async () => {
-    const fixture = firstPositive(provider);
-    const body = fixtureBytes(fixture);
-    const options = optionsFor(provider, fixture);
+  test.each(cases)('$id · verifyRequest WHATWG override view', async (case_) => {
+    await verifyRequestCase(provider, case_);
+  });
 
-    const direct = await verify({ rawBody: body, headers: fixture.request.headers }, options);
-    const viaFactory = await createVerifier(options)({ rawBody: body, headers: fixture.request.headers });
-
-    expect(direct).toEqual(viaFactory);
+  test.each(cases)('$id · createVerifier snapshot behavior and correlated options', async (case_) => {
+    await snapshotCase(provider, case_);
   });
 });
-
-describe('Phase 7 signed identity and raw bytes', () => {
-  for (const provider of ['grafana', 'polar'] as const) {
-    const fixture = firstPositive(provider);
-
-    test(`${provider}: success exposes every identity field and raw body`, async () => {
-      const body = fixtureBytes(fixture);
-      const result = await verify({ rawBody: body, headers: fixture.request.headers }, optionsFor(provider, fixture));
-
-      expect(result.ok).toBe(true);
-
-      if (result.ok) {
-        const expected = fixture.expected.identity;
-
-        if (expected === undefined) throw new Error('Missing expected identity');
-
-        expect(result.identity.deliveryId).toBe(expected.deliveryId);
-        expect(result.identity.eventId).toBe(expected.eventId);
-        expect(result.identity.timestamp).toBe(expected.timestamp);
-        expect(result.identity.authenticatedFields).toEqual(expected.authenticatedFields);
-        expect(result.rawBody).toEqual(body);
-        expect(result.rawBody.byteLength).toBe(body.byteLength);
-      }
-    });
-  }
-});
-
-describe('Phase 7 omitted tolerance uses real defaults', () => {
-  test('grafana timestamped omits tolerance so the 300-second default applies', async () => {
-    const fixture = GRAFANA_CASES.find((entry) => entry.expected.identity?.timestamp !== null && entry.expected.identity?.timestamp !== undefined);
-
-    if (fixture === undefined) throw new Error('Missing timestamped grafana fixture');
-
-    const identity = fixture.expected.identity;
-
-    if (identity?.timestamp === null || identity?.timestamp === undefined) throw new Error('Missing grafana timestamp');
-
-    const timestamp = identity.timestamp;
-    const options = optionsFor('grafana', fixture);
-    // Ensure tolerance is omitted to exercise the real default.
-    // SAFETY: the cast targets an optional numeric field on a named owner type;
-    // deleting it exercises the omitted-tolerance default path.
-    delete (options as { toleranceSeconds?: number }).toleranceSeconds;
-
-    const atBoundary = await verify({ rawBody: fixtureBytes(fixture), headers: fixture.request.headers }, { ...options, now: () => timestamp + 300 });
-    const pastBoundary = await verify({ rawBody: fixtureBytes(fixture), headers: fixture.request.headers }, { ...options, now: () => timestamp + 301 });
-
-    expect(atBoundary.ok).toBe(true);
-    expect(pastBoundary.ok).toBe(false);
-
-    if (!pastBoundary.ok) expect(pastBoundary.reason).toBe('timestamp-expired');
-  });
-});
-
-// (imports consolidated above)
