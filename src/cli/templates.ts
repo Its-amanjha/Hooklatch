@@ -5,8 +5,20 @@ export type TemplateOptions =
   | { readonly publicKeyEnv: string; readonly expectedUserEnv: string; readonly bodyLimit: number; readonly providerOptions?: ProviderCliOptions };
 
 export function renderTemplate(provider: string, framework: string, options: TemplateOptions): string {
-  if ('publicKeyEnv' in options) {
+  const hasPublicKey = 'publicKeyEnv' in options;
+  const hasSecret = 'secretEnv' in options;
+
+  // Enforce credential correlation: fal must use public-key options, non-fal must use HMAC options.
+  if (provider === 'fal') {
+    if (!hasPublicKey || hasSecret) {
+      throw new Error('Fal templates require publicKeyEnv and expectedUserEnv, not secretEnv.');
+    }
+
     return falTemplate(provider, framework, options.publicKeyEnv, options.expectedUserEnv, options.bodyLimit);
+  }
+
+  if (hasPublicKey) {
+    throw new Error('Non-fal providers must use secretEnv, not publicKeyEnv/expectedUserEnv.');
   }
 
   const { secretEnv, bodyLimit, providerOptions } = options;

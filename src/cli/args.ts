@@ -152,12 +152,13 @@ function isFramework(value: string): value is Framework {
   return (FRAMEWORKS as readonly string[]).includes(value);
 }
 
-/** CLI-supported providers include not-yet-registered providers that the CLI can scaffold. */
-const CLI_PROVIDERS = [...SUPPORTED_PROVIDERS, 'vercel', 'fal'] as const;
+// CLI accepted providers come solely from SUPPORTED_PROVIDERS (Codex-owned registry).
+// Shadow registration of 'vercel'/'fal' is intentionally removed: those providers
+// are not registered at this base and cannot honestly be scaffolded through the CLI.
 
-function isCliProvider(value: string): boolean {
-  // SAFETY: CLI_PROVIDERS is a fixed readonly tuple of implemented plus scaffold-only provider ids; widening to string[] only supports Array.includes.
-  return (CLI_PROVIDERS as readonly string[]).includes(value);
+function isProvider(value: string): value is Provider {
+  // SAFETY: SUPPORTED_PROVIDERS is a fixed readonly tuple of implemented provider ids; widening to string[] only supports Array.includes.
+  return (SUPPORTED_PROVIDERS as readonly string[]).includes(value);
 }
 
 function isPositiveSafeInteger(value: string): boolean {
@@ -407,7 +408,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
 
   if (!framework) return { kind: 'error', exitCode: 2, message: 'Missing required --framework.' };
 
-  if (!isCliProvider(provider)) {
+  if (!isProvider(provider)) {
     return { kind: 'error', exitCode: 2, message: 'Unsupported provider.' };
   }
 
@@ -416,87 +417,6 @@ export function parseArgs(argv: readonly string[]): ParseResult {
   }
 
   if (out.length === 0) return { kind: 'error', exitCode: 2, message: 'Invalid --out: empty path.' };
-
-  // fal does not use secrets; resolve public-key env vars instead.
-  if (provider === 'fal') {
-    if (secretEnv !== undefined) {
-      return { kind: 'error', exitCode: 2, message: 'The --secret-env flag is not valid for fal.' };
-    }
-
-    if (grafanaMode !== undefined || signatureHeader !== undefined || timestampHeader !== undefined) {
-      return { kind: 'error', exitCode: 2, message: 'The --grafana-mode, --signature-header and --timestamp-header flags are only valid for grafana.' };
-    }
-
-    if (polarSecretMode !== undefined) {
-      return { kind: 'error', exitCode: 2, message: 'The --polar-secret-mode flag is only valid for polar.' };
-    }
-
-    const resolvedPublicKeyEnv = publicKeyEnv ?? 'FAL_WEBHOOK_PUBLIC_KEYS';
-    const resolvedExpectedUserEnv = expectedUserEnv ?? 'FAL_WEBHOOK_USER_ID';
-
-    if (!SECRET_ENV_PATTERN.test(resolvedPublicKeyEnv)) {
-      return { kind: 'error', exitCode: 2, message: 'Invalid --public-key-env: expected an identifier.' };
-    }
-
-    if (!SECRET_ENV_PATTERN.test(resolvedExpectedUserEnv)) {
-      return { kind: 'error', exitCode: 2, message: 'Invalid --expected-user-env: expected an identifier.' };
-    }
-
-    const baseCommand = {
-      provider,
-      framework,
-      out,
-      secretEnv: resolvedPublicKeyEnv,
-      bodyLimit,
-      dryRun,
-      publicKeyEnv: resolvedPublicKeyEnv,
-      expectedUserEnv: resolvedExpectedUserEnv,
-    } satisfies WebhookCommand;
-
-    return {
-      kind: 'command',
-      command: {
-        ...baseCommand,
-        providerOptions: {
-          provider: 'fal',
-          options: { publicKeyEnv: resolvedPublicKeyEnv, expectedUserEnv: resolvedExpectedUserEnv },
-        },
-      },
-    };
-  }
-
-  // vercel is HMAC; use default secret env.
-  if (provider === 'vercel') {
-    const defaultSecretEnv = 'VERCEL_WEBHOOK_SECRET';
-    const resolvedSecretEnv = secretEnv ?? defaultSecretEnv;
-
-    if (resolvedSecretEnv === undefined || !SECRET_ENV_PATTERN.test(resolvedSecretEnv)) {
-      return { kind: 'error', exitCode: 2, message: 'Invalid --secret-env: expected an identifier.' };
-    }
-
-    const grafanaFlag = firstGrafanaFlag({ grafanaMode, signatureHeader, timestampHeader, polarSecretMode, publicKeyEnv, expectedUserEnv });
-
-    if (grafanaFlag !== null) return { kind: 'error', exitCode: 2, message: `The ${grafanaFlag} flag is only valid for grafana.` };
-
-    if (polarSecretMode !== undefined) {
-      return { kind: 'error', exitCode: 2, message: 'The --polar-secret-mode flag is only valid for polar.' };
-    }
-
-    if (publicKeyEnv !== undefined || expectedUserEnv !== undefined) {
-      return { kind: 'error', exitCode: 2, message: 'The --public-key-env and --expected-user-env flags are only valid for fal.' };
-    }
-
-    const baseCommand = {
-      provider,
-      framework,
-      out,
-      secretEnv: resolvedSecretEnv,
-      bodyLimit,
-      dryRun,
-    } satisfies WebhookCommand;
-
-    return { kind: 'command', command: baseCommand };
-  }
 
   // grafana/polar and existing HMAC providers.
   const providerOptionsResult = buildProviderCliOptions(provider, {
