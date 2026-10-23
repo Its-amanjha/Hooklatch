@@ -44,17 +44,20 @@ export type ProviderCliOptionsResult =
   | { readonly kind: 'options'; readonly options: ProviderCliOptions }
   | { readonly kind: 'error'; readonly message: string };
 
-export interface WebhookCommand {
-  readonly provider: string;
+interface CommandFields {
   readonly framework: Framework;
   readonly out: string;
-  readonly secretEnv: string;
   readonly bodyLimit: number;
   readonly dryRun: boolean;
-  readonly providerOptions?: ProviderCliOptions;
-  readonly publicKeyEnv?: string;
-  readonly expectedUserEnv?: string;
 }
+
+export type WebhookCommand = CommandFields & (
+  | { readonly provider: 'fal'; readonly publicKeyEnv: string; readonly expectedUserEnv: string;
+      readonly secretEnv?: never; readonly providerOptions?: never }
+  | { readonly provider: Exclude<Provider, 'fal'>; readonly secretEnv: string;
+      readonly publicKeyEnv?: never; readonly expectedUserEnv?: never;
+      readonly providerOptions?: Exclude<ProviderCliOptions, { readonly provider: 'fal' }> }
+);
 
 export type ParseResult =
   | { readonly kind: 'help' }
@@ -112,7 +115,7 @@ const DEFAULT_SECRET_ENV = {
   polar: 'POLAR_WEBHOOK_SECRET',
   linear: 'LINEAR_WEBHOOK_SECRET',
   vercel: 'VERCEL_WEBHOOK_SECRET',
-} satisfies Readonly<Record<Provider | 'grafana' | 'polar' | 'vercel', string>>;
+} satisfies Readonly<Record<Exclude<Provider, 'fal'>, string>>;
 
 export const HELP_TEXT = `Usage: hooklatch init webhook --provider <id> --framework <id> [options]
 
@@ -432,11 +435,23 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     return { kind: 'error', exitCode: 2, message: providerOptionsResult.message };
   }
 
-  // SAFETY: provider is a CLI-supported string validated above; the cast indexes the default-env record.
-  const defaultSecretEnv = DEFAULT_SECRET_ENV[provider as keyof typeof DEFAULT_SECRET_ENV];
-  const resolvedSecretEnv = secretEnv ?? defaultSecretEnv;
+  if (provider === 'fal') {
+    if (secretEnv !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --secret-env flag is not valid for fal.' };
+    }
 
-  if (resolvedSecretEnv === undefined || !SECRET_ENV_PATTERN.test(resolvedSecretEnv)) {
+    if (providerOptionsResult.kind !== 'options' || providerOptionsResult.options.provider !== 'fal') {
+      return { kind: 'error', exitCode: 2, message: 'Invalid fal credential configuration.' };
+    }
+
+    return { kind: 'command', command: { provider, framework, out, bodyLimit, dryRun,
+      publicKeyEnv: providerOptionsResult.options.options.publicKeyEnv,
+      expectedUserEnv: providerOptionsResult.options.options.expectedUserEnv } };
+  }
+
+  const resolvedSecretEnv = secretEnv ?? DEFAULT_SECRET_ENV[provider];
+
+  if (!SECRET_ENV_PATTERN.test(resolvedSecretEnv)) {
     return { kind: 'error', exitCode: 2, message: 'Invalid --secret-env: expected an identifier.' };
   }
 
@@ -453,5 +468,9 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     return { kind: 'command', command: baseCommand };
   }
 
-  return { kind: 'command', command: { ...baseCommand, providerOptions: providerOptionsResult.options } };
+  const configured = providerOptionsResult.options;
+
+  if (configured.provider === 'fal') return { kind: 'error', exitCode: 2, message: 'Invalid HMAC credential configuration.' };
+
+  return { kind: 'command', command: { ...baseCommand, providerOptions: configured } };
 }

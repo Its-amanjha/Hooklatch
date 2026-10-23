@@ -154,46 +154,31 @@ export default { fetch };
 `;
 }
 
-function falDecoder(publicKeyEnv: string): string {
-  return `function decodePublicKeys(value: string): Uint8Array[] {
-  if (value.length === 0) throw new Error('${publicKeyEnv}' + ' must not be empty');
+function falDecoder(): string {
+  return `function decodePublicKeys(value: string | undefined): Uint8Array[] {
+  if (value === undefined || value.length === 0) throw new Error('Invalid public-key configuration.');
 
   const entries = value.split(',');
 
-  if (entries.length < 1 || entries.length > 16) {
-    throw new Error('${publicKeyEnv}' + ' must contain 1 to 16 keys');
-  }
+  if (entries.length > 16) throw new Error('Invalid public-key configuration.');
 
-  return entries.map((entry, index) => {
-    if (entry.length === 0) throw new Error('${publicKeyEnv}' + ' entry ' + index + ' is blank');
+  return entries.map((entry) => {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(entry)) throw new Error('Invalid public-key configuration.');
 
-    if (!/^[A-Za-z0-9_-]+$/.test(entry)) {
-      throw new Error('${publicKeyEnv}' + ' entry ' + index + ' is not valid Base64url');
-    }
-
-    let base64 = entry.replace(/-/g, '+').replace(/_/g, '/');
-    const padLength = (4 - (base64.length % 4)) % 4;
-    base64 += '='.repeat(padLength);
-
+    const base64 = entry.replace(/-/g, '+').replace(/_/g, '/') + '=';
     let binary: string;
 
     try {
       binary = atob(base64);
     } catch {
-      throw new Error('${publicKeyEnv}' + ' entry ' + index + ' is invalid Base64');
+      throw new Error('Invalid public-key configuration.');
     }
 
-    if (btoa(binary) !== base64) {
-      throw new Error('${publicKeyEnv}' + ' entry ' + index + ' is not canonical Base64url');
-    }
+    if (binary.length !== 32 || btoa(binary) !== base64) throw new Error('Invalid public-key configuration.');
 
-    if (binary.length !== 32) {
-      throw new Error('${publicKeyEnv}' + ' entry ' + index + ' must decode to 32 bytes');
-    }
+    const bytes = new Uint8Array(32);
 
-    const bytes = new Uint8Array(binary.length);
-
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = binary.charCodeAt(i);
 
     return bytes;
   });
@@ -211,7 +196,7 @@ import type { VerifyOptions } from 'hooklatch';
 // environment before deployment. Keys are comma-separated canonical Base64url
 // (no padding), each decoding to exactly 32 bytes, 1 to 16 entries.
 
-${falDecoder(publicKeyEnv)}
+${falDecoder()}
 
 const options: VerifyOptions = {
   provider: '${provider}',
@@ -235,7 +220,7 @@ export const ${identifier}ExpressWebhook = createWebhookMiddleware(options);
     return `import { createWebhookHandler } from 'hooklatch/nextjs';
 import type { VerifyOptions } from 'hooklatch';
 
-${falDecoder(publicKeyEnv)}
+${falDecoder()}
 
 const options: VerifyOptions = {
   provider: '${provider}',
@@ -259,7 +244,7 @@ export const POST = createWebhookHandler({
 import { createWebhookMiddleware, type WebhookVariables } from 'hooklatch/hono';
 import type { VerifyOptions } from 'hooklatch';
 
-${falDecoder(publicKeyEnv)}
+${falDecoder()}
 
 const options: VerifyOptions = {
   provider: '${provider}',
@@ -288,7 +273,7 @@ interface Env {
   ${expectedUserEnv}: string;
 }
 
-${falDecoder(publicKeyEnv)}
+${falDecoder()}
 
 export const fetch = createWebhookHandler<Env>({
   options: (env) => ({

@@ -124,16 +124,27 @@ describe('phase9 credential CLI flags', () => {
     expect(result.kind).toBe('error');
   });
 
-  // RED: fal is not a registered provider, so --provider fal is rejected.
-  test('RED: parseArgs rejects --provider fal (not registered)', () => {
+  test('parseArgs accepts registered fal without a dummy secret', () => {
     const result = parseArgs(['init', 'webhook', '--provider', 'fal', '--framework', 'express']);
+
+    expect(result.kind).toBe('command');
+
+    if (result.kind !== 'command') throw new Error('Expected command');
+
+    expect(result.command).toMatchObject({ provider: 'fal', publicKeyEnv: 'FAL_WEBHOOK_PUBLIC_KEYS', expectedUserEnv: 'FAL_WEBHOOK_USER_ID' });
+    expect(Object.hasOwn(result.command, 'secretEnv')).toBe(false);
+  });
+
+  test('fal rejects even an explicitly supplied default HMAC secret env', () => {
+    const result = parseArgs(['init', 'webhook', '--provider', 'fal', '--framework', 'express', '--secret-env', 'FAL_WEBHOOK_SECRET']);
 
     expect(result.kind).toBe('error');
 
     if (result.kind !== 'error') throw new Error('Expected error');
 
-    expect(result.message).toContain('Unsupported provider');
+    expect(result.message).toContain('not valid for fal');
   });
+
 });
 
 describe('phase9 fal template generation', () => {
@@ -215,30 +226,12 @@ describe('phase9 fal template generation', () => {
 
 describe('phase9 decoder execution', () => {
   function extractDecoder(source: string): string {
-    const start = source.indexOf('function decodePublicKeys');
+    const file = ts.createSourceFile('generated.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const declaration = file.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'decodePublicKeys');
 
-    if (start === -1) throw new Error('Decoder not found');
+    if (!declaration) throw new Error('Decoder not found');
 
-    // Find matching closing brace
-    let depth = 0;
-    let i = source.indexOf('{', start);
-
-    if (i === -1) throw new Error('Decoder not found');
-
-    let found = false;
-
-    for (; i < source.length; i++) {
-      if (source[i] === '{') depth++;
-      else if (source[i] === '}') {
-        depth--;
-
-        if (depth === 0) { found = true; break; }
-      }
-    }
-
-    if (!found) throw new Error('Decoder not found');
-
-    return source.slice(start, i + 1).trim();
+    return declaration.getText(file);
   }
 
   function evalDecoder(source: string): (value: string) => Uint8Array[] {
@@ -337,24 +330,24 @@ describe('phase9 decoder execution', () => {
     expect(() => decode(shortKey)).toThrow();
   });
 
-  test('decoder rejects unused bits (non-canonical)', () => {
+  test('decoder rejects nonzero unused bits while preserving decoded key bytes', () => {
     const source = renderTemplate('fal', 'express', { publicKeyEnv: 'K', expectedUserEnv: 'U', bodyLimit: 1024 });
     const decode = evalDecoder(source);
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const validKey = Buffer.from(new Uint8Array(32).fill(1)).toString('base64url');
+    const last = validKey.at(-1);
 
-    // Create a key with unused bits set (modify last char to non-canonical)
-    const validKey = Buffer.from(new Uint8Array(32).fill(1)).toString('base64url').replace(/=+$/, '');
-    // Change last character to one that sets unused bits
-    const nonCanonical = validKey.slice(0, -1) + (validKey.endsWith('A') ? 'B' : 'A');
+    if (last === undefined) throw new Error('Expected key');
 
-    // This may or may not throw depending on the specific key; test the mechanism
-    // by checking that the decoder validates canonical encoding
-    expect(() => {
-      try {
-        decode(nonCanonical);
-      } catch {
-        throw new Error('rejected');
-      }
-    }).not.toThrow();
+    const index = alphabet.indexOf(last);
+    const replacement = alphabet[index + 1];
+
+    if (replacement === undefined || index % 4 !== 0) throw new Error('Expected canonical encoding');
+
+    const nonCanonical = validKey.slice(0, -1) + replacement;
+
+    expect(Buffer.from(nonCanonical, 'base64url')).toEqual(Buffer.from(validKey, 'base64url'));
+    expect(() => decode(nonCanonical)).toThrow();
   });
 
   test('decoder executes in all four frameworks', () => {
@@ -376,6 +369,8 @@ describe('phase9 decoder execution', () => {
 
     const secretKey = 'super-secret-key-value';
 
+    expect(() => decode(secretKey)).toThrow();
+
     try {
       decode(secretKey);
     } catch (e) {
@@ -388,13 +383,20 @@ describe('phase9 decoder execution', () => {
 });
 
 describe('phase9 CLI integration', () => {
-  test('CLI rejects --provider fal (not registered at base)', () => {
-    const root = os.tmpdir();
+  test('CLI generates fal using raw-key credentials without writing on dry run', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hooklatch-phase9-fal-'));
 
-    const result = runCli(root, ['init', 'webhook', '--provider', 'fal', '--framework', 'express']);
+    try {
+      const result = runCli(root, ['init', 'webhook', '--provider', 'fal', '--framework', 'express', '--dry-run']);
 
-    expect(result.status).toBe(2);
-    expect(result.stderr).toContain('Unsupported provider');
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('publicKeys: decodePublicKeys(');
+      expect(result.stdout).toContain('expectedUserId:');
+      expect(result.stdout).not.toContain('secrets:');
+      expect(fs.readdirSync(root)).toEqual([]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('dry-run does not write files', () => {

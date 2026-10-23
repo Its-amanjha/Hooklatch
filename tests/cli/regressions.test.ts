@@ -9,7 +9,11 @@ import { SUPPORTED_PROVIDERS } from '../../src/providers/index.js';
 
 test.each(SUPPORTED_PROVIDERS.flatMap((provider) => FRAMEWORKS.map((framework) => [provider, framework] as const)))(
   '%s/%s generates syntactically valid TypeScript', (provider, framework) => {
-    const content = renderTemplate(provider, framework, { secretEnv: 'TEST_SECRET', bodyLimit: 1024 });
+    const credentials = provider === 'fal'
+      ? { publicKeyEnv: 'TEST_PUBLIC_KEYS', expectedUserEnv: 'TEST_USER_ID', bodyLimit: 1024 }
+      : { secretEnv: 'TEST_SECRET', bodyLimit: 1024 };
+
+    const content = renderTemplate(provider, framework, credentials);
 
     const output = ts.transpileModule(content, {
       reportDiagnostics: true,

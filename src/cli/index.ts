@@ -39,29 +39,13 @@ function main(): void {
 
   let templateOptions: TemplateOptions;
 
-  if (command.publicKeyEnv !== undefined && command.expectedUserEnv !== undefined) {
-    if (command.providerOptions === undefined) {
-      templateOptions = {
-        publicKeyEnv: command.publicKeyEnv,
-        expectedUserEnv: command.expectedUserEnv,
-        bodyLimit: command.bodyLimit,
-      };
-    } else {
-      templateOptions = {
-        publicKeyEnv: command.publicKeyEnv,
-        expectedUserEnv: command.expectedUserEnv,
-        bodyLimit: command.bodyLimit,
-        providerOptions: command.providerOptions,
-      };
-    }
+  if (command.provider === 'fal') {
+    templateOptions = { publicKeyEnv: command.publicKeyEnv, expectedUserEnv: command.expectedUserEnv,
+      bodyLimit: command.bodyLimit };
   } else {
     templateOptions = command.providerOptions === undefined
       ? { secretEnv: command.secretEnv, bodyLimit: command.bodyLimit }
-      : {
-        secretEnv: command.secretEnv,
-        bodyLimit: command.bodyLimit,
-        providerOptions: command.providerOptions,
-      };
+      : { secretEnv: command.secretEnv, bodyLimit: command.bodyLimit, providerOptions: command.providerOptions };
   }
 
   const content = renderTemplate(command.provider, command.framework, templateOptions);
