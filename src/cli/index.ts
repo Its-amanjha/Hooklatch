@@ -2,6 +2,7 @@
 
 import { parseArgs, HELP_TEXT } from './args.js';
 import { renderTemplate } from './templates.js';
+import type { TemplateOptions } from './templates.js';
 import { resolveOutput, targetFileName, ensureParentDirectories, writeFileExclusive, CliError } from './filesystem.js';
 
 function main(): void {
@@ -36,13 +37,32 @@ function main(): void {
     return;
   }
 
-  const templateOptions = command.providerOptions === undefined
-    ? { secretEnv: command.secretEnv, bodyLimit: command.bodyLimit }
-    : {
-      secretEnv: command.secretEnv,
-      bodyLimit: command.bodyLimit,
-      providerOptions: command.providerOptions,
-    };
+  let templateOptions: TemplateOptions;
+
+  if (command.publicKeyEnv !== undefined && command.expectedUserEnv !== undefined) {
+    if (command.providerOptions === undefined) {
+      templateOptions = {
+        publicKeyEnv: command.publicKeyEnv,
+        expectedUserEnv: command.expectedUserEnv,
+        bodyLimit: command.bodyLimit,
+      };
+    } else {
+      templateOptions = {
+        publicKeyEnv: command.publicKeyEnv,
+        expectedUserEnv: command.expectedUserEnv,
+        bodyLimit: command.bodyLimit,
+        providerOptions: command.providerOptions,
+      };
+    }
+  } else {
+    templateOptions = command.providerOptions === undefined
+      ? { secretEnv: command.secretEnv, bodyLimit: command.bodyLimit }
+      : {
+        secretEnv: command.secretEnv,
+        bodyLimit: command.bodyLimit,
+        providerOptions: command.providerOptions,
+      };
+  }
 
   const content = renderTemplate(command.provider, command.framework, templateOptions);
 

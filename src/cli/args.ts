@@ -19,9 +19,15 @@ export interface PolarCliOptions {
   readonly secretMode: PolarSecretMode;
 }
 
+export interface FalCliOptions {
+  readonly publicKeyEnv: string;
+  readonly expectedUserEnv: string;
+}
+
 export type ProviderCliOptions =
   | { readonly provider: 'grafana'; readonly options: GrafanaCliOptions }
-  | { readonly provider: 'polar'; readonly options: PolarCliOptions };
+  | { readonly provider: 'polar'; readonly options: PolarCliOptions }
+  | { readonly provider: 'fal'; readonly options: FalCliOptions };
 
 /** Raw flag values collected by the argument scanner, before provider rules. */
 export interface RawProviderFlags {
@@ -29,6 +35,8 @@ export interface RawProviderFlags {
   readonly signatureHeader: string | undefined;
   readonly timestampHeader: string | undefined;
   readonly polarSecretMode: string | undefined;
+  readonly publicKeyEnv?: string | undefined;
+  readonly expectedUserEnv?: string | undefined;
 }
 
 export type ProviderCliOptionsResult =
@@ -44,6 +52,8 @@ export interface WebhookCommand {
   readonly bodyLimit: number;
   readonly dryRun: boolean;
   readonly providerOptions?: ProviderCliOptions;
+  readonly publicKeyEnv?: string;
+  readonly expectedUserEnv?: string;
 }
 
 export type ParseResult =
@@ -101,7 +111,8 @@ const DEFAULT_SECRET_ENV = {
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
   linear: 'LINEAR_WEBHOOK_SECRET',
-} satisfies Readonly<Record<Provider | 'grafana' | 'polar', string>>;
+  vercel: 'VERCEL_WEBHOOK_SECRET',
+} satisfies Readonly<Record<Provider | 'grafana' | 'polar' | 'vercel', string>>;
 
 export const HELP_TEXT = `Usage: hooklatch init webhook --provider <id> --framework <id> [options]
 
@@ -122,6 +133,10 @@ Options:
                         Grafana only: required with timestamped; forbidden with body.
   --polar-secret-mode <mode>
                         Polar only: current (default) or legacy.
+  --public-key-env <NAME>
+                        Fal only: env var holding comma-separated Base64url public keys (default FAL_WEBHOOK_PUBLIC_KEYS).
+  --expected-user-env <NAME>
+                        Fal only: env var holding the expected user id (default FAL_WEBHOOK_USER_ID).
   --dry-run             Print the target path and contents without writing.
   -h, --help            Show this help.
 
@@ -137,9 +152,12 @@ function isFramework(value: string): value is Framework {
   return (FRAMEWORKS as readonly string[]).includes(value);
 }
 
-function isProvider(value: string): value is Provider {
-  // SAFETY: SUPPORTED_PROVIDERS is a fixed readonly tuple of implemented provider ids; widening to string[] only supports Array.includes.
-  return (SUPPORTED_PROVIDERS as readonly string[]).includes(value);
+/** CLI-supported providers include not-yet-registered providers that the CLI can scaffold. */
+const CLI_PROVIDERS = [...SUPPORTED_PROVIDERS, 'vercel', 'fal'] as const;
+
+function isCliProvider(value: string): boolean {
+  // SAFETY: CLI_PROVIDERS is a fixed readonly tuple of implemented plus scaffold-only provider ids; widening to string[] only supports Array.includes.
+  return (CLI_PROVIDERS as readonly string[]).includes(value);
 }
 
 function isPositiveSafeInteger(value: string): boolean {
@@ -230,6 +248,35 @@ function buildGrafanaOptions(flags: RawProviderFlags): ProviderCliOptionsResult 
   };
 }
 
+function buildFalOptions(flags: RawProviderFlags): ProviderCliOptionsResult {
+  if (flags.grafanaMode !== undefined || flags.signatureHeader !== undefined || flags.timestampHeader !== undefined) {
+    return optionsError('The --grafana-mode, --signature-header and --timestamp-header flags are only valid for grafana.');
+  }
+
+  if (flags.polarSecretMode !== undefined) {
+    return optionsError('The --polar-secret-mode flag is only valid for polar.');
+  }
+
+  const publicKeyEnv = flags.publicKeyEnv ?? 'FAL_WEBHOOK_PUBLIC_KEYS';
+  const expectedUserEnv = flags.expectedUserEnv ?? 'FAL_WEBHOOK_USER_ID';
+
+  if (!SECRET_ENV_PATTERN.test(publicKeyEnv)) {
+    return optionsError('Invalid --public-key-env: expected an identifier.');
+  }
+
+  if (!SECRET_ENV_PATTERN.test(expectedUserEnv)) {
+    return optionsError('Invalid --expected-user-env: expected an identifier.');
+  }
+
+  return {
+    kind: 'options',
+    options: {
+      provider: 'fal',
+      options: { publicKeyEnv, expectedUserEnv },
+    },
+  };
+}
+
 function buildPolarOptions(flags: RawProviderFlags): ProviderCliOptionsResult {
   const grafanaFlag = firstGrafanaFlag(flags);
 
@@ -258,12 +305,18 @@ export function buildProviderCliOptions(provider: string, flags: RawProviderFlag
 
   if (provider === 'polar') return buildPolarOptions(flags);
 
+  if (provider === 'fal') return buildFalOptions(flags);
+
   const grafanaFlag = firstGrafanaFlag(flags);
 
   if (grafanaFlag !== null) return optionsError(`The ${grafanaFlag} flag is only valid for grafana.`);
 
   if (flags.polarSecretMode !== undefined) {
     return optionsError('The --polar-secret-mode flag is only valid for polar.');
+  }
+
+  if (flags.publicKeyEnv !== undefined || flags.expectedUserEnv !== undefined) {
+    return optionsError('The --public-key-env and --expected-user-env flags are only valid for fal.');
   }
 
   return { kind: 'none' };
@@ -300,6 +353,8 @@ export function parseArgs(argv: readonly string[]): ParseResult {
   let signatureHeader: string | undefined;
   let timestampHeader: string | undefined;
   let polarSecretMode: string | undefined;
+  let publicKeyEnv: string | undefined;
+  let expectedUserEnv: string | undefined;
 
   for (let i = 0; i < rest.length; i += 1) {
     const flag = rest[i];
@@ -312,7 +367,8 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     }
 
     if (flag === '--provider' || flag === '--framework' || flag === '--out' || flag === '--secret-env' || flag === '--body-limit'
-      || flag === '--grafana-mode' || flag === '--signature-header' || flag === '--timestamp-header' || flag === '--polar-secret-mode') {
+      || flag === '--grafana-mode' || flag === '--signature-header' || flag === '--timestamp-header' || flag === '--polar-secret-mode'
+  || flag === '--public-key-env' || flag === '--expected-user-env') {
       if (seen.has(flag)) return { kind: 'error', exitCode: 2, message: `Duplicate flag: ${flag}.` };
       seen.add(flag);
       const value = rest[i + 1];
@@ -331,6 +387,8 @@ export function parseArgs(argv: readonly string[]): ParseResult {
       else if (flag === '--signature-header') signatureHeader = value;
       else if (flag === '--timestamp-header') timestampHeader = value;
       else if (flag === '--polar-secret-mode') polarSecretMode = value;
+      else if (flag === '--public-key-env') publicKeyEnv = value;
+      else if (flag === '--expected-user-env') expectedUserEnv = value;
       else if (flag === '--body-limit') {
         if (!isPositiveSafeInteger(value)) {
           return { kind: 'error', exitCode: 2, message: 'Invalid --body-limit: expected a positive safe integer.' };
@@ -349,7 +407,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
 
   if (!framework) return { kind: 'error', exitCode: 2, message: 'Missing required --framework.' };
 
-  if (!isProvider(provider)) {
+  if (!isCliProvider(provider)) {
     return { kind: 'error', exitCode: 2, message: 'Unsupported provider.' };
   }
 
@@ -357,20 +415,105 @@ export function parseArgs(argv: readonly string[]): ParseResult {
     return { kind: 'error', exitCode: 2, message: 'Unsupported framework.' };
   }
 
+  if (out.length === 0) return { kind: 'error', exitCode: 2, message: 'Invalid --out: empty path.' };
+
+  // fal does not use secrets; resolve public-key env vars instead.
+  if (provider === 'fal') {
+    if (secretEnv !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --secret-env flag is not valid for fal.' };
+    }
+
+    if (grafanaMode !== undefined || signatureHeader !== undefined || timestampHeader !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --grafana-mode, --signature-header and --timestamp-header flags are only valid for grafana.' };
+    }
+
+    if (polarSecretMode !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --polar-secret-mode flag is only valid for polar.' };
+    }
+
+    const resolvedPublicKeyEnv = publicKeyEnv ?? 'FAL_WEBHOOK_PUBLIC_KEYS';
+    const resolvedExpectedUserEnv = expectedUserEnv ?? 'FAL_WEBHOOK_USER_ID';
+
+    if (!SECRET_ENV_PATTERN.test(resolvedPublicKeyEnv)) {
+      return { kind: 'error', exitCode: 2, message: 'Invalid --public-key-env: expected an identifier.' };
+    }
+
+    if (!SECRET_ENV_PATTERN.test(resolvedExpectedUserEnv)) {
+      return { kind: 'error', exitCode: 2, message: 'Invalid --expected-user-env: expected an identifier.' };
+    }
+
+    const baseCommand = {
+      provider,
+      framework,
+      out,
+      secretEnv: resolvedPublicKeyEnv,
+      bodyLimit,
+      dryRun,
+      publicKeyEnv: resolvedPublicKeyEnv,
+      expectedUserEnv: resolvedExpectedUserEnv,
+    } satisfies WebhookCommand;
+
+    return {
+      kind: 'command',
+      command: {
+        ...baseCommand,
+        providerOptions: {
+          provider: 'fal',
+          options: { publicKeyEnv: resolvedPublicKeyEnv, expectedUserEnv: resolvedExpectedUserEnv },
+        },
+      },
+    };
+  }
+
+  // vercel is HMAC; use default secret env.
+  if (provider === 'vercel') {
+    const defaultSecretEnv = 'VERCEL_WEBHOOK_SECRET';
+    const resolvedSecretEnv = secretEnv ?? defaultSecretEnv;
+
+    if (resolvedSecretEnv === undefined || !SECRET_ENV_PATTERN.test(resolvedSecretEnv)) {
+      return { kind: 'error', exitCode: 2, message: 'Invalid --secret-env: expected an identifier.' };
+    }
+
+    const grafanaFlag = firstGrafanaFlag({ grafanaMode, signatureHeader, timestampHeader, polarSecretMode, publicKeyEnv, expectedUserEnv });
+
+    if (grafanaFlag !== null) return { kind: 'error', exitCode: 2, message: `The ${grafanaFlag} flag is only valid for grafana.` };
+
+    if (polarSecretMode !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --polar-secret-mode flag is only valid for polar.' };
+    }
+
+    if (publicKeyEnv !== undefined || expectedUserEnv !== undefined) {
+      return { kind: 'error', exitCode: 2, message: 'The --public-key-env and --expected-user-env flags are only valid for fal.' };
+    }
+
+    const baseCommand = {
+      provider,
+      framework,
+      out,
+      secretEnv: resolvedSecretEnv,
+      bodyLimit,
+      dryRun,
+    } satisfies WebhookCommand;
+
+    return { kind: 'command', command: baseCommand };
+  }
+
+  // grafana/polar and existing HMAC providers.
   const providerOptionsResult = buildProviderCliOptions(provider, {
     grafanaMode,
     signatureHeader,
     timestampHeader,
     polarSecretMode,
+    publicKeyEnv,
+    expectedUserEnv,
   });
 
   if (providerOptionsResult.kind === 'error') {
     return { kind: 'error', exitCode: 2, message: providerOptionsResult.message };
   }
 
-  if (out.length === 0) return { kind: 'error', exitCode: 2, message: 'Invalid --out: empty path.' };
-
-  const defaultSecretEnv = DEFAULT_SECRET_ENV[provider];
+  // SAFETY: provider is a CLI-supported string validated above; the cast indexes the default-env record.
+  const defaultSecretEnv = DEFAULT_SECRET_ENV[provider as keyof typeof DEFAULT_SECRET_ENV];
   const resolvedSecretEnv = secretEnv ?? defaultSecretEnv;
 
   if (resolvedSecretEnv === undefined || !SECRET_ENV_PATTERN.test(resolvedSecretEnv)) {
