@@ -27,3 +27,6 @@ license is retained here as `LICENSE`. Nested
 `vendor/eslint-stylistic/LICENSE` and `vendor/eslint-stylistic/UPSTREAM.md` retain
 the upstream stylistic rule's own license and provenance. These tooling files
 are excluded from linting themselves and from the SDK's npm package.
+
+2026-10-24: development toolchain updated together to oxlint@1.89.0 and
+@oxlint/plugins@1.89.0. Vendored rule sources/configuration remain unchanged.
