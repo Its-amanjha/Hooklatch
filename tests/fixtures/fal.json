@@ -1,0 +1,2430 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Minimal valid fal delivery; identity exposes only the signed timestamp.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-uppercase-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "B8CF0E44028977DB5C252828FFBFBEF2F8DF113D3C2B9C3D5CC640620AB1394EC9C064F601AD0941DC7B16930654569A17E8F73745B4A472358EE3C4BC307C02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Either-case hex at Stage B.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-header-casing-variant",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "X-Fal-Webhook-Signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "X-Fal-Webhook-Request-Id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "X-Fal-Webhook-User-Id": "usr_hooklatch_stage9",
+          "X-Fal-Webhook-Timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Title-case spelling of all four header names.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-fal-webhook-signature": "bfee035930ee48fe8e47c41e533b07a200f9b6241bf09940a3f978f106cf9264597d8f4d28561da5516f718ea514b4840e9fe248aae066201c63af83dc1b5607",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "sha256 of empty body inside the message.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-unicode-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoLXN0YWdlLTliLXVuaWNvZGUt0L/RgNC+0LLQtcyB0YDQutCwLc67LfCfjok=",
+        "headers": {
+          "x-fal-webhook-signature": "76f1e92be22c12d1951113eb4abd44523bf1fa376401b4362dc4d81631e62d1eac227e2de4e4f9f85d83202b0ec05ab6f8c26465232d605d53d8afe2d9b0910d",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Unicode body bytes.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-invalid-utf8-body-binary-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "aGkg//4hCg==",
+        "headers": {
+          "x-fal-webhook-signature": "d664a7bac3783b68b85053fc4c3a4f22411c72723c6748d661d5191d293a91b60e5c3cdff0187e17c05bce6d61ddf003f3472d23a6f2ffea5908b35a0cfa2801",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Raw binary body bytes; digest covers bytes.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-large-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "DRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg==",
+        "headers": {
+          "x-fal-webhook-signature": "9b8b24487e16d3c70899c1dc2e0a00d006de272c255c5fdd37c283228333fc818da273c16ceea99bf1c3586c82402b7a00175c39b152d655c682c80c9291b50b",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "4096-byte patterned body.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "cGxhaW5sZXNzLXN0YWdlOWI=",
+        "headers": {
+          "x-fal-webhook-signature": "b6164a30639142ab717b60f8d879afc8c77df31919092c853405672d6cb98307db58e79d8ac46673c5a1496e533b617a5947ab1cf2afc0cac1010dd72a33170c",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Non-JSON body.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "rotation-both-keys-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo",
+          "3jxdH5o-1WAjH2QAFwdslz9WpE1WvxOgv0C_Xjm5_x4"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Rotation: old key still in the accept-set verifies.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "rotation-old-key-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "3jxdH5o-1WAjH2QAFwdslz9WpE1WvxOgv0C_Xjm5_x4"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Same bytes as the rotation accept row after the old key left the accept-set.",
+      "signingKeyId": "fal-stage-key-01",
+      "anchorDonorId": "rotation-both-keys-accept-old"
+    },
+    {
+      "id": "wrong-key-valid-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "bd32f6fab70cd604b1f8cc95110860173828672393af2580d14d4c8595f377ba2a7f72e6c7b92dabe484ebea51ef88170c2542c8e1555c9f056c545a8afb7602",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Well-formed Ed25519 signature from a key outside the accept-set.",
+      "signingKeyId": "fal-stage-key-03"
+    },
+    {
+      "id": "keyset-order-independence-reversed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "3jxdH5o-1WAjH2QAFwdslz9WpE1WvxOgv0C_Xjm5_x4",
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Accept-set input order must not matter; signer is listed second.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "keyset-duplicates-inside-cap-accept",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo",
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Duplicate keys are allowed inside the 1..16 cap.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "keyset-all-sixteen-fill-cap-and-rotate",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "e29a53ae82ace3d880bd196a2d924f65a4f478fe351105033c2fbb32818978dae01d48b112d3c713948157f06d66145f33e169d14e668a291eb5c3764fee2b05",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo",
+          "3jxdH5o-1WAjH2QAFwdslz9WpE1WvxOgv0C_Xjm5_x4",
+          "4h6J8AvFkJ3Oa_V9xYj8UMmw_Jd-1h4qIOjfuQZkEGI",
+          "PpVZiUzwVngZa70hN1ZPZdTcXeDh-JOgbxbIj1A-PpM",
+          "bcgRMRjZhrfDeDMBqy7RFKWXVkleHz2XL_5L8sPKYHg",
+          "pyWL8EbinbqONlgYYjDR9RwYk_uPia6Eq6NCS3sU81w",
+          "PMOeHlMLfcTVeLC_9jj0ASdioco7TrmM12Jrf6mxWGA",
+          "aVS0vVCvoFeW_yRuvNtRF0d4phaVCgEXhGnPtRWdfug",
+          "idUMt_anQc8wxstQbFxdP9CN6nAm7p5Ye4y-ApdmGsc",
+          "stV0T7Ko5dIymJdxLYKdK9Rg3KogLRw6uC8dJJgmoPY",
+          "jkOtvJyW67zfGxMcoeUnp4df0P4e8jM_qlIOnxPY_3M",
+          "39wTCkJjAZcVHMHT_qlkNst0cmkxTBnV2IVi-1jfqt0",
+          "8ggsvN2Kxx0aFXniy9jz8MLBYPQ9Q-Ii17ysCExeQMU",
+          "9B7eTXdgsRyDeqG2WJMSZ66Vlf98t0RLrGu8rUexhaA",
+          "LZsiaBKRMbNhw24c5mt915hp-zpPWhlJdgNooLp27kk",
+          "IBt1iVITq9lpOlEolUlYOTeyf167wPtFGkZMf-b7zl8"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "The cap row: 16 keys, signer is the newly rotated last one; any-match with no request-derived selection.",
+      "signingKeyId": "fal-stage-key-16"
+    },
+    {
+      "id": "positive-decoy-vercel-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400",
+          "x-vercel-signature": "ce3d5ac183b478d5113b61b1e0e46b97ad6f6701"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "fal reads only its four headers; a genuine Vercel MAC under its alien name is inert.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-boundary-request-id-1024-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "9e7a15c2dd92bac69d8ec13e4dbd382a53261bfd4e41b152af7337510b490d903c0b091a648bc84c13a30d385929d40cbc6d2768776fbd6c75b394ece8757402",
+          "x-fal-webhook-request-id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "ID grammar upper boundary, inclusive.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "positive-max-body-bytes-set-under-limit",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400,
+        "maxBodyBytes": 8192
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Common bound validated at setup but not tightened here; body stays under the limit.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "freshness-boundary-minus-300-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "1cf642999946ce9f18abc40a4e07abd3bead8baff9530e8785ca5cf7d4ccb9bfdad4ea044a6cf47d42e61dbef69b9672440fa7ca62c379228e4cba410a8a910b",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742100"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742100,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive lower freshness boundary at the default tolerance.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "freshness-boundary-plus-300-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "561eefc5584820f981b5149eedb29fa55478ec0f61890195185bc23cee5e42e5a724701133ae9befc90230e9c794edc2645f163eb565cbbd108dcc3f987d0e0c",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742700"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742700,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Inclusive upper freshness boundary.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "tolerance-zero-now-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Zero-width tolerance accepts only exact-time deliverings.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "tolerance-zero-plus-one-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "932853c3adc86447373d71c83b191cb693224a33a1fac054e725ab2525e9b988f4ff1e6cf53ac68ad59366949fa0dbee50bce063c83ae4dbbb81f1c66b8a1603",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742401"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "One second ahead with zero tolerance.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "tolerance-zero-minus-one-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "fd7354ee4db5468b88db2872977265aebb54c5ed044456b2d105725a52099d887e207192253ad39973acfcec91c8dc6dd6810d96d46c80c2e7b4963dd33e0d0c",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742399"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400,
+        "toleranceSeconds": 0
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "One second behind with zero tolerance.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "tolerance-100-boundary-plus-100-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "4096818c4940e98cdf977d7e190e0e626bc3174d76a1888b2ed24cf0d98cc1f5cfe9503f276557101634632c67cb60d8047a92ea4b2bbf251a07a8dd4732b20e",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742500"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400,
+        "toleranceSeconds": 100
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742500,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "notes": "Caller-tuned tolerance honored.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "wrong-recipient-is-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_alternate",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Valid MAC, recipient differs from the required exact string; wrongrecipient shares invalid-signature, no separate code.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "recipient-case-difference-is-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "d54ca903b86ba6961725d51b7d292b7b30990601c5b63c72726a8c01daaf75ec2140229da89bbf20711134487a6a302b23e931cdb71b58867d85e6e6d9b2f404",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "USR_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Exact string compare; case differences never match.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "wrong-recipient-future-timestamp-is-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "225c42727112eeec07fde727a27ccce012a8814672c13ab8cfe8ee2bc12f2fb044c0827420a2d7ce4d3688d2bc6cfb10de9744c5c3832c2ec32738e1ae41540e",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792747400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_alternate",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Account binding precedes freshness; both would fail but account decides first.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "bad-mac-stale-timestamp-is-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b6ba2e1201ffca4ea340f0925c6c096fd0bd34c80685343b87beffe93f80d54f6e8d586b0796cfcf003900bd1e70efec1b91e43b26585f3a8d75016d9abea100",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792741400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "MAC-before-freshness: a wrong MAC with a stale time reports invalid-signature, never timestamp-expired.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "bad-mac-wrong-recipient-is-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "888e7170d192655adc2b504176dc3e11b256077ed5b2cd6c36d4d85f5a6231b990f9aaa39ff9a6c8b9d2ee4e6d9f13d345f9661b21acbdb17358f55a27c65505",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_alternate",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Wrong key and wrong recipient: verification fails before binding, same generic reason.",
+      "signingKeyId": "fal-stage-key-02"
+    },
+    {
+      "id": "freshness-boundary-minus-301-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "74c1a43a259c9cb0637d9c832e757da5d310aa6feb9b96294b9616508cdcdcf712c2a87778dd3f4a0f2b0ba5f0bbfee009b38f9530cffe93df615fb6a61ba30e",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742099"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "First rejected stale second.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "freshness-boundary-plus-301-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "025f03cac7f09724a16afa1e3c773b0bdc865931f786eca8268ebdf04fd0bb37ebf7d8fe94ea6780e46bebb4090790d9fd810479305f0e54221f8bd1c26a600f",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742701"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "First rejected future second.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "zero-timestamp-grammar-valid-but-expired",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "eb01a4bf098cd8677bc1470f25df5e22b80f825208a799afbbc07e3e8531fa793993ac72ce7fad1535a2b0abb3978a13961c6c53c0aa19d142029c5e3b44190f",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "0"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "notes": "Zero is a canonical safe-integer timestamp; freshness rejects it after authentication. No epoch floor is invented.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "large-safe-integer-timestamp-future",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "4689a2cdf9d869f705e45402a52a05fd81c2294bc4119cfb2c4c9fc0ab3d798716e415b3a3fc49b56a3a9ccdf2cc55b98cccc724454ab9f757972631750c9f04",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "9007199254740991"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "notes": "Number.isSafeInteger keeps this grammar-valid; freshness alone rejects it.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Header absent entirely; other headers intact.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "   ",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Trim-blank signature value; both views collapse to absent.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "signature-under-vercel-header-cannot-rescue",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "The genuine 128-hex fal signature parked under the Vercel header cannot authenticate fal.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "malformed-signature-non-hex-character",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "g8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "g sentinel; step 2 grammar only.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "malformed-signature-127-characters",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c0",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "63.5-byte truncation.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "malformed-signature-129-characters",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c020",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Overlong extension.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "malformed-signature-40-hex-vercel-sized",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "ce3d5ac183b478d5113b61b1e0e46b97ad6f6701",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A genuine Vercel 20-byte MAC transplanted into the fal grammar; bytes do not select the algorithm.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "malformed-signature-64-hex-sha256-sized",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "68122ab56c2a6ff4e2d1d3c3eabd7170a17909157940576d59e6d25a0ba4f884",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A genuine 32-byte SHA-256-family digest size confused for the 64-byte fal signature.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": [
+            "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+            "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02"
+          ],
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Equal duplicates join to a commalist; equal duplicates are rejected too.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "differing-duplicate-signatures-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": [
+            "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+            "888e7170d192655adc2b504176dc3e11b256077ed5b2cd6c36d4d85f5a6231b990f9aaa39ff9a6c8b9d2ee4e6d9f13d345f9661b21acbdb17358f55a27c65505"
+          ],
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Differing duplicates with a real second key.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-identity-request-id-absent",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "request-id absent.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-identity-user-id-absent",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "user-id absent.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-identity-both-absent",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "Both IDs absent: the first same-family failure wins.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-identity-request-id-blank-value",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "5b164c8395a48e8349ad51263f1e57bb2d5e9faabdd4cb829853a3f7216f19ed366a57695c9582f765c6f2f9301b65653ff7250fb13f321d4783ca602d7f0406",
+          "x-fal-webhook-request-id": "   ",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "request-id present but trim-blank: presence failure, not a grammar failure.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-identity-user-id-empty-value",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "bf2d19d9dbe348c15d964b119d3a62307ac93c2047ff03a6a4cb8795b1c2a25347b3bcc7dfbd29ada032e7c5d7da65dc338524951ce6a053575afda1727bfd0f",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "Empty user-id string counts as absent.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "order-presence-before-id-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "6952f29f734d1dde6400625de31ad6dcf17f01a1f6e80453751c5c2894e5ff269e5444c621bfabf30410720d56ed7516391673c7176d4c1ac9965339e6d83504",
+          "x-fal-webhook-user-id": "bad user",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-identity"
+      },
+      "notes": "Order pin: BOTH presence checks run before EITHER grammar check; user-id is present with unusable grammar, but the missing request-id presence failure decides first. The recorded MAC is computed over the stored inputs so every recorded signature stays a self-consistent rebuild of its row.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-with-comma",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "ce4df767ccbe233f6f9c75765a5f1aad57738c0728bdadd7e19ea5362c857846323485d23fead6ec4334ce886d5e54019990bae8e4db4f07b50a71fba9b26705",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "user,extra",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Comma never fits visible-ID grammar.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-with-space",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "6952f29f734d1dde6400625de31ad6dcf17f01a1f6e80453751c5c2894e5ff269e5444c621bfabf30410720d56ed7516391673c7176d4c1ac9965339e6d83504",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "bad user",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Inner space outside [0x21..0x7e].",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-with-unicode",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "5a54ee2f94d22fe3ce4cb5f1034012da72fb8c2284af60b3400ac716dc3bc27fb8f7afd3e570341b9dc24462e19579b5bee50f090b110176562263a6a17dc702",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usér_λ",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Unicode: no normalization, no trim, direct reject.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-crlf",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "89498ab508c4b0672bb75474f9bc77c7f24bd7269c4fe6383f6886169a76af1613e6b1af4825c9a3b6def5637394c04a6581eda8d78226b0818cbe24832b390a",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "bad\r\nuser",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "CR/LF excluded; record/tuple views only (WHATWG Headers cannot carry a raw LF).",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-del-byte",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "7562e87d3c4f7d62caf7d9ddcf3947c5c8d6bd6279a531bbbdeaa0944be01dc772e1b884a49f3c31e4cd2e01f2132bd2bcd2f44cafaabc0f028d074f45cfee0b",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "baduser",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "DEL 0x7f excluded.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-nul-byte",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "6dfa66333ab3e758deb518257e246696cfc60d1af771410c394b5012707184a062cb35f82872e30d78138eddd6a2d56fb8acd1a9b8680e7ac457ba6abe158301",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "bad\u0000user",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "NUL excluded; record/tuple views only.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "id-grammar-user-id-too-long-1025",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "796a8d404aa8a4a48a0bb2238edf0b73fa1c42a2c1e686080166aaa45988b4525057cba5bc8d391131dde56f8675f8a6f11cf8f93beab0438274b7c7a66c980a",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "One char over the inclusive 1024 boundary.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "order-id-grammar-before-missing-timestamp",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "6952f29f734d1dde6400625de31ad6dcf17f01a1f6e80453751c5c2894e5ff269e5444c621bfabf30410720d56ed7516391673c7176d4c1ac9965339e6d83504",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "bad user"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Order pin: ID grammar failure on the present user-id (step 4) precedes missing timestamp (step 5); the timestamp header is absent.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-timestamp-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      },
+      "notes": "Timestamp header absent after identity checks pass.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "missing-timestamp-blank-value",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "e521547eb628d2cda93700227d0c4fa8e7c0da1d0524b9579d6fc5f830928d3a3552a0be509bd9ea233b71cd1b9d9ad62924d951eb42b2178274ec11489c0c0c",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "   "
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-timestamp"
+      },
+      "notes": "Trim-blank timestamp behaves as absent in both views.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-leading-zero-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "024e548f670194a373224a331b852f471df9b36d2cf44ac83139c41138513d15b7780f4d9f464ac99de9eccb472cdf39c1721b5571e585b661a1124aad77f702",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "01792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Leading zero cannot be normalized into canonical seconds.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-plus-sign-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "0d870772b0621bb93ccf8f1ecc602a21a19905dacc81a722dba05213a140a12a3d3ac40683d2a77ee031647fafb95a93fe4cd2877c90c3cff84414a734c5be0b",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "+1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Plus sign.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-negative-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "08b10c1b8eccfc027dc600ab5b374b1b40552df843776dd175aae4f1ea69aff6a2cdb99b5233daae2802cb9ed7ee9c88c05093748c4f03b3ff24852bdb8eeb0c",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "-1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Minus sign.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-decimal-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "d76b8d9ed8236df1ccb8338d2ac4caa685412731558de4850d98a4a21d52b143f4fd239942d78e07858c15c82a08da9bb12972fc669f946811ac4b3f14ef1d08",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400.5"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Decimal point; no milliseconds inference.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-inner-space-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "6d033162445bbbe67fb53e007d250915577475249ca16a297b3e50e85770bb2940951ca99663a504123494c0714349ba4e4d11e2c25b32cf7e97fba83528a309",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "17927 42400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Inner space breaks the canonical token.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "ts-grammar-unicode-digit-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "e17a4fd3cb4d000b9268807c17361f962a631abd77553f69df65f641bd533972c34b85e25d9e229ceef676e55140afcf5211ea0352625d9f2632be74a04ea007",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "١٧٩٢٧٤٢٤٠٠"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Arabic-Indic digits: normalization is forbidden.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "duplicate-request-id-with-comma-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": [
+            "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+            "second-id"
+          ],
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Two request-id values combine to a commalist that ID grammar rejects.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "duplicate-user-id-equal-values-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": [
+            "usr_hooklatch_stage9",
+            "usr_hooklatch_stage9"
+          ],
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Even equal duplicates combine and are rejected.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "duplicate-timestamp-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": [
+            "1792742400",
+            "1792742400"
+          ]
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Combined duplicate timestamp is not a canonical token.",
+      "signingKeyId": "fal-stage-key-01"
+    },
+    {
+      "id": "signature-outer-whitespace-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": " b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02 ",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Record view keeps OWS; WHATWG trims to the true signature.",
+      "signingKeyId": "fal-stage-key-01",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "signature-trailing-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02 ",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Trailing OWS variant.",
+      "signingKeyId": "fal-stage-key-01",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "outer-whitespace-request-id-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": " 9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373 ",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Outer spaces on request-id; the recorded MAC is over the unpadded identity because transport OWS is never message material. WHATWG trim rescues the same delivery.",
+      "signingKeyId": "fal-stage-key-01",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "outer-whitespace-user-id-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": " usr_hooklatch_stage9 ",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Outer spaces on user-id; the recorded MAC is over the unpadded identity because transport OWS is never message material.",
+      "signingKeyId": "fal-stage-key-01",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": 1792742400,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tampered-body-single-byte",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://fal.ai/docs/documentation/model-apis/inference/webhooks; Ed25519 over utf8(requestId LF userId LF timestamp LF lowerHex(sha256(rawBody))) with no trailing newline; 128-hex x-fal-webhook-signature accepted in either case; synthetic raw 32-byte keys seeded by SHA-256(utf8(\"hooklatch-stage-9b-fal-seed-NN\")) encoded canonical unpadded base64url (fixture encoding only; the SDK consumes raw Uint8Array keys); required exact-string expectedUserId and auth-before-account-before-freshness ordering are Hooklatch receiver policy; no vendor-published vector, no JWKS fetch and no live key was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF1Y2hTdGFnZSI6OSwiY2FzZSI6ImZhbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-fal-webhook-signature": "b8cf0e44028977db5c252828ffbfbef2f8df113d3c2b9c3d5cc640620ab1394ec9c064f601ad0941dc7b16930654569a17e8f73745b4a472358ee3c4bc307c02",
+          "x-fal-webhook-request-id": "9f8e7d6c-5b4a-4c98-b493-a9ba4e6f4373",
+          "x-fal-webhook-user-id": "usr_hooklatch_stage9",
+          "x-fal-webhook-timestamp": "1792742400"
+        }
+      },
+      "options": {
+        "publicKeysBase64url": [
+          "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+        ],
+        "expectedUserId": "usr_hooklatch_stage9",
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "One body-byte flip with the baseline signature over the untampered bytes.",
+      "signingKeyId": "fal-stage-key-01",
+      "anchorDonorId": "positive-baseline"
+    }
+  ],
+  "syntheticKeys": [
+    {
+      "id": "fal-stage-key-01",
+      "seedHex": "ecb6c5f05c97c28a4ae277a29b8bfad1cd8c9221369131c066a8954a5c955fb8",
+      "publicKeyBase64url": "tAc4RHy5UZnJXTUzlKhkLUKAZ-dl3COi0F1Kc3xx4bo"
+    },
+    {
+      "id": "fal-stage-key-02",
+      "seedHex": "90329f83f6c44704e898dc60c9fe22b67cb9d0a248cb01159866bda5bfc34031",
+      "publicKeyBase64url": "3jxdH5o-1WAjH2QAFwdslz9WpE1WvxOgv0C_Xjm5_x4"
+    },
+    {
+      "id": "fal-stage-key-03",
+      "seedHex": "8af1d9c59ec2ef8beb274f7d1e3e342bb0f0525bae477739c8a6128d5209a3b9",
+      "publicKeyBase64url": "4h6J8AvFkJ3Oa_V9xYj8UMmw_Jd-1h4qIOjfuQZkEGI"
+    },
+    {
+      "id": "fal-stage-key-04",
+      "seedHex": "ae478c6288eb30dbb2ccb3c6192d26f55f88a49bc936e269c510cb39a1eaff0d",
+      "publicKeyBase64url": "PpVZiUzwVngZa70hN1ZPZdTcXeDh-JOgbxbIj1A-PpM"
+    },
+    {
+      "id": "fal-stage-key-05",
+      "seedHex": "fe63c1bb1f3fd2c80b39057de0b230b3750e80211be77e68fa82d5803ba2cd25",
+      "publicKeyBase64url": "bcgRMRjZhrfDeDMBqy7RFKWXVkleHz2XL_5L8sPKYHg"
+    },
+    {
+      "id": "fal-stage-key-06",
+      "seedHex": "707b25a16313513fd6b958333f43b446924bd70314d10766310ef4116d75aa2c",
+      "publicKeyBase64url": "pyWL8EbinbqONlgYYjDR9RwYk_uPia6Eq6NCS3sU81w"
+    },
+    {
+      "id": "fal-stage-key-07",
+      "seedHex": "101b771d0e9fabc725169224e960af6474e46750ea4fc46ebd6de453d56d2a5d",
+      "publicKeyBase64url": "PMOeHlMLfcTVeLC_9jj0ASdioco7TrmM12Jrf6mxWGA"
+    },
+    {
+      "id": "fal-stage-key-08",
+      "seedHex": "71fa11da416e818c48544b1566ac0a69b16116c469f9f03f6c4d370331195de1",
+      "publicKeyBase64url": "aVS0vVCvoFeW_yRuvNtRF0d4phaVCgEXhGnPtRWdfug"
+    },
+    {
+      "id": "fal-stage-key-09",
+      "seedHex": "17a531d53b2cab2994506c75394a5448976e9bd82547f8fc2197e9269b656750",
+      "publicKeyBase64url": "idUMt_anQc8wxstQbFxdP9CN6nAm7p5Ye4y-ApdmGsc"
+    },
+    {
+      "id": "fal-stage-key-10",
+      "seedHex": "571d0e8266d850fb1c94da45a01edb6487cafffd45ec04685c517a040356936f",
+      "publicKeyBase64url": "stV0T7Ko5dIymJdxLYKdK9Rg3KogLRw6uC8dJJgmoPY"
+    },
+    {
+      "id": "fal-stage-key-11",
+      "seedHex": "9be5723aa0b79d0d9a8e03b0b936ec37e87573e6d0107330c4602c6ea56e9785",
+      "publicKeyBase64url": "jkOtvJyW67zfGxMcoeUnp4df0P4e8jM_qlIOnxPY_3M"
+    },
+    {
+      "id": "fal-stage-key-12",
+      "seedHex": "6913c5098dca25f1b51d7ea8e05d46249461d6d7fc23ec2851caf473b985fe25",
+      "publicKeyBase64url": "39wTCkJjAZcVHMHT_qlkNst0cmkxTBnV2IVi-1jfqt0"
+    },
+    {
+      "id": "fal-stage-key-13",
+      "seedHex": "c317aac6f6cdb324eb5b7abcff121f42e9d14fb60d634b3127b44dc2265e54ee",
+      "publicKeyBase64url": "8ggsvN2Kxx0aFXniy9jz8MLBYPQ9Q-Ii17ysCExeQMU"
+    },
+    {
+      "id": "fal-stage-key-14",
+      "seedHex": "705846213680522d6b37dfae16503c4c74d82025dcf5750b2d0a318a5d59ae1b",
+      "publicKeyBase64url": "9B7eTXdgsRyDeqG2WJMSZ66Vlf98t0RLrGu8rUexhaA"
+    },
+    {
+      "id": "fal-stage-key-15",
+      "seedHex": "01f1b105b1eb2a5d4f83db38dc2e0dc01c0a9c8bf9923ffe060def6e6c226e7e",
+      "publicKeyBase64url": "LZsiaBKRMbNhw24c5mt915hp-zpPWhlJdgNooLp27kk"
+    },
+    {
+      "id": "fal-stage-key-16",
+      "seedHex": "e026d8ab58b1ed9fc2fa11434fd3092bb3f8be1da88c919d67900734dee53535",
+      "publicKeyBase64url": "IBt1iVITq9lpOlEolUlYOTeyf167wPtFGkZMf-b7zl8"
+    }
+  ],
+  "primitiveReferences": [
+    {
+      "id": "pr-rfc8032-ed25519-test1",
+      "family": "ed25519",
+      "attribution": "RFC 8032 section 7.1 TEST 1 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "seedHex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+      "publicKeyHex": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+      "publicKeyBase64url": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+      "messageHex": "",
+      "signatureHex": "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
+    },
+    {
+      "id": "pr-rfc8032-ed25519-test2",
+      "family": "ed25519",
+      "attribution": "RFC 8032 section 7.1 TEST 2 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "seedHex": "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb",
+      "publicKeyHex": "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c",
+      "publicKeyBase64url": "PUAXw-hDiVqStwqnTRt-vJyYLM8uxJaMwM1V8Sr0Zgw",
+      "messageHex": "72",
+      "signatureHex": "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00"
+    },
+    {
+      "id": "pr-rfc8032-ed25519-test3",
+      "family": "ed25519",
+      "attribution": "RFC 8032 section 7.1 TEST 3 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "seedHex": "c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7",
+      "publicKeyHex": "fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025",
+      "publicKeyBase64url": "_FHNjmIYoaONpH7QAjDwWAgW7RO6MwOsXeuRFUiQgCU",
+      "messageHex": "af82",
+      "signatureHex": "6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a"
+    },
+    {
+      "id": "pr-sha256-abc",
+      "family": "sha-256",
+      "attribution": "FIPS 180-4 published digest of the six-byte ASCII input \"abc\"; independent primitive reference; never vendor conformance",
+      "messageHex": "616263",
+      "digestHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "id": "pr-sha256-empty",
+      "family": "sha-256",
+      "attribution": "FIPS 180-4 published digest of the empty input; independent primitive reference; never vendor conformance",
+      "messageHex": "",
+      "digestHex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

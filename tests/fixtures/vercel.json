@@ -1,0 +1,967 @@
+{
+  "cases": [
+    {
+      "id": "positive-baseline",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa",
+          "content-type": "application/json"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Baseline JSON body with content-type noise; every other request field is outside the recipe."
+    },
+    {
+      "id": "positive-uppercase-hex-accepted",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "B0E82367FA2ACFE019550EFF3CE268154A2C6FAA"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Either-case hex acceptance is frozen receiver policy at Stage B, not lowercase-only residue from Stage A."
+    },
+    {
+      "id": "positive-header-casing-variant",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "X-Vercel-Signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Case-insensitive x-vercel-signature lookup."
+    },
+    {
+      "id": "positive-empty-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "",
+        "headers": {
+          "x-vercel-signature": "912040124e0772422ad4c37575d7d9fa327f032a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Empty raw body is signed over zero bytes."
+    },
+    {
+      "id": "positive-non-json-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "cGxhaW4tdGV4dC1ob29rbGF0Y2gtc3RhZ2UtOWI=",
+        "headers": {
+          "x-vercel-signature": "9eb40cd3d26f5dec9e25cdb0c4478a2b21cd886a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Non-JSON raw body."
+    },
+    {
+      "id": "positive-binary-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "aGkg//4hCg==",
+        "headers": {
+          "x-vercel-signature": "db4de96635cfe122c0749528bdb4a0536ad18625"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Raw binary body bytes 0xff/0xfe; HMAC covers bytes, never an interpretation."
+    },
+    {
+      "id": "positive-unicode-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "aG9va2xhdGNoLXN0YWdlLTliLXVuaWNvZGUt0L/RgNC+0LLQtcyB0YDQutCwLc67LfCfjok=",
+        "headers": {
+          "x-vercel-signature": "866e74e1bd5a628f4afc9299d72280ebc5b1e313"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Unicode body over exact UTF-8 bytes."
+    },
+    {
+      "id": "positive-large-body-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "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",
+        "headers": {
+          "x-vercel-signature": "2534152ce47232ebbe41405bf0e939b9198aa394"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "4096-byte patterned body."
+    },
+    {
+      "id": "positive-json-spaced-spelling-signed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyAiaG9va2xhdGNoU3RhZ2UiIDogOSwgImNhc2UiIDogImxheW91dC1zcGFjZWQiIH0=",
+        "headers": {
+          "x-vercel-signature": "9e95bb60a7e62ca9b5a83d4e44fc36105a8088b7"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Same JSON meaning, different bytes: this row demonstrates the compact/spaced MAC split against the tampered twin."
+    },
+    {
+      "id": "positive-nonascii-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "4f460b2181630f7fef4bf8bc11366a9f6f464f36"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_sécret_λ"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Literal secret with non-ASCII characters encodes as raw UTF-8 bytes; never trimmed or normalized."
+    },
+    {
+      "id": "positive-whitespace-only-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "fead50a3148dd45260aeb55b8b86c1c137f11b5a"
+        }
+      },
+      "options": {
+        "secrets": [
+          "   "
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Whitespace-only secret stays a legal literal; it is nonempty and used untrimmed."
+    },
+    {
+      "id": "positive-untrimmed-secret-literal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "2efe7bd5232ff32fa6475d7a5800309b23db09eb"
+        }
+      },
+      "options": {
+        "secrets": [
+          "  hooklatch_stage_9b_surrounded_secret  "
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Surrounded-space secret must be used byte-for-byte, distinct from its trimmed twin."
+    },
+    {
+      "id": "rotation-both-secrets-accept-old",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "aba49a0f82caef022b33ef75176dead6547ab0da"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_old_secret",
+          "hooklatch_stage_9b_vercel_new_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Rotation accept-set: the old secret verifies while the new one is already configured."
+    },
+    {
+      "id": "positive-tolerance-set-inert-without-timestamp",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400,
+        "toleranceSeconds": 90
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "Vercel has no signed timestamp; toleranceSeconds stays a validated setup bound but never rejects here."
+    },
+    {
+      "id": "positive-alien-signature-header-ignored",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa",
+          "x-fal-webhook-signature": "084c28f08bec1bea1518fc419944662af9b8de6143db0c64af5cf258f278198675cb74be6778e04286728461de3d4c4f1e46a4d45910e01a4bc53cac1154c604"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "notes": "A genuine fal Ed25519 signature under the alien header is inert noise for the Vercel recipe."
+    },
+    {
+      "id": "missing-signature-header",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "",
+          "x-vercel-event": "deploy.created"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "No x-vercel-signature at all; unrelated headers never rescue it."
+    },
+    {
+      "id": "blank-signature-is-missing",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "   "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "Trim-blank values are missing-signature in the record view; WHATWG trimming keeps the empty result."
+    },
+    {
+      "id": "alien-signature-header-cannot-rescue",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "",
+          "x-hooklatch-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "missing-signature"
+      },
+      "notes": "A real MAC recorded under a different header name cannot authenticate."
+    },
+    {
+      "id": "tampered-body-invalid-signature",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1UQU1QRVJFRCJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "One body-word change with the baseline MAC."
+    },
+    {
+      "id": "wrong-key-valid-grammar",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "15d391aca2174d64c2ecef55dc74bf64ad794347"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Well-formed 40-hex MAC under an unconfigured literal."
+    },
+    {
+      "id": "rotation-old-secret-after-removal",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "aba49a0f82caef022b33ef75176dead6547ab0da"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_new_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "invalid-signature"
+      },
+      "notes": "Byte-equal to the rotation accept row; the old secret was removed from the accept-set."
+    },
+    {
+      "id": "sha256-sized-signature-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "68122ab56c2a6ff4e2d1d3c3eabd7170a17909157940576d59e6d25a0ba4f884"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A genuine 64-hex SHA-256-family digest is simply the wrong length for the 20-byte Vercel digest."
+    },
+    {
+      "id": "ed25519-sized-signature-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "084c28f08bec1bea1518fc419944662af9b8de6143db0c64af5cf258f278198675cb74be6778e04286728461de3d4c4f1e46a4d45910e01a4bc53cac1154c604"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "A genuine 128-hex Ed25519 signature from this corpus is the wrong length for Vercel."
+    },
+    {
+      "id": "hex-39-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6fa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "19-byte truncation."
+    },
+    {
+      "id": "hex-41-characters-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa0"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "21-byte extension."
+    },
+    {
+      "id": "non-hex-character-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "g0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "49/50: g sentinel inside an otherwise 40-char value."
+    },
+    {
+      "id": "space-inside-hex-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe01955 0eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Inner whitespace always malformed; no concat rescue."
+    },
+    {
+      "id": "comma-combined-duplicates-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": [
+            "b0e82367fa2acfe019550eff3ce268154a2c6faa",
+            "b0e82367fa2acfe019550eff3ce268154a2c6faa"
+          ]
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Equal duplicate signature headers combine to a commalist; equal duplicates are rejected too."
+    },
+    {
+      "id": "differing-duplicate-signatures-are-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": [
+            "b0e82367fa2acfe019550eff3ce268154a2c6faa",
+            "15d391aca2174d64c2ecef55dc74bf64ad794347"
+          ]
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Differing duplicates with a real second MAC."
+    },
+    {
+      "id": "signature-led-sha256-prefix-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "v1,b0e82367fa2acfe019550eff3ce268154a2c6faa"
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Scheme-prefixed token list never rescues the bare-LED grammar."
+    },
+    {
+      "id": "extra-equals-suffix-is-malformed",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa="
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Base64-style padding suffix."
+    },
+    {
+      "id": "signature-outer-whitespace-is-malformed-record-view",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": " b0e82367fa2acfe019550eff3ce268154a2c6faa "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Record view keeps OWS: malformed; WHATWG Headers trims the same bytes to the true signature.",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      }
+    },
+    {
+      "id": "signature-trailing-whitespace-is-headers-trim-accepts",
+      "provenance": {
+        "class": "local",
+        "source": "synthetic local vector; frozen Stage B contract v1 notes/phase-9-stage-b/contract.md (2026-10-23); pinned vendor material https://vercel.com/docs/headers/request-headers and https://vercel.com/docs/webhooks/webhooks-api; HMAC-SHA1 over exact raw body bytes with a literal UTF-8 secret string; 40-hex x-vercel-signature accepted in either case as Hooklatch receiver policy; no signed timestamp and all-null identity are receiver policy; no vendor-published vector was used; recomputed with node:crypto; data/crypto consistency is not public HTTP support and claims no vendor conformance"
+      },
+      "request": {
+        "bodyBase64": "eyJob29rbGF0Y2hTdGFnZSI6OSwiY2FzZSI6InZlcmNlbC1wb3NpdGl2ZS1iYXNlbGluZSJ9",
+        "headers": {
+          "x-vercel-signature": "b0e82367fa2acfe019550eff3ce268154a2c6faa "
+        }
+      },
+      "options": {
+        "secrets": [
+          "hooklatch_stage_9b_vercel_secret"
+        ],
+        "now": 1792742400
+      },
+      "expected": {
+        "ok": false,
+        "reason": "malformed-signature"
+      },
+      "notes": "Trailing OWS variant of the explicit WHATWG view.",
+      "webHeadersExpected": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      }
+    }
+  ],
+  "primitiveReferences": [
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc1",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 1 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "dataHex": "4869205468657265",
+      "keyByteLength": 20,
+      "hmacHex": "b617318655057264e28bc0b6fb378c8ef146be00"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc2",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 2 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "4a656665",
+      "dataHex": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+      "keyByteLength": 4,
+      "hmacHex": "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc3",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 3 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dataHex": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "keyByteLength": 20,
+      "hmacHex": "125d7342b9ac11cd91a39af48aa17b4f63f175d3"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc4",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 4 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "0102030405060708090a0b0c0d0e0f10111213141516171819",
+      "dataHex": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "keyByteLength": 25,
+      "hmacHex": "4c9007f4026250c6bc8414f9bf50c86c2d7235da"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc5",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 5 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+      "dataHex": "546573742057697468205472756e636174696f6e",
+      "keyByteLength": 20,
+      "hmacHex": "4c1a03424b55e07fe7f27be1d58bb9324a9a5a04",
+      "truncated96Hex": "4c1a03424b55e07fe7f27be1"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc6",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 6 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dataHex": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374",
+      "keyByteLength": 80,
+      "hmacHex": "aa4ae5e15272d00e95705637ce8a3b55ed402112"
+    },
+    {
+      "id": "pr-rfc2202-hmac-sha1-tc7",
+      "family": "hmac-sha1",
+      "attribution": "RFC 2202 Test Case 7 published vector; independent primitive reference recomputed at build and anchor time; never vendor conformance",
+      "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dataHex": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b657920616e64204c6172676572205468616e204f6e6520426c6f636b2d53697a652044617461",
+      "keyByteLength": 80,
+      "hmacHex": "e8e99d0f45237d786d6bbaa7965c7808bbff1a91"
+    }
+  ]
+}
