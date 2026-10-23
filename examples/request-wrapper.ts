@@ -12,11 +12,11 @@ import { verifyRequest, HooklatchError, type VerifyOptions } from 'hooklatch';
 // Synthetic placeholder — replace with your real secret.
 const TEST_SECRET = 'TEST0workers0secret0placeholder';
 
-const options: VerifyOptions = {
+const options = {
   provider: 'github',
   secrets: [TEST_SECRET],
   maxBodyBytes: 1048576, // 1 MiB default; adjust for your platform
-};
+} satisfies VerifyOptions;
 
 /**
  * Cloudflare Workers fetch handler.
