@@ -1,0 +1,1171 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-23T22:43:53.986Z",
+  "description": "Strict exact-byte provider SDK conformance corpus for Hooklatch Phase 10",
+  "falKeys": {
+    "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
+    "privateKeyDerBase64": "MC4CAQAwBQYDK2VwBCIEIGX5nT+IXYQJ80Cy9110m2/7nAXUBY9z46a+npkdZRvl"
+  },
+  "providers": [
+    "standard-webhooks",
+    "paddle",
+    "sanity",
+    "linear",
+    "vercel",
+    "fal"
+  ],
+  "casesCount": 40,
+  "cases": [
+    {
+      "id": "std-valid-standard",
+      "provider": "standard-webhooks",
+      "category": "accept-reject",
+      "description": "Standard Webhooks valid v1 signature with whsec_ prefix and exact body bytes",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-valid-no-prefix-secret",
+      "provider": "standard-webhooks",
+      "category": "secret-encoding",
+      "description": "Standard Webhooks secret without whsec_ prefix accepted by both",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-valid-rotation-first-valid",
+      "provider": "standard-webhooks",
+      "category": "rotation",
+      "description": "Standard Webhooks rotation accept-set with first signature valid",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI= v1,QXDtvz5dO43BDFPKTnBDaFLAqrlY9wMQOyc96+ZWs2c="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-valid-rotation-second-valid",
+      "provider": "standard-webhooks",
+      "category": "rotation",
+      "description": "Standard Webhooks rotation accept-set with second signature valid",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,QXDtvz5dO43BDFPKTnBDaFLAqrlY9wMQOyc96+ZWs2c= v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-reject-corrupted-sig",
+      "provider": "standard-webhooks",
+      "category": "accept-reject",
+      "description": "Standard Webhooks rejected when signature digest is corrupted",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,badkTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-reject-corrupted-timestamp",
+      "provider": "standard-webhooks",
+      "category": "timestamp-boundaries",
+      "description": "Standard Webhooks rejected when timestamp is non-numeric",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "invalid_timestamp",
+        "webhook-signature": "v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-reject-missing-id",
+      "provider": "standard-webhooks",
+      "category": "accept-reject",
+      "description": "Standard Webhooks rejected when webhook-id header is absent",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,uMukTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-identity"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-reject-missing-sig",
+      "provider": "standard-webhooks",
+      "category": "accept-reject",
+      "description": "Standard Webhooks rejected when webhook-signature header is absent",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000"
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-signature"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-divergence-short-key",
+      "provider": "standard-webhooks",
+      "category": "secret-encoding",
+      "description": "Standard Webhooks secret with only 16 decoded bytes (below Hooklatch 24-byte bound)",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MDEyMzQ1Njc4OWFiY2RlZg==",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1710000000",
+        "webhook-signature": "v1,GxuV+Y746+GcHihGTHfCzUYn98U4kv7bCyIuBLIgMJM="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-secret"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": true
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch enforces strict minimum 24-byte key bound for Standard Webhooks."
+    },
+    {
+      "id": "std-divergence-auth-before-freshness",
+      "provider": "standard-webhooks",
+      "category": "auth-before-freshness",
+      "description": "Standard Webhooks with expired timestamp and corrupted signature evaluates auth before freshness in Hooklatch",
+      "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_001",
+        "webhook-timestamp": "1709999000",
+        "webhook-signature": "v1,badkTLs0CIr+w+I+6PGHZyys6frJVZ57q/pLALtbLkI="
+      },
+      "timestampConfig": {
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1709999000,
+        "relativeOffset": -1000
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "standardwebhooks",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch enforces authentication before freshness ordering."
+    },
+    {
+      "id": "paddle-valid-standard",
+      "provider": "paddle",
+      "category": "accept-reject",
+      "description": "Paddle Billing valid signature with canonical ts and h1 fields",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1710000000;h1=c892285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-divergence-whitespace-segment",
+      "provider": "paddle",
+      "category": "whitespace-key-order",
+      "description": "Paddle Billing signature whitespace in key-value segment handled permissively by Hooklatch but rejected by Paddle Node SDK",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1710000000;  h1=c892285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d "
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Paddle Node SDK splits segments on ';' and '=' without trimming keys ('  h1' !== 'h1'), failing header extraction; Hooklatch permissively trims segment tokens."
+    },
+    {
+      "id": "paddle-reject-corrupted-h1",
+      "provider": "paddle",
+      "category": "accept-reject",
+      "description": "Paddle Billing rejected when h1 digest is corrupted",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1710000000;h1=ff92285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-reject-missing-signature",
+      "provider": "paddle",
+      "category": "accept-reject",
+      "description": "Paddle Billing rejected when paddle-signature header is missing",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {},
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-signature"
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-reject-invalid-ts",
+      "provider": "paddle",
+      "category": "timestamp-boundaries",
+      "description": "Paddle Billing rejected when timestamp contains non-digits",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=not_a_number;h1=c892285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-exact-body-whitespace",
+      "provider": "paddle",
+      "category": "whitespace-key-order",
+      "description": "Paddle Billing preserves exact multi-line payload whitespace and trailing newline",
+      "payload": "{\n  \"event_id\": \"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\n  \"data\": {\n    \"id\": \"sub_01h7x8\"\n  }\n}\n",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1710000000;h1=be9103cf28d38c5df2e012282934397e308eef84ac7e23e1a2232debcc973323"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-divergence-rotation-first-valid",
+      "provider": "paddle",
+      "category": "rotation",
+      "description": "Paddle Billing with multiple h1 keys where first is valid; Hooklatch accept-set passes while SDK only inspects last",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1710000000;h1=c892285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d;h1=af919c0c049ea47f79942ea8bac9bd3e10a774d184eac0c8894bc61db09fff4a"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch supports multi-signature rotation accept-sets; Paddle SDK only evaluates the last h1 token."
+    },
+    {
+      "id": "paddle-divergence-auth-before-freshness",
+      "provider": "paddle",
+      "category": "auth-before-freshness",
+      "description": "Paddle Billing with expired timestamp and corrupted signature evaluates auth before freshness in Hooklatch",
+      "payload": "{\"event_id\":\"evt_01h7x8w4m9q2v5k3r6t1y8p4z0\",\"data\":{\"id\":\"sub_01h7x8\"}}",
+      "secret": "pdl_ntfsec_01h7x8w4m9q2v5k3r6t1y8p4z0",
+      "headers": {
+        "paddle-signature": "ts=1709999900;h1=ff92285b119a67d55f042eb9e36cd9fb593581149c3e25e58b05f455b3044b9d"
+      },
+      "timestampConfig": {
+        "field": "paddle-signature",
+        "format": "ts_field",
+        "unit": "seconds",
+        "fixed": 1709999900,
+        "relativeOffset": -100
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "@paddle/paddle-node-sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch enforces authentication before freshness ordering."
+    },
+    {
+      "id": "sanity-valid-standard",
+      "provider": "sanity",
+      "category": "accept-reject",
+      "description": "Sanity valid t=<ms>,v1=<base64url> signature",
+      "payload": "{\"_id\":\"doc-123\",\"_type\":\"article\",\"title\":\"Draft\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1710000000000,v1=ymR3yaHLQqVtOOjqzH0ZNx8csjqQRLp-ypcT64JDpPQ"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-reject-corrupted-digest",
+      "provider": "sanity",
+      "category": "accept-reject",
+      "description": "Sanity rejected when digest characters are altered",
+      "payload": "{\"_id\":\"doc-123\",\"_type\":\"article\",\"title\":\"Draft\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1710000000000,v1=XmR3yaHLQqVtOOjqzH0ZNx8csjqQRLp-ypcT64JDpPQ"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-reject-missing-header",
+      "provider": "sanity",
+      "category": "accept-reject",
+      "description": "Sanity rejected when sanity-webhook-signature header is omitted",
+      "payload": "{\"_id\":\"doc-123\",\"_type\":\"article\",\"title\":\"Draft\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {},
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-signature"
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-reject-timestamp-before-2021",
+      "provider": "sanity",
+      "category": "timestamp-boundaries",
+      "description": "Sanity rejected when millisecond timestamp precedes 2021-01-01",
+      "payload": "{\"_id\":\"doc-123\",\"_type\":\"article\",\"title\":\"Draft\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1500000000000,v1=GGoO_L0BLRxJnuPHhEx3M4GzjEp4LyVZ1Wd9JAn_Pw8"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1500000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-exact-body-unicode",
+      "provider": "sanity",
+      "category": "whitespace-key-order",
+      "description": "Sanity verifies exact multi-byte UTF-8 Unicode characters and symbols",
+      "payload": "{\"title\":\"Café — naïve 日本語 🚀\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1710000000000,v1=dV4kUd6pRaj27U5pdYipx46rKaMo5N37iTU4tBUT6H4"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-reject-space-after-comma",
+      "provider": "sanity",
+      "category": "whitespace-key-order",
+      "description": "Sanity header with space after comma rejected by both Hooklatch strict parser and Sanity SDK re-encode match check",
+      "payload": "{\"_id\":\"doc-123\",\"_type\":\"article\",\"title\":\"Draft\"}",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1710000000000, v1=ymR3yaHLQqVtOOjqzH0ZNx8csjqQRLp-ypcT64JDpPQ"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "malformed-signature"
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-divergence-empty-body",
+      "provider": "sanity",
+      "category": "accept-reject",
+      "description": "Sanity empty body verified by Hooklatch exact byte preserving core but rejected by Sanity SDK throw",
+      "payload": "",
+      "secret": "sanity_sec_7f9a2b4c6e8d0135",
+      "headers": {
+        "sanity-webhook-signature": "t=1710000000000,v1=YRFsi0dQHKmm2589PHnUTydk8JdQO5apPqvs_x2kR2M"
+      },
+      "timestampConfig": {
+        "field": "sanity-webhook-signature",
+        "format": "t_field_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@sanity/webhook",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch authenticates exact request bytes including empty bodies; Sanity SDK disallows empty payloads."
+    },
+    {
+      "id": "linear-valid-standard",
+      "provider": "linear",
+      "category": "accept-reject",
+      "description": "Linear valid HMAC-SHA256 hex signature over JSON payload containing webhookTimestamp",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"webhookTimestamp\":1710000000000,\"data\":{\"id\":\"issue-101\"}}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "0b267665f8cd3c03956e949fca73332faba59e0f717d9e5bdc28418b704bf805"
+      },
+      "timestampConfig": {
+        "field": "payload",
+        "format": "body_json_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-reject-corrupted-sig",
+      "provider": "linear",
+      "category": "accept-reject",
+      "description": "Linear rejected when linear-signature hex digest is corrupted",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"webhookTimestamp\":1710000000000,\"data\":{\"id\":\"issue-101\"}}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "deadbeeff8cd3c03956e949fca73332faba59e0f717d9e5bdc28418b704bf805"
+      },
+      "timestampConfig": {
+        "field": "payload",
+        "format": "body_json_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-reject-missing-header",
+      "provider": "linear",
+      "category": "accept-reject",
+      "description": "Linear rejected when linear-signature header is absent",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"webhookTimestamp\":1710000000000,\"data\":{\"id\":\"issue-101\"}}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {},
+      "timestampConfig": {
+        "field": "payload",
+        "format": "body_json_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-signature"
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": false
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-exact-body-formatting",
+      "provider": "linear",
+      "category": "whitespace-key-order",
+      "description": "Linear verifies exact body formatting and whitespace",
+      "payload": "{\n  \"action\": \"create\",\n  \"type\": \"Issue\",\n  \"webhookTimestamp\": 1710000000000,\n  \"data\": {\n    \"id\": \"issue-101\"\n  }\n}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "778162f14873539412a3156dfa8015b6de847654f7830683639832aecbc7c8c2"
+      },
+      "timestampConfig": {
+        "field": "payload",
+        "format": "body_json_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-divergence-no-body-timestamp",
+      "provider": "linear",
+      "category": "accept-reject",
+      "description": "Linear payload without body webhookTimestamp accepted by Hooklatch byte verifier but rejected by Linear SDK",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"data\":{\"id\":\"issue-no-ts\"}}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "0dc81ee36389acc6ee6267a9660b502d0be1ce9befec49fbed265081ae1caf58"
+      },
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch authenticates exact request bytes without parsing or extracting schema fields from body in core."
+    },
+    {
+      "id": "linear-divergence-plain-text",
+      "provider": "linear",
+      "category": "accept-reject",
+      "description": "Linear non-JSON raw body verified by Hooklatch byte verifier but rejected by Linear SDK JSON parser",
+      "payload": "Linear webhook raw text notification payload",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "c4f53ddbb92f47d3f9321bd9bae3b8995b7cdb8d2b34cf6f67601724de59444b"
+      },
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch preserves exact request bytes and does not require or assume JSON payloads in core."
+    },
+    {
+      "id": "linear-divergence-auth-before-freshness",
+      "provider": "linear",
+      "category": "auth-before-freshness",
+      "description": "Linear payload with corrupted signature and expired body timestamp fails authentication in Hooklatch",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"webhookTimestamp\":1710000000000,\"data\":{\"id\":\"issue-101\"}}",
+      "secret": "lin_wh_secret_83920184729482019482",
+      "headers": {
+        "linear-signature": "00000000f8cd3c03956e949fca73332faba59e0f717d9e5bdc28418b704bf805"
+      },
+      "timestampConfig": {
+        "field": "payload",
+        "format": "body_json_ms",
+        "unit": "milliseconds",
+        "fixed": 1710000000000,
+        "relativeOffset": 0
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "@linear/sdk",
+        "ok": false
+      },
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch rejects unsigned/corrupted payloads and never derives identity or freshness from body content."
+    },
+    {
+      "id": "vercel-valid-standard",
+      "provider": "vercel",
+      "category": "accept-reject",
+      "description": "Vercel docs-only recipe HMAC-SHA1 40-character hex signature over raw request body",
+      "payload": "{\"type\":\"deployment.created\",\"payload\":{\"id\":\"dpl_synthetic_01\"}}",
+      "secret": "vercel_sec_994827104928",
+      "headers": {
+        "x-vercel-signature": "47f03828381432171bcf08c8ea1f96013b459df4"
+      },
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-vercel",
+        "ok": true
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "vercel-reject-corrupted",
+      "provider": "vercel",
+      "category": "accept-reject",
+      "description": "Vercel rejected when x-vercel-signature is corrupted",
+      "payload": "{\"type\":\"deployment.created\",\"payload\":{\"id\":\"dpl_synthetic_01\"}}",
+      "secret": "vercel_sec_994827104928",
+      "headers": {
+        "x-vercel-signature": "ffff3828381432171bcf08c8ea1f96013b459df4"
+      },
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-vercel",
+        "ok": false
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "vercel-reject-missing",
+      "provider": "vercel",
+      "category": "accept-reject",
+      "description": "Vercel rejected when x-vercel-signature header is absent",
+      "payload": "{\"type\":\"deployment.created\",\"payload\":{\"id\":\"dpl_synthetic_01\"}}",
+      "secret": "vercel_sec_994827104928",
+      "headers": {},
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-signature"
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-vercel",
+        "ok": false
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "vercel-exact-bytes",
+      "provider": "vercel",
+      "category": "whitespace-key-order",
+      "description": "Vercel preserves exact multi-line body formatting and indentation",
+      "payload": "{\n  \"type\": \"deployment.created\",\n  \"payload\": {\n    \"id\": \"dpl_synthetic_01\"\n  }\n}",
+      "secret": "vercel_sec_994827104928",
+      "headers": {
+        "x-vercel-signature": "6b4efac1da22e06f89b0a3e977eed30ac587da9e"
+      },
+      "timestampConfig": null,
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-vercel",
+        "ok": true
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "fal-valid-standard",
+      "provider": "fal",
+      "category": "accept-reject",
+      "description": "fal docs-only recipe Ed25519 signature over requestId, userId, timestamp and body sha256",
+      "payload": "{\"request_id\":\"req_fal_synthetic_001\",\"status\":\"OK\",\"output\":{\"image\":\"https://example.com/synthetic.png\"}}",
+      "secret": {
+        "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
+        "expectedUserId": "user_fal_synthetic_001"
+      },
+      "headers": {
+        "x-fal-webhook-signature": "a7448241a287dba9c49f0b597aeab71d287b6764fc514d49db7a0846b3a05a790798013039d386717ae0b61f95cdb4d45424d7e01a8a771b9cef59c0ca03b00f",
+        "x-fal-webhook-request-id": "req_fal_synthetic_001",
+        "x-fal-webhook-user-id": "user_fal_synthetic_001",
+        "x-fal-webhook-timestamp": "1710000000"
+      },
+      "timestampConfig": {
+        "field": "x-fal-webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-fal",
+        "ok": true
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "fal-reject-corrupted-sig",
+      "provider": "fal",
+      "category": "accept-reject",
+      "description": "fal rejected when Ed25519 signature bytes are corrupted",
+      "payload": "{\"request_id\":\"req_fal_synthetic_001\",\"status\":\"OK\",\"output\":{\"image\":\"https://example.com/synthetic.png\"}}",
+      "secret": {
+        "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
+        "expectedUserId": "user_fal_synthetic_001"
+      },
+      "headers": {
+        "x-fal-webhook-signature": "00000000a287dba9c49f0b597aeab71d287b6764fc514d49db7a0846b3a05a790798013039d386717ae0b61f95cdb4d45424d7e01a8a771b9cef59c0ca03b00f",
+        "x-fal-webhook-request-id": "req_fal_synthetic_001",
+        "x-fal-webhook-user-id": "user_fal_synthetic_001",
+        "x-fal-webhook-timestamp": "1710000000"
+      },
+      "timestampConfig": {
+        "field": "x-fal-webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "invalid-signature"
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-fal",
+        "ok": false
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "fal-reject-missing-headers",
+      "provider": "fal",
+      "category": "accept-reject",
+      "description": "fal rejected when user-id header is omitted",
+      "payload": "{\"request_id\":\"req_fal_synthetic_001\",\"status\":\"OK\",\"output\":{\"image\":\"https://example.com/synthetic.png\"}}",
+      "secret": {
+        "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
+        "expectedUserId": "user_fal_synthetic_001"
+      },
+      "headers": {
+        "x-fal-webhook-signature": "a7448241a287dba9c49f0b597aeab71d287b6764fc514d49db7a0846b3a05a790798013039d386717ae0b61f95cdb4d45424d7e01a8a771b9cef59c0ca03b00f",
+        "x-fal-webhook-request-id": "req_fal_synthetic_001",
+        "x-fal-webhook-timestamp": "1710000000"
+      },
+      "timestampConfig": {
+        "field": "x-fal-webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": false,
+        "errorCode": "missing-identity"
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-fal",
+        "ok": false
+      },
+      "classification": "docs-only-probe"
+    },
+    {
+      "id": "fal-exact-bytes",
+      "provider": "fal",
+      "category": "whitespace-key-order",
+      "description": "fal preserves exact body formatting when computing SHA-256 body hash",
+      "payload": "{\n  \"request_id\": \"req_fal_synthetic_001\",\n  \"status\": \"OK\",\n  \"output\": {\n    \"image\": \"https://example.com/synthetic.png\"\n  }\n}",
+      "secret": {
+        "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
+        "expectedUserId": "user_fal_synthetic_001"
+      },
+      "headers": {
+        "x-fal-webhook-signature": "d05eb6f9b2cf8f0957bed94dbcf6ef6665b872ed5b24e4d07bc246cf501342cfdb106ba68cf7914472042bf3433f6ce75b0a013cdc3935913da4ba5dbd120206",
+        "x-fal-webhook-request-id": "req_fal_synthetic_001",
+        "x-fal-webhook-user-id": "user_fal_synthetic_001",
+        "x-fal-webhook-timestamp": "1710000000"
+      },
+      "timestampConfig": {
+        "field": "x-fal-webhook-timestamp",
+        "unit": "seconds",
+        "fixed": 1710000000,
+        "relativeOffset": 0
+      },
+      "options": {
+        "toleranceSeconds": 300
+      },
+      "expectedHooklatch": {
+        "ok": true
+      },
+      "expectedSdk": {
+        "target": "docs-recipe-fal",
+        "ok": true
+      },
+      "classification": "docs-only-probe"
+    }
+  ]
+}
