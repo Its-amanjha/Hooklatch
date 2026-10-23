@@ -1,14 +1,14 @@
 # Provider guide
 
-Reference for nineteen locally qualified provider IDs plus Vercel and fal.ai pending
-integration and qualification. Paddle support covers Billing webhooks only.
+Reference for twenty-one locally qualified provider IDs.
+Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 
 ## Qualified provider protocols
 
-These nineteen providers are integrated and locally qualified in the current codebase.
+These providers are integrated and locally qualified in the current codebase.
 The package has not yet been published to npm.
 
 | ID | Header | Signed content | Secret form | Identity |
@@ -288,16 +288,15 @@ from the payload. Retry consistency follows each provider's documented rules.
   https://linear.app/developers/sdk-webhooks.
 - **Status:** implemented and locally qualified (signature authentication only).
 
-## Providers pending integration and qualification
+## Vercel and fal signature protocols
 
-The following two provider IDs are documented here only as planned protocol
-mappings. They are **not registered or qualified for public verification**.
-Do not treat anything in this section as advertised support.
+These protocols are integrated and locally qualified in Node 22, Node 24 and
+real workerd. The checks use deterministic test data, not live provider deliveries.
 
 | ID | Header | Signed content | Secret form | Identity | Status |
 |---|---|---|---|---|---|
-| vercel | `x-vercel-signature` | raw body | Literal string | all identity fields null | Pending |
-| fal | `x-fal-webhook-signature` | request/user/time + SHA-256 body digest | Raw 32-byte public keys (1..16) + required `expectedUserId` | signed timestamp only | Pending |
+| vercel | `x-vercel-signature` | raw body | Literal string | all identity fields null | Locally qualified |
+| fal | `x-fal-webhook-signature` | request/user/time + SHA-256 body digest | Raw 32-byte public keys (1..16) + required `expectedUserId` | signed timestamp only | Locally qualified |
 
 ### Vercel webhook signature
 
@@ -324,7 +323,7 @@ Do not treat anything in this section as advertised support.
   parity, replay resistance, or business idempotency.
 - **Sources:** https://vercel.com/docs/webhooks/webhooks-api;
   https://vercel.com/docs/headers/request-headers.
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ### fal webhook signature
 
@@ -347,7 +346,7 @@ Do not treat anything in this section as advertised support.
   300-second window by default. Explicit tolerance zero is zero-width. These are
   Hooklatch receiver policies; they do not provide deduplication or exactly-once effects.
 - **Sources:** https://fal.ai/docs/documentation/model-apis/inference/webhooks.
-- **Status:** pending integration and qualification.
+- **Status:** implemented and locally qualified.
 
 ## Configured provider protocols
 
@@ -470,8 +469,8 @@ for the entire accept-set. These choices come from trusted application code.
 - No queue guarantees, retry, DLQ, or delivery semantics.
 - No account setup, secret registration, or dashboard flows.
 - Provider selection is explicit; automatic detection is not implemented.
-- No new algorithms beyond scoped Vercel SHA-1 and fal Ed25519, or dependency
-  updates.
+- Algorithm selection is fixed per provider: Vercel uses HMAC-SHA1, fal uses
+  Ed25519, and the other providers use HMAC-SHA256. Request data cannot select it.
 - No live-provider validation or exactly-once delivery claims.
 - No Relay exists or is advertised: Relay is a future separately installed
   package; its name, backend and API are not frozen. Do not add queue switches

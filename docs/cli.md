@@ -9,13 +9,14 @@ start servers, install packages, or talk to the network.
 ```text
 hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   [--secret-env <NAME>] [--body-limit <bytes>] [--dry-run]
+  [--public-key-env <NAME>] [--expected-user-env <NAME>]
 ```
 
 ### Required flags
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
   `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`,
-  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, or `linear`. The
+  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, `linear`, `vercel`, or `fal`. The
   list comes from the package's internal provider registry; pending providers
   are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
@@ -34,7 +35,7 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   `GITLAB_WEBHOOK_SECRET`, `REPLICATE_WEBHOOK_SECRET`, `WORKOS_WEBHOOK_SECRET`,
   `SENTRY_WEBHOOK_SECRET`, `DOPPLER_WEBHOOK_SECRET`, `SANITY_WEBHOOK_SECRET`,
   `GRAFANA_WEBHOOK_SECRET`, `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`,
-  `VERCEL_WEBHOOK_SECRET`, `FAL_WEBHOOK_PUBLIC_KEYS`.
+  `VERCEL_WEBHOOK_SECRET`. fal uses the separate public-key and account flags below.
 - `--body-limit <bytes>` — positive safe integer body limit baked into the
   generated options. Default: `1048576`.
 - `--dry-run` — validate arguments and the target path, then print the
@@ -63,14 +64,13 @@ The built CLI accepts these provider-specific configuration flags:
   `VERCEL_WEBHOOK_SECRET`, `FAL_WEBHOOK_PUBLIC_KEYS`,
   `FAL_WEBHOOK_USER_ID`.
 
-### Vercel and fal configuration flags (pending integration)
+### Vercel and fal credential flags
 
-The following flags are planned for Vercel and fal support. They are **not
-available in the current built CLI** and do not change generated output until
-Codex completes public registration and qualification:
+The CLI emits the credential fields required by the selected provider:
 
 - `--secret-env NAME` — HMAC providers only; optional environment variable name for the
-  HMAC secret. Defaults to `VERCEL_WEBHOOK_SECRET`. Must match
+  HMAC secret. For Vercel it defaults to `VERCEL_WEBHOOK_SECRET`; other HMAC
+  providers use their defaults above. Must match
   `/^[A-Za-z_][A-Za-z0-9_]*$/`.
 - `--public-key-env NAME` — fal only; optional environment variable name for
   the comma-separated canonical unpadded Base64url 32-byte public keys.
@@ -137,7 +137,7 @@ by default. Linear has no provider-specific CLI flags. The generated handler
 preserves authenticated bytes and leaves parsing and body-timestamp freshness
 validation to application code; unsigned headers do not establish freshness.
 
-## Vercel authentication scope (pending integration)
+## Vercel authentication scope
 
 `--provider vercel` generates signature verification using `VERCEL_WEBHOOK_SECRET`
 by default. Vercel has no provider-specific CLI flags. The generated handler
@@ -146,7 +146,7 @@ verifies HMAC-SHA1 over the exact raw body using a 40-hex signature in the
 policy. No freshness or body-field extraction; unsigned headers do not
 establish freshness.
 
-## fal authentication scope (pending integration)
+## fal authentication scope
 
 `--provider fal` generates Ed25519 signature verification using static trusted
 public keys supplied out of band via `FAL_WEBHOOK_PUBLIC_KEYS` and an expected
@@ -157,3 +157,7 @@ sha256hex(rawBody)` using the `x-fal-webhook-signature`, `x-fal-webhook-request-
 ID must match `userId` exactly after signature verification. No shared secrets,
 no JWKS fetch, no key URL from request data; raw 32-byte public keys only
 (1..16 entries).
+
+After signature and account verification, the signed timestamp must fall within
+the default symmetric inclusive 300-second window. Explicit tolerance zero is
+zero-width. Request and user IDs are not exposed as public event identity.

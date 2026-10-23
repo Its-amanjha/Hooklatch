@@ -8,7 +8,8 @@ Hooklatch checks incoming webhook signatures over the exact request bytes
 before your code parses or trusts the payload. It supports Stripe, GitHub,
 Shopify, Standard Webhooks, Clerk, Svix, Razorpay, Paddle Billing, Lemon
 Squeezy, Dodo Payments, GitLab signing tokens, Replicate, WorkOS, Sentry App,
-Doppler signed webhooks, Sanity, Grafana and Polar through one asynchronous API,
+Doppler signed webhooks, Sanity, Grafana, Polar, Linear, Vercel and fal through
+one asynchronous API,
 with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 
@@ -109,7 +110,7 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-23):** The core, nineteen provider descriptors,
+> **Implementation status (2026-10-24):** The core, twenty-one provider descriptors,
 > four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
 > synthetic signatures; no live provider/account testing has been performed.
 > Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for

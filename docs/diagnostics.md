@@ -80,16 +80,16 @@ explains that the selected `secretMode` (`current` or `legacy`) is
 application configuration and applies to every configured secret in the
 accept-set; no mixed-era or dual-key migration is performed.
 
-### Vercel (pending integration)
+### Vercel
 
-Static diagnostics only; Vercel is not registered in the current CLI.
+Static guidance is available for Vercel verification and setup failures.
 `expectedHeaders` lists `x-vercel-signature`. The verbose `grammar` describes
 HMAC-SHA1 over the exact raw body with exactly 40 hex characters, either case,
 and uppercase acceptance as a Hooklatch receiver policy.
 
-### fal (pending integration)
+### fal
 
-Static diagnostics only; fal is not registered in the current CLI.
+Static guidance is available for fal verification and setup failures.
 `expectedHeaders` lists `x-fal-webhook-signature`, `x-fal-webhook-request-id`,
 `x-fal-webhook-user-id`, `x-fal-webhook-timestamp`. The verbose `grammar`
 describes Ed25519 over `requestId + '\n' + userId + '\n' + timestamp + '\n' +
