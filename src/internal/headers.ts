@@ -5,8 +5,8 @@ function isHeaderName(name: string): name is string {
   return typeof name === 'string' && /^[!#$%&'*+.^_`|~\da-z-]+$/i.test(name);
 }
 
-function isHeaderValue(value: string): value is string {
-  return typeof value === 'string' && !/[\r\n\0]/.test(value);
+function isHeaderValue(value: string, opaque: boolean): value is string {
+  return typeof value === 'string' && (opaque || !/[\r\n\0]/.test(value));
 }
 
 function isHeaderRecord(input: HeaderInput): input is Readonly<Record<string, string | readonly string[] | undefined>> {
@@ -17,12 +17,24 @@ function isHeaderValues(value: string | readonly string[]): value is readonly st
   return Array.isArray(value);
 }
 
-export function normalizeHeaders(input: HeaderInput): Map<string, string> {
+/** Opaque values are used only by fal so its signed-field grammar owns rejection. */
+const FAL_HEADER_NAMES = new Set([
+  'x-fal-webhook-signature', 'x-fal-webhook-request-id',
+  'x-fal-webhook-user-id', 'x-fal-webhook-timestamp',
+]);
+
+function isFalHeaderName(name: string): name is string {
+  return typeof name === 'string' && FAL_HEADER_NAMES.has(name.toLowerCase());
+}
+
+export function normalizeHeaders(input: HeaderInput, opaqueValues = false): Map<string, string> {
   const result = new Map<string, string>();
   const invalid = (): never => { throw new HooklatchError('invalid-input', 'Invalid header input.'); };
 
   const append = (name: string, value: string): void => {
-    if (!isHeaderName(name) || !isHeaderValue(value)) invalid();
+    if (opaqueValues && !isFalHeaderName(name)) return;
+
+    if (!isHeaderName(name) || !isHeaderValue(value, opaqueValues)) invalid();
 
     const key = name.toLowerCase();
     const previous = result.get(key);
@@ -37,7 +49,15 @@ export function normalizeHeaders(input: HeaderInput): Map<string, string> {
       append(entry[0], entry[1]);
     }
   } else if (isHeaderRecord(input)) {
-    for (const [key, value] of Object.entries(input)) {
+    const entries: [string, string | readonly string[] | undefined][] = [];
+
+    if (opaqueValues) {
+      for (const key of Object.keys(input)) {
+        if (isFalHeaderName(key)) entries.push([key, input[key]]);
+      }
+    } else entries.push(...Object.entries(input));
+
+    for (const [key, value] of entries) {
       if (value === undefined) continue;
 
       if (isHeaderValues(value)) {

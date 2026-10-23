@@ -8,7 +8,20 @@ export type NextWebhookHandlerOptions = VerifyOptions & {
 
 export function createWebhookHandler(options: NextWebhookHandlerOptions): (request: Request) => Promise<Response> {
   try {
+    // Observe credential descriptors before object-rest can invoke an accessor
+    // that replaces itself. Existing HMAC top-level getter snapshots stay intact.
+    const credentials = ['publicKeys', 'expectedUserId', 'secrets', 'secret'].map((name) => ({
+      name, property: Object.getOwnPropertyDescriptor(options, name),
+    }));
+
     const { handler, ...verifyOptions } = options;
+
+    for (const { name, property } of credentials) {
+      const preserve = verifyOptions.provider === 'fal'
+        || (verifyOptions.provider === 'vercel' && (name === 'publicKeys' || name === 'expectedUserId'));
+
+      if (preserve && property !== undefined) Object.defineProperty(verifyOptions, name, property);
+    }
 
     // Object rest omits non-enumerable fields; own configuration presence is meaningful.
     if (Object.hasOwn(options, 'providerOptions') && !Object.hasOwn(verifyOptions, 'providerOptions')) {

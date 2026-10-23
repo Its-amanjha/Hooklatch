@@ -250,6 +250,14 @@ interface ProviderDetail {
 }
 
 const PROVIDER_DETAIL: Readonly<Record<Provider, ProviderDetail>> = {
+  vercel: {
+    expectedHeaders: ['x-vercel-signature'],
+    grammar: 'Exactly 40 hexadecimal digits encoding HMAC-SHA1 over exact raw body bytes; no timestamp or identity extraction.',
+  },
+  fal: {
+    expectedHeaders: ['x-fal-webhook-signature', 'x-fal-webhook-request-id', 'x-fal-webhook-user-id', 'x-fal-webhook-timestamp'],
+    grammar: 'Exactly 128 hexadecimal signature digits; visible ASCII request and user IDs excluding commas; canonical nonnegative integer seconds. Ed25519 authenticates request ID, user ID, timestamp and the lowercase SHA256 raw-body digest. Static trusted raw public keys and exact expected user ID are required.',
+  },
   stripe: {
     expectedHeaders: ['Stripe-Signature'],
     grammar: 'Comma-separated key=value pairs: t=<unix-seconds>,v1=<hex-signature>[,v1=<hex-signature>]',

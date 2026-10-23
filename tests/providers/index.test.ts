@@ -15,12 +15,12 @@ test('resolves each supported provider descriptor and rejects unknown providers'
   expect(() => getProviderDescriptor('unknown' as never)).toThrow('Unsupported webhook provider.');
 });
 
-test('publishes the nineteen supported provider ids in registry order', () => {
+test('publishes the twenty-one registered provider ids in registry order', () => {
   expect(SUPPORTED_PROVIDERS).toEqual([
     'stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix',
     'razorpay', 'paddle', 'lemon-squeezy',
     'dodo-payments', 'gitlab', 'replicate', 'workos',
-    'sentry', 'doppler', 'sanity', 'grafana', 'polar', 'linear',
+    'sentry', 'doppler', 'sanity', 'grafana', 'polar', 'linear', 'vercel', 'fal',
   ]);
 
   for (const provider of SUPPORTED_PROVIDERS) {

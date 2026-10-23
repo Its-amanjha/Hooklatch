@@ -1,5 +1,5 @@
 import { HooklatchError } from '../errors.js';
-import type { ProviderDescriptor } from '../internal/provider.js';
+import type { AnyProviderDescriptor } from '../internal/provider.js';
 import type { Provider, GrafanaOptions, PolarOptions } from '../types.js';
 import { createGrafanaDescriptor } from './grafana.js';
 import { createPolarDescriptor } from './polar.js';
@@ -20,6 +20,8 @@ import { sentryDescriptor } from './sentry.js';
 import { dopplerDescriptor } from './doppler.js';
 import { sanityDescriptor } from './sanity.js';
 import { linearDescriptor } from './linear.js';
+import { vercelDescriptor } from './vercel.js';
+import { falDescriptor } from './fal.js';
 
 /** Registry order is part of the internal contract; append new providers only. */
 export const SUPPORTED_PROVIDERS = [
@@ -42,9 +44,11 @@ export const SUPPORTED_PROVIDERS = [
   'grafana',
   'polar',
   'linear',
+  'vercel',
+  'fal',
 ] as const satisfies readonly Provider[];
 
-const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, ProviderDescriptor>> = {
+const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, AnyProviderDescriptor>> = {
   stripe: stripeDescriptor,
   github: githubDescriptor,
   shopify: shopifyDescriptor,
@@ -62,10 +66,12 @@ const DESCRIPTORS: Readonly<Record<Exclude<Provider, 'grafana' | 'polar'>, Provi
   doppler: dopplerDescriptor,
   sanity: sanityDescriptor,
   linear: linearDescriptor,
+  vercel: vercelDescriptor,
+  fal: falDescriptor,
 };
 
 /** Resolve the pure descriptor for a supported provider. */
-export function getProviderDescriptor(provider: Provider, providerOptions?: GrafanaOptions | PolarOptions): ProviderDescriptor {
+export function getProviderDescriptor(provider: Provider, providerOptions?: GrafanaOptions | PolarOptions): AnyProviderDescriptor {
   if (provider === 'grafana') {
     if (providerOptions === undefined || !('mode' in providerOptions)) {
       throw new HooklatchError('invalid-options', 'Invalid provider options.');
@@ -109,4 +115,6 @@ export {
   dopplerDescriptor,
   sanityDescriptor,
   linearDescriptor,
+  vercelDescriptor,
+  falDescriptor,
 };
