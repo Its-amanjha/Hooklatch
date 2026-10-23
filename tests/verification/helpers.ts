@@ -50,7 +50,7 @@ export interface PolarProviderOptions {
 export type FixtureProviderOptions = GrafanaProviderOptions | PolarProviderOptions;
 
 /** The 16 registered providers plus the two prepared Stage B providers. */
-export type FixtureProvider = Provider | 'grafana' | 'polar';
+export type FixtureProvider = Exclude<Provider, 'fal'>;
 
 export interface FixtureCase {
   readonly id: string;
@@ -83,6 +83,7 @@ const PROVIDER_FILES: Partial<Record<FixtureProvider, string>> = {
   grafana: '../fixtures/grafana.json',
   polar: '../fixtures/polar.json',
   linear: '../fixtures/linear.json',
+  vercel: '../fixtures/vercel.json',
 };
 
 function isString(value: unknown): value is string { return typeof value === 'string'; }
@@ -238,7 +239,7 @@ export function fixtureBytes(case_: FixtureCase): Uint8Array {
 }
 
 /** Correlated literal branches; no mapped dictionary and no Provider cast. */
-export function fixtureOptions(provider: FixtureProvider, case_: FixtureCase): VerifyOptions {
+export function fixtureOptions(provider: FixtureProvider, case_: FixtureCase): Exclude<VerifyOptions, { readonly provider: 'fal' }> {
   if (!hasProviderOptionsFor(provider, case_)) throw new Error('Invalid fixture providerOptions for selected provider');
 
   const secrets = [...case_.options.secrets];

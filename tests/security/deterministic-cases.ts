@@ -19,7 +19,7 @@ export const CASES_PER_PROVIDER = 36;
 export const BASE_TIMESTAMP = 1_700_000_000;
 
 /** Local test union: the public Provider type grows in coordinator Stage B. */
-export type SecurityProvider = Provider | 'grafana' | 'polar';
+export type SecurityProvider = Exclude<Provider, 'vercel' | 'fal'>;
 
 export type SecurityCaseMode = 'default' | 'body' | 'timestamped' | 'current' | 'legacy';
 

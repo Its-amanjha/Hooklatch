@@ -101,7 +101,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       expect(validSig).toHaveLength(40);
 
       const vercelOptions = {
-        provider: 'vercel',
+        provider: 'vercel' as const,
         secrets: [VERCEL_SECRET],
         now: () => FIXED_NOW,
       };
@@ -161,7 +161,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       expect(validSig).toHaveLength(128);
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -243,7 +243,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const validSigUnderEve = signFal(reqId, FAL_USER_EVE, ts, body, falKeyPrimary.privKey);
 
       const aliceOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -298,7 +298,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const forgedSig = 'f'.repeat(128);
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -329,7 +329,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const body = Buffer.from('{"test":"order"}', 'utf-8');
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -428,7 +428,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const reqId = 'req_boundary_check';
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -522,7 +522,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const keyList = [mutableKeyView, falKeySecondary.rawPub];
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: keyList,
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -577,7 +577,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       });
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
@@ -592,7 +592,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
   describe('5. Crypto Fault Isolation & Safe Restoration', () => {
     test('WebCrypto NotSupportedError produces crypto-unavailable, never invalid-signature', async () => {
-      const originalSubtleVerify = globalThis.crypto.subtle.verify;
+      const originalVerifyDescriptor = Object.getOwnPropertyDescriptor(globalThis.crypto.subtle, 'verify');
       let injectedCalled = false;
 
       try {
@@ -604,7 +604,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         const body = Buffer.from('{"test":"crypto-fault"}', 'utf-8');
 
         const falOptions = {
-          provider: 'fal',
+          provider: 'fal' as const,
           publicKeys: [falKeyPrimary.rawPub],
           expectedUserId: FAL_USER_ALICE,
           now: () => FIXED_NOW,
@@ -625,12 +625,16 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
         expect(injectedCalled).toBe(true);
       } finally {
-        globalThis.crypto.subtle.verify = originalSubtleVerify;
+        if (originalVerifyDescriptor === undefined) {
+          Reflect.deleteProperty(globalThis.crypto.subtle, 'verify');
+        } else {
+          Object.defineProperty(globalThis.crypto.subtle, 'verify', originalVerifyDescriptor);
+        }
       }
     });
 
     test('Unexpected WebCrypto OperationError produces internal, never invalid-signature', async () => {
-      const originalSubtleVerify = globalThis.crypto.subtle.verify;
+      const originalVerifyDescriptor = Object.getOwnPropertyDescriptor(globalThis.crypto.subtle, 'verify');
       let injectedCalled = false;
 
       try {
@@ -642,7 +646,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         const body = Buffer.from('{"test":"operation-error"}', 'utf-8');
 
         const falOptions = {
-          provider: 'fal',
+          provider: 'fal' as const,
           publicKeys: [falKeyPrimary.rawPub],
           expectedUserId: FAL_USER_ALICE,
           now: () => FIXED_NOW,
@@ -663,7 +667,11 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
         expect(injectedCalled).toBe(true);
       } finally {
-        globalThis.crypto.subtle.verify = originalSubtleVerify;
+        if (originalVerifyDescriptor === undefined) {
+          Reflect.deleteProperty(globalThis.crypto.subtle, 'verify');
+        } else {
+          Object.defineProperty(globalThis.crypto.subtle, 'verify', originalVerifyDescriptor);
+        }
       }
     });
 
@@ -671,7 +679,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const body = Buffer.from('{"test":"wrong-mac"}', 'utf-8');
 
       const falOptions = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,

@@ -1,7 +1,11 @@
 import { verify } from '../../src/index.js';
 import type {
-  Provider, VerifyOptions, VerificationSuccess,
+  Provider as PublicProvider, VerifyOptions as PublicVerifyOptions, VerificationSuccess,
 } from '../../src/types.js';
+
+/** This historical fixture suite uses HMAC credentials; asymmetric coverage is separate. */
+type Provider = Exclude<PublicProvider, 'fal'>;
+
 import {
   combinedHeader, fixtureBytes, fixtureOptions, loadFixture, representationsOf,
   UNSIGNED_OR_NULL,
@@ -15,6 +19,8 @@ const ALL_REASONS: readonly string[] = [
   'missing-identity', 'missing-timestamp', 'timestamp-expired', 'timestamp-future',
   'body-too-large',
 ];
+
+type VerifyOptions = Exclude<PublicVerifyOptions, { readonly provider: 'fal' }>;
 
 type VerifyResult = Awaited<ReturnType<typeof verify>>;
 

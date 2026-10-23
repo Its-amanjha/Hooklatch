@@ -1,5 +1,9 @@
 import { verify } from '../../src/index.js';
-import type { Provider } from '../../src/types.js';
+import type { Provider as PublicProvider } from '../../src/types.js';
+
+/** This historical fixture suite uses HMAC credentials; asymmetric coverage is separate. */
+type Provider = Exclude<PublicProvider, 'fal'>;
+
 import { fixtureBytes, fixtureOptions, loadFixture } from './helpers.js';
 import type { FixtureCase } from './helpers.js';
 

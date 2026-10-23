@@ -1,6 +1,10 @@
 import { verifyRequest } from '../../src/index.js';
 import { HooklatchError } from '../../src/errors.js';
-import type { Provider, VerifyOptions } from '../../src/types.js';
+import type { Provider as PublicProvider, VerifyOptions } from '../../src/types.js';
+
+/** This historical fixture suite uses HMAC credentials; asymmetric coverage is separate. */
+type Provider = Exclude<PublicProvider, 'fal'>;
+
 import { fixtureBytes, fixtureOptions, loadFixture } from './helpers.js';
 import type { FixtureCase } from './helpers.js';
 

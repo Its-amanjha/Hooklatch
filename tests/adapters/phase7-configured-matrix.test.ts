@@ -122,7 +122,7 @@ function cases(): readonly ConfiguredCase[] {
 
   return [
     { name: 'Grafana body custom-header binding', options: grafanaBody,
-      wrong: { ...grafanaBody, providerOptions: { mode: 'body' } },
+      wrong: { ...grafanaBody, providerOptions: { mode: 'body' as const } },
       headers: { 'x-matrix-signature': digest(SECRET, '', 'hex'), 'x-grafana-alerting-signature': '0'.repeat(64),
         'x-matrix-timestamp': '9999999999' }, timestamp: null, eventId: null },
     { name: 'Grafana timestamped custom headers', options: grafanaTimestamped, wrong: grafanaBody,

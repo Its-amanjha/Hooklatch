@@ -6,7 +6,7 @@ import type {
   HeaderInput,
   VerificationFailureReason,
   VerificationSuccess,
-  VerifyOptions,
+  VerifyOptions as PublicVerifyOptions,
 } from '../../src/types.js';
 import {
   ALL_CASES,
@@ -38,6 +38,9 @@ import type {
  * `deterministic-cases.ts`; production parse/decode helpers are never used to
  * build expected values. Synthetic data only; not an official conformance run.
  */
+
+/** This immutable historical corpus exercises HMAC credentials only; new algorithms have a separate suite. */
+type VerifyOptions = Exclude<PublicVerifyOptions, { readonly provider: 'fal' }>;
 
 type VerificationResult = Awaited<ReturnType<typeof verify>>;
 
@@ -355,12 +358,13 @@ describe(`deterministic adversarial corpus construction (seed=0x${SECURITY_SEED.
       .toBeGreaterThanOrEqual(SECURITY_PROVIDERS.length);
   });
 
-  test('covers the exact nineteen-provider registry with no unmapped branch', () => {
-    expect([...SECURITY_PROVIDERS]).toEqual([...SUPPORTED_PROVIDERS]);
+  test('preserves the historical nineteen-provider prefix and explicitly separates new algorithms', () => {
+    expect([...SECURITY_PROVIDERS]).toEqual(SUPPORTED_PROVIDERS.slice(0, 19));
+    expect(SUPPORTED_PROVIDERS.slice(19)).toEqual(['vercel', 'fal']);
     expect(SECURITY_PROVIDERS).toHaveLength(19);
-    expect(ALL_CASES).toHaveLength(SUPPORTED_PROVIDERS.length * CASES_PER_PROVIDER);
+    expect(ALL_CASES).toHaveLength(SECURITY_PROVIDERS.length * CASES_PER_PROVIDER);
 
-    for (const provider of SUPPORTED_PROVIDERS) {
+    for (const provider of SECURITY_PROVIDERS) {
       expect(casesFor(provider)).toHaveLength(CASES_PER_PROVIDER);
     }
   });
