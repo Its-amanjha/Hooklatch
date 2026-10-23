@@ -85,20 +85,62 @@ export class PrerequisiteError extends Error {
 
 /**
  * A child that timed out, exited on a signal, or could not be reaped may still
- * have descendants. Cleaning a tree in that state would destroy evidence, so
- * the health ledger is sticky and disposition checks it.
+ * have descendants. Deleting its scratch in that state would destroy evidence,
+ * so child accounting is PER LEDGER and sticky: a control that deliberately
+ * kills a child owns a separate ledger and can never clear the run's evidence.
+ *
+ * Removal is permitted only after observation, never after a reset: every child
+ * recorded in the ledger must have confirmed its close, no recorded pid may
+ * still be alive, and a timed-out or signalled child additionally requires an
+ * explicit confirmTermination() observation.
  */
-export const processHealth = { uncertain: false, reasons: [] };
-
-export function resetProcessHealth() {
-  processHealth.uncertain = false;
-  processHealth.reasons = [];
+export function createHealthLedger() {
+  return {
+    uncertain: false, reasons: [], children: [], terminationConfirmed: null,
+  };
 }
 
-export function markTerminationUncertain(reason) {
-  processHealth.uncertain = true;
+/** The ledger that accounts for the current run's own children. */
+export const processHealth = createHealthLedger();
 
-  if (!processHealth.reasons.includes(reason)) processHealth.reasons.push(reason);
+export function markTerminationUncertain(ledger, reason) {
+  ledger.uncertain = true;
+
+  if (!ledger.reasons.includes(reason)) ledger.reasons.push(reason);
+}
+
+/** Liveness probe without signalling; EPERM still proves the process exists. */
+export function childIsAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+
+  try {
+    process.kill(pid, 0);
+
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+/**
+ * Confirmation is an observation recorded on the ledger, never a reset: each
+ * recorded child must have closed and no recorded pid may still be alive.
+ * Deleting (or withholding) is then decided from that record.
+ */
+export function confirmTermination(ledger) {
+  const live = ledger.children.filter((child) => childIsAlive(child.pid));
+  const unclosed = ledger.children.filter((child) => child.closeConfirmed !== true);
+
+  ledger.terminationConfirmed = {
+    confirmedAt: new Date().toISOString(),
+    confirmed: live.length === 0 && unclosed.length === 0,
+    checkedChildren: ledger.children.length,
+    livePids: live.map((child) => child.pid),
+    unclosedPids: unclosed.map((child) => child.pid),
+    reasons: ledger.reasons.slice(),
+  };
+
+  return ledger.terminationConfirmed;
 }
 
 /** Terminate only the tree created by this runner; never touch scratch. */
@@ -130,7 +172,7 @@ function terminate(child) {
  * Timeouts, signals and unconfirmed closes mark termination uncertain.
  */
 export function runChild(executable, args, {
-  cwd = REPO_ROOT, timeoutMs = 120000, env = process.env, limit = MAX_OUTPUT_BYTES,
+  cwd = REPO_ROOT, timeoutMs = 120000, env = process.env, limit = MAX_OUTPUT_BYTES, ledger = processHealth,
 } = {}) {
   return new Promise((done) => {
     const started = Date.now();
@@ -143,8 +185,13 @@ export function runChild(executable, args, {
     const evidence = {
       executable, args, cwd, pid: child.pid ?? null,
       exitCode: null, signal: null, stdout: '', stderr: '',
-      timedOut: false, outputLimitExceeded: false, spawnError: null,
+      timedOut: false, outputLimitExceeded: false, spawnError: null, closeConfirmed: false,
     };
+
+    // The child is recorded BEFORE anything can fail, so a crash cannot hide it.
+    const accounted = { pid: child.pid ?? null, closeConfirmed: false, timedOut: false, signal: null, exitCode: null };
+
+    ledger.children.push(accounted);
 
     let bytes = 0;
     let settled = false;
@@ -157,7 +204,8 @@ export function runChild(executable, args, {
       clearTimeout(closeDeadline);
       evidence.durationMs = Date.now() - started;
       evidence.ok = evidence.exitCode === 0 && evidence.signal === null
-        && !evidence.timedOut && !evidence.outputLimitExceeded && evidence.spawnError === null;
+        && !evidence.timedOut && !evidence.outputLimitExceeded && evidence.spawnError === null
+        && evidence.closeConfirmed;
       done(evidence);
     };
 
@@ -166,6 +214,7 @@ export function runChild(executable, args, {
       terminate(child);
       closeDeadline = setTimeout(() => {
         evidence.spawnError ??= 'child-close-not-confirmed';
+        markTerminationUncertain(ledger, `${path.basename(executable)} child close was not confirmed`);
         child.stdout.destroy();
         child.stderr.destroy();
         child.unref();
@@ -175,7 +224,8 @@ export function runChild(executable, args, {
 
     const timer = setTimeout(() => {
       evidence.timedOut = true;
-      markTerminationUncertain(`${path.basename(executable)} child timed out`);
+      accounted.timedOut = true;
+      markTerminationUncertain(ledger, `${path.basename(executable)} child timed out`);
       stop();
     }, timeoutMs);
 
@@ -185,7 +235,7 @@ export function runChild(executable, args, {
       if (bytes > limit) {
         if (!evidence.outputLimitExceeded) {
           evidence.outputLimitExceeded = true;
-          markTerminationUncertain(`${path.basename(executable)} child exceeded its output limit`);
+          markTerminationUncertain(ledger, `${path.basename(executable)} child exceeded its output limit`);
           stop();
         }
 
@@ -199,14 +249,26 @@ export function runChild(executable, args, {
     child.stderr.on('data', (chunk) => capture('stderr', chunk));
     child.on('error', (error) => {
       evidence.spawnError = error.message;
+
+      // A never-spawned process has no descendants; nothing to reap.
+      if (child.pid === undefined) {
+        evidence.closeConfirmed = true;
+        accounted.closeConfirmed = true;
+      }
+
+      markTerminationUncertain(ledger, `${path.basename(executable)} child failed: ${error.message}`);
       finish();
     });
     child.on('close', (code, signal) => {
       evidence.exitCode = code;
       evidence.signal = signal;
+      evidence.closeConfirmed = true;
+      accounted.closeConfirmed = true;
+      accounted.exitCode = code;
+      accounted.signal = signal;
 
       if (signal !== null && !evidence.timedOut) {
-        markTerminationUncertain(`${path.basename(executable)} child exited on ${signal}`);
+        markTerminationUncertain(ledger, `${path.basename(executable)} child exited on ${signal}`);
       }
 
       finish();
@@ -215,7 +277,7 @@ export function runChild(executable, args, {
 }
 
 /** Bounded synchronous run for git/npm metadata; nonzero is returned, not thrown. */
-export function runSync(command, args, { cwd = REPO_ROOT, timeoutMs = 60000 } = {}) {
+export function runSync(command, args, { cwd = REPO_ROOT, timeoutMs = 60000, ledger = processHealth } = {}) {
   try {
     return {
       status: 0,
@@ -229,7 +291,7 @@ export function runSync(command, args, { cwd = REPO_ROOT, timeoutMs = 60000 } = 
   } catch (error) {
     const timedOut = Boolean(error?.signal) || error?.code === 'ETIMEDOUT';
 
-    if (timedOut) markTerminationUncertain(`${command} timed out`);
+    if (timedOut) markTerminationUncertain(ledger, `${command} timed out`);
 
     const rawStdout = error?.stdout;
     const rawStderr = error?.stderr;
@@ -254,19 +316,21 @@ export function classifyCompile(evidence) {
     .map((match) => match[1].trim())
     .slice(0, 20);
 
-  if (evidence.timedOut) return { kind: 'timeout', diagnostics, exitCode: evidence.exitCode };
+  const codes = [...new Set(diagnostics.flatMap((line) => [...line.matchAll(/\bTS(\d{4})\b/g)].map((match) => match[1])))];
 
-  if (evidence.signal !== null) return { kind: 'signaled', diagnostics, exitCode: evidence.exitCode };
+  if (evidence.timedOut) return { kind: 'timeout', diagnostics, codes, exitCode: evidence.exitCode };
 
-  if (evidence.spawnError !== null) return { kind: 'spawn-error', diagnostics, exitCode: evidence.exitCode };
+  if (evidence.signal !== null) return { kind: 'signaled', diagnostics, codes, exitCode: evidence.exitCode };
 
-  if (evidence.outputLimitExceeded) return { kind: 'output-limit', diagnostics, exitCode: evidence.exitCode };
+  if (evidence.spawnError !== null) return { kind: 'spawn-error', diagnostics, codes, exitCode: evidence.exitCode };
 
-  if (diagnostics.length > 0) return { kind: 'diagnostic', diagnostics, exitCode: evidence.exitCode };
+  if (evidence.outputLimitExceeded) return { kind: 'output-limit', diagnostics, codes, exitCode: evidence.exitCode };
 
-  if (evidence.exitCode === 0) return { kind: 'clean', diagnostics, exitCode: 0 };
+  if (diagnostics.length > 0) return { kind: 'diagnostic', diagnostics, codes, exitCode: evidence.exitCode };
 
-  return { kind: `exit-${String(evidence.exitCode)}`, diagnostics, exitCode: evidence.exitCode };
+  if (evidence.exitCode === 0) return { kind: 'clean', diagnostics, codes, exitCode: 0 };
+
+  return { kind: `exit-${String(evidence.exitCode)}`, diagnostics, codes, exitCode: evidence.exitCode };
 }
 
 /* ------------------------------------------------------------------ *
@@ -357,15 +421,32 @@ export function safeUnlinkLink(linkPath, expectedParent) {
 }
 
 /**
- * Unlink every tracked link, then remove the workspace root. Uncertain child
- * termination preserves the whole tree as evidence and fails the run.
+ * Unlink every tracked link, then remove the workspace root. Removal requires
+ * OBSERVED termination: every ledger child closed, no recorded pid alive, and a
+ * timed-out/signalled child additionally confirmed by confirmTermination().
+ * Anything else preserves the whole tree as evidence and fails the run.
  */
-export function disposeWorkspace(workspace) {
+export function disposeWorkspace(workspace, { ledger = processHealth } = {}) {
   assertInsideTemp(workspace.root);
 
-  if (processHealth.uncertain) {
+  const live = ledger.children.filter((child) => childIsAlive(child.pid));
+  const unclosed = ledger.children.filter((child) => child.closeConfirmed !== true);
+
+  if (live.length > 0) {
     throw new Error(
-      `Cleanup withheld because child termination is uncertain (${processHealth.reasons.join('; ')}); scratch preserved at ${workspace.root}.`,
+      `Cleanup withheld: child process(es) ${live.map((child) => child.pid).join(', ')} are still alive; scratch preserved at ${workspace.root}.`,
+    );
+  }
+
+  if (unclosed.length > 0) {
+    throw new Error(
+      `Cleanup withheld: child process(es) ${unclosed.map((child) => child.pid).join(', ')} never confirmed close; scratch preserved at ${workspace.root}.`,
+    );
+  }
+
+  if (ledger.uncertain && ledger.terminationConfirmed?.confirmed !== true) {
+    throw new Error(
+      `Cleanup withheld because child termination is uncertain (${ledger.reasons.join('; ')}); scratch preserved at ${workspace.root}.`,
     );
   }
 
@@ -473,6 +554,99 @@ export function compareRunInputs(before, after) {
   if (before.head !== after.head) problems.push(`HEAD moved (${before.head} -> ${after.head})`);
 
   return problems;
+}
+
+/* ------------------------------------------------------------------ *
+ * Evidence output guard
+ * ------------------------------------------------------------------ */
+
+/** Only this ignored directory may receive --out reports. */
+export const REPORT_DIRECTORY = 'notes/phase-10';
+const REPORT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*\.json$/;
+
+/**
+ * Resolve an --out destination under the assigned ignored evidence directory.
+ * Tracked paths, dist, absolute paths outside the checkout, symlinked parents or
+ * symlinked targets and non-JSON names are refused before a single byte is
+ * written, so a report can never land on protected source.
+ */
+export function resolveReportDestination(requested) {
+  const raw = String(requested ?? '').trim();
+
+  if (raw.length === 0) throw new Error('--out requires a non-empty path.');
+
+  const resolved = path.resolve(REPO_ROOT, raw);
+  const relative = toPosix(path.relative(REPO_ROOT, resolved));
+
+  if (path.isAbsolute(raw) && !resolved.startsWith(`${REPO_ROOT}${path.sep}`)) {
+    throw new Error(`--out must stay inside ${REPORT_DIRECTORY}/; refused an absolute external path: ${raw}`);
+  }
+
+  const segments = relative.split('/');
+
+  if (segments.length !== 3 || `${segments[0]}/${segments[1]}` !== REPORT_DIRECTORY
+    || !REPORT_NAME.test(segments[2])) {
+    throw new Error(`--out must be exactly ${REPORT_DIRECTORY}/<name>.json (ignored evidence); refused ${raw}`);
+  }
+
+  const directory = path.dirname(resolved);
+  const parts = path.relative(REPO_ROOT, directory).split(path.sep).filter((part) => part.length > 0);
+  let walking = REPO_ROOT;
+
+  for (const part of parts) {
+    walking = path.join(walking, part);
+
+    if (existsSync(walking) && lstatSync(walking).isSymbolicLink()) {
+      throw new Error(`--out refuses a symlinked directory component: ${path.relative(REPO_ROOT, walking)}`);
+    }
+  }
+
+  mkdirSync(directory, { recursive: true });
+
+  const realRoot = realpathSync(REPO_ROOT);
+  const realDirectory = realpathSync(directory);
+
+  if (realDirectory !== realRoot && !realDirectory.startsWith(`${realRoot}${path.sep}`)) {
+    throw new Error(`--out resolved outside the checkout: ${realDirectory}`);
+  }
+
+  if (existsSync(resolved) && lstatSync(resolved).isSymbolicLink()) {
+    throw new Error(`--out refuses to overwrite a symlink: ${relative}`);
+  }
+
+  if (runSync('git', ['check-ignore', '--quiet', relative]).status !== 0) {
+    throw new Error(`--out refuses a tracked or unignored path: ${relative}`);
+  }
+
+  return { destination: resolved, relative };
+}
+
+/**
+ * Write the report, then verify protected bytes AFTER the write. A second write
+ * only appends the measured post-write evidence; the final state is re-checked.
+ */
+export function writeEvidenceReport({ destination, relative }, report, { preWrite }) {
+  const payload = `${JSON.stringify(report, null, 2)}\n`;
+
+  writeFileSync(destination, payload);
+
+  const afterFirst = snapshotRunInputs();
+  const problems = compareRunInputs(preWrite, afterFirst);
+
+  const postWrite = {
+    path: relative,
+    problems,
+    trackedDigest: afterFirst.tracked.digest,
+    distDigest: afterFirst.dist.digest,
+    checkedAfterWrite: true,
+  };
+
+  writeFileSync(destination, `${JSON.stringify({ ...report, postWriteIntegrity: postWrite }, null, 2)}\n`);
+
+  const afterSecond = snapshotRunInputs();
+  const finalProblems = compareRunInputs(preWrite, afterSecond);
+
+  return { postWrite, finalProblems };
 }
 
 /* ------------------------------------------------------------------ *
@@ -727,6 +901,9 @@ function candidateManifest(kind) {
     // require(esm) only exists from Node 22.12.0 onward; the unmodified `>=22`
     // range would silently exclude 22.0-22.11 consumers of the bridge.
     engines: bridge ? { node: '>=22.12.0' } : repo.engines,
+    // The real ESM CLI mapping is preserved in both candidates: the bin stays on
+    // the ESM dist entry, so the CJS prototype does not claim a CJS CLI.
+    bin: repo.bin,
     exports: candidateExports(kind),
     files: bridge ? ['dist', 'README.md', 'LICENSE'] : ['dist', 'dist-cjs', 'README.md', 'LICENSE'],
     peerDependencies: repo.peerDependencies,
@@ -846,6 +1023,12 @@ export function inspectCandidate(candidate) {
   }
 
   const missingTargets = targets.filter((target) => !target.exists);
+  const bin = manifest.bin ?? {};
+
+  const binTargets = Object.entries(bin).map(([name, target]) => ({
+    name, target: String(target), exists: existsSync(path.join(directory, String(target))),
+  }));
+
   const declarations = inspectDeclarationGraph(directory);
   const requires = inspectCjsRequires(directory);
   const distRoot = path.join(directory, 'dist');
@@ -866,6 +1049,8 @@ export function inspectCandidate(candidate) {
     peerIsolation: Object.keys(dependencies).length === 0,
     targets,
     missingTargets,
+    binTargets,
+    binTargetsMissing: binTargets.filter((target) => !target.exists),
     esmModules,
     esmDeclarations,
     declarations,
@@ -1087,43 +1272,89 @@ async function controls(workspace, candidate, esmDist) {
   return results;
 }
 
-/** Control: a genuinely timed-out child withholds disposal and preserves scratch. */
-async function controlUncertainTermination() {
-  resetProcessHealth();
+/**
+ * Control: real bounded children prove BOTH termination branches on separate
+ * ledgers, so the run's own ledger is never cleared to make a deletion legal.
+ *
+ *   A. a child that closes on its own is removed normally;
+ *   B. a child that must be killed on timeout is preserved and FAILS disposal
+ *      while termination is unconfirmed, then may be removed only after
+ *      confirmTermination() observes a closed child and no live pid.
+ *
+ * If the killed child cannot be confirmed closed, the control fails with the
+ * scratch left in place instead of deleting it.
+ */
+export async function terminationControl() {
+  const runLedgerBefore = processHealth.children.length;
+  const results = { runLedger: 'separate', runLedgerChildrenBefore: runLedgerBefore };
 
-  const workspace = createWorkspace(`${TEMP_PREFIX}timeout-`);
-  let preserved = false;
+  // Branch A: bounded child exits on its own, close confirmed, scratch removed.
+  const cleanLedger = createHealthLedger();
+  const cleanWorkspace = createWorkspace(`${TEMP_PREFIX}control-clean-`);
+
+  const clean = await runChild(process.execPath, ['-e', 'process.exit(0);'], {
+    cwd: cleanWorkspace.root, timeoutMs: 30000, ledger: cleanLedger,
+  });
+
+  assert(clean.ok && clean.closeConfirmed, 'Termination control A: the bounded child did not close cleanly.');
+  disposeWorkspace(cleanWorkspace, { ledger: cleanLedger });
+
+  assert(!existsSync(cleanWorkspace.root), 'Termination control A: scratch survived a confirmed close.');
+
+  results.confirmedCloseRemovesScratch = true;
+
+  // Branch B: real timeout. Preserve, fail while unconfirmed, then confirm.
+  const timeoutLedger = createHealthLedger();
+  const timeoutWorkspace = createWorkspace(`${TEMP_PREFIX}control-timeout-`);
+
+  const timed = await runChild(process.execPath, ['-e', 'setInterval(() => {}, 1000);'], {
+    cwd: timeoutWorkspace.root, timeoutMs: 250, ledger: timeoutLedger,
+  });
+
+  assert(timed.timedOut, 'Termination control B: the child was not reported as timed out.');
+  assert(timeoutLedger.uncertain, 'Termination control B: the ledger stayed clean after a timeout.');
+
+  results.timeout = {
+    timedOut: timed.timedOut, closeConfirmed: timed.closeConfirmed, pid: timed.pid, ledgerUncertain: true,
+  };
+
+  let withheld = null;
 
   try {
-    const probe = await runChild(process.execPath, ['-e', 'setInterval(() => {}, 1000);'], {
-      cwd: workspace.root, timeoutMs: 250,
-    });
-
-    assert(probe.timedOut, 'Uncertain-termination control: the child was not reported as timed out.');
-    assert(processHealth.uncertain, 'Uncertain-termination control: the health ledger stayed clean.');
-
-    let withheld = false;
-
-    try {
-      disposeWorkspace(workspace);
-    } catch (error) {
-      withheld = /preserved/i.test(error.message);
-    }
-
-    assert(withheld, 'Uncertain-termination control: cleanup proceeded under uncertain termination.');
-    assert(existsSync(workspace.root), 'Uncertain-termination control: scratch was removed.');
-    preserved = true;
-  } finally {
-    resetProcessHealth();
-
-    if (existsSync(workspace.root)) rmSync(workspace.root, { recursive: true, force: true });
-
-    resetProcessHealth();
+    disposeWorkspace(timeoutWorkspace, { ledger: timeoutLedger });
+  } catch (error) {
+    withheld = error instanceof Error ? error.message : String(error);
   }
 
-  assert(preserved, 'Uncertain-termination control: the preservation path was not reached.');
+  results.disposalFailedWhileUnconfirmed = withheld !== null && /preserved/i.test(withheld);
+  results.scratchPreservedWhileUnconfirmed = existsSync(timeoutWorkspace.root);
 
-  return { withheldCleanup: true, scratchPreserved: true, scratchRemovedAfterLedgerReset: true };
+  assert(results.disposalFailedWhileUnconfirmed,
+    'Termination control B: disposal proceeded without a confirmed termination.');
+  assert(results.scratchPreservedWhileUnconfirmed,
+    'Termination control B: scratch was deleted while termination was unconfirmed.');
+
+  const confirmation = confirmTermination(timeoutLedger);
+
+  results.confirmation = confirmation;
+
+  if (!confirmation.confirmed) {
+    // Fail closed: leave the scratch for the coordinator instead of deleting it.
+    throw new Error(
+      `Termination control B: child termination could not be confirmed (${JSON.stringify(confirmation)}); scratch preserved at ${timeoutWorkspace.root}.`,
+    );
+  }
+
+  disposeWorkspace(timeoutWorkspace, { ledger: timeoutLedger });
+  results.removedAfterConfirmedTermination = !existsSync(timeoutWorkspace.root);
+  results.runLedgerChildrenAfter = processHealth.children.length;
+  results.runLedgerUntouched = processHealth.children.length === runLedgerBefore;
+
+  assert(results.removedAfterConfirmedTermination,
+    'Termination control B: scratch survived a confirmed termination.');
+  assert(results.runLedgerUntouched, 'Termination control B: the control wrote into the run ledger.');
+
+  return results;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1135,6 +1366,7 @@ function usage() {
   console.log('Exit 0 prototype built and controls passed, 1 failure, 2 usage, 3 prerequisite blocked.');
   console.log('Builds disposable per-module-CJS and require(esm)-bridge candidates in OS temp only.');
   console.log('This script edits no repository source/package/config bytes and never publishes.');
+  console.log(`--out is restricted to ${REPORT_DIRECTORY}/<name>.json (ignored evidence); anything else is refused.`);
 }
 
 function parseArgs(args) {
@@ -1210,6 +1442,10 @@ async function prototypeRun() {
     for (const inspection of inspections) {
       if (inspection.missingTargets.length > 0) {
         throw new Error(`${inspection.kind} has missing export targets: ${JSON.stringify(inspection.missingTargets)}`);
+      }
+
+      if (inspection.binTargetsMissing.length > 0) {
+        throw new Error(`${inspection.kind} has missing bin targets: ${JSON.stringify(inspection.binTargetsMissing)}`);
       }
 
       if (inspection.declarations.unresolved.length > 0 || inspection.declarations.stale.length > 0) {
@@ -1288,6 +1524,10 @@ async function prototypeRun() {
           engines: candidates.find((candidate) => candidate.kind === 'require-bridge').manifest.engines,
           nodeFloorOverride: '>=22.12.0 is required for unflagged require(esm); >=22 alone does not cover 22.0-22.11.',
         },
+        bin: {
+          preserved: candidates.map((candidate) => ({ kind: candidate.kind, bin: candidate.manifest.bin })),
+          cliQualification: 'scripts/phase10/cjs-consumers.mjs executes the installed bin target with --help on both Node majors.',
+        },
       };
     }
   } catch (error) {
@@ -1346,7 +1586,7 @@ async function selfTestRun() {
       steps: esmBuild.length, cjsModules: cjsBuild.renamed.scripts,
     });
 
-    const timeout = await controlUncertainTermination();
+    const timeout = await terminationControl();
 
     report = {
       status: controlResults.allDetected ? 'CONTROLS_PASSED' : 'CONTROLS_FAILED',
@@ -1407,6 +1647,20 @@ async function main() {
     return 0;
   }
 
+  // Validated BEFORE any build or install: a refused destination costs nothing
+  // and can never touch protected bytes mid-run.
+  let outTarget = null;
+
+  if (parsed.options.out) {
+    try {
+      outTarget = resolveReportDestination(parsed.options.out);
+    } catch (error) {
+      console.error(`--out refused: ${error instanceof Error ? error.message : String(error)}`);
+
+      return 1;
+    }
+  }
+
   let report;
   let exitCode = 0;
 
@@ -1429,14 +1683,31 @@ async function main() {
 
   if (report.status === 'FAILED' && exitCode === 0) exitCode = 1;
 
-  if (parsed.options.out) {
-    const destination = path.resolve(REPO_ROOT, parsed.options.out);
+  let evidenceWrite = null;
 
-    mkdirSync(path.dirname(destination), { recursive: true });
-    writeFileSync(destination, `${JSON.stringify(report, null, 2)}\n`);
+  if (outTarget !== null) {
+    try {
+      const preWrite = snapshotRunInputs();
+      const written = writeEvidenceReport(outTarget, report, { preWrite });
+
+      evidenceWrite = { path: outTarget.relative, ...written.postWrite, finalProblems: written.finalProblems };
+
+      if (written.finalProblems.length > 0) {
+        report.status = 'FAILED';
+        exitCode = 1;
+      }
+    } catch (error) {
+      evidenceWrite = {
+        path: outTarget.relative, refused: error instanceof Error ? error.message : String(error), problems: ['--out write failed'],
+      };
+      report.status = 'FAILED';
+      exitCode = 1;
+    }
   }
 
-  if (parsed.options.json) console.log(JSON.stringify(report, null, 2));
+  const printable = evidenceWrite === null ? report : { ...report, evidenceWrite };
+
+  if (parsed.options.json) console.log(JSON.stringify(printable, null, 2));
   else {
     console.log(`${report.status}: ${report.phase === '10' ? 'phase10 CJS/ESM packaging prototype' : 'run'}`);
     console.log(JSON.stringify({
@@ -1451,6 +1722,7 @@ async function main() {
       tarballs: report.tarballs?.map((tarball) => ({ kind: tarball.kind, files: tarball.files, bytes: tarball.bytes })),
       cleanup: report.cleanup,
       integrity: report.integrity,
+      evidenceWrite,
     }, null, 2));
   }
 

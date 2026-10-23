@@ -19,15 +19,16 @@
  * PASS is printed only after scratch cleanup and tracked+dist integrity.
  */
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
-  DEFAULT_RUNTIMES, ENTRY_POINTS, FORBIDDEN_SUBPATHS, PEER_PACKAGES, PEER_TYPE_PACKAGES,
-  PROVIDERS, REPO_ROOT, PrerequisiteError, buildCjsEmit, buildEsmDist, classifyCompile,
-  compareRunInputs, createCandidate, createWorkspace, disposeWorkspace, inspectCandidate,
-  installConsumer, locateNpmCli, moduleGraph, packCandidate, pinnedToolPath, processHealth,
-  resetProcessHealth, runChild, runNpm, runSync, snapshotRunInputs, snapshotTree, toolVersion,
+  DEFAULT_RUNTIMES, ENTRY_POINTS, FORBIDDEN_SUBPATHS, IS_WINDOWS, PEER_PACKAGES, PEER_TYPE_PACKAGES,
+  PROVIDERS, REPO_ROOT, REPORT_DIRECTORY, PrerequisiteError, buildCjsEmit, buildEsmDist, classifyCompile,
+  compareRunInputs, createCandidate, createWorkspace,
+  disposeWorkspace, inspectCandidate, installConsumer, locateNpmCli, moduleGraph, packCandidate,
+  pinnedToolPath, resolveReportDestination, runChild, runSync, snapshotRunInputs,
+  snapshotTree, terminationControl, toolVersion, writeEvidenceReport,
 } from './cjs-prototype.mjs';
 
 /* ------------------------------------------------------------------ *
@@ -46,6 +47,8 @@ try {
 
   result.exports = Object.keys(namespace).sort();
   result.missing = expected.filter((name) => !result.exports.includes(name));
+  result.extra = result.exports.filter((name) => !expected.includes(name));
+  result.exact = result.missing.length === 0 && result.extra.length === 0;
 
   for (const blocked of forbidden) {
     try {
@@ -56,7 +59,7 @@ try {
     }
   }
 
-  result.ok = result.missing.length === 0
+  result.ok = result.exact === true
     && result.forbidden.every((entry) => entry.loaded === false && entry.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED');
 } catch (error) {
   result.error = { code: error?.code ?? null, name: error?.name ?? null, message: String(error?.message ?? error) };
@@ -79,6 +82,8 @@ try {
 
   result.exports = Object.keys(namespace).sort();
   result.missing = expected.filter((name) => !result.exports.includes(name));
+  result.extra = result.exports.filter((name) => !expected.includes(name));
+  result.exact = result.missing.length === 0 && result.extra.length === 0;
 
   for (const blocked of forbidden) {
     try {
@@ -89,7 +94,7 @@ try {
     }
   }
 
-  result.ok = result.missing.length === 0
+  result.ok = result.exact === true
     && result.forbidden.every((entry) => entry.loaded === false && entry.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED');
 } catch (error) {
   result.error = { code: error?.code ?? null, name: error?.name ?? null, message: String(error?.message ?? error) };
@@ -101,8 +106,11 @@ process.exit(result.ok ? 0 : 1);
 
 const DEEP_PROBE = `import assert from 'node:assert/strict';
 import { createHash, createHmac, generateKeyPairSync, sign } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 const KNOWN_PROVIDERS = CLOCK_PROVIDERS;
 const BASE64_SECRET_PROVIDERS = new Set(['standard-webhooks', 'clerk', 'svix', 'dodo-payments', 'gitlab', 'replicate']);
@@ -130,6 +138,31 @@ const record = async (id, run) => {
 const hooklatch = await load('hooklatch');
 const diagnostics = await load('hooklatch/diagnostics');
 const BODY = new Uint8Array(Buffer.from(JSON.stringify({ event: 'phase10.synthetic', text: 'héllo 日本語 🚀' }), 'utf8'));
+const PACKAGE_ROOT = process.env.PHASE10_PACKAGE_ROOT;
+
+/**
+ * Read the BUILT registry of the installed candidate rather than trusting a
+ * harness literal. The format's real artifact is used (dist-cjs for the CJS
+ * candidate's require path, dist otherwise), so order is observed, not assumed.
+ */
+const builtRegistry = async () => {
+  assert.equal(typeof PACKAGE_ROOT, 'string', 'PHASE10_PACKAGE_ROOT is required');
+
+  const cjsArtifact = path.join(PACKAGE_ROOT, 'dist-cjs', 'providers', 'index.cjs');
+  const artifact = FORMAT === 'require' && existsSync(cjsArtifact)
+    ? cjsArtifact
+    : path.join(PACKAGE_ROOT, 'dist', 'providers', 'index.js');
+
+  assert.equal(existsSync(artifact), true, 'built registry artifact is missing: ' + artifact);
+
+  const loaded = FORMAT === 'import'
+    ? await import(pathToFileURL(artifact).href)
+    : requireFromHere(artifact);
+
+  assert.equal(Array.isArray([...loaded.SUPPORTED_PROVIDERS]), true, 'built registry does not expose SUPPORTED_PROVIDERS');
+
+  return { artifact: path.relative(PACKAGE_ROOT, artifact), providers: [...loaded.SUPPORTED_PROVIDERS] };
+};
 
 const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const hmacHex = (hash, secret, bytes) => createHmac(hash, secret).update(bytes).digest('hex');
@@ -146,7 +179,56 @@ const inventoryOptions = (provider) => {
   return { provider, secrets: [secret] };
 };
 
-const assertTriplet = async (id, options, entries, identity) => {
+/**
+ * Snapshot proof, all four directions, on the caller-owned credential array:
+ *   1. the original credential is accepted,
+ *   2. replacing the original material (in place, including raw key bytes) does
+ *      not invalidate the already-constructed verifier,
+ *   3. removing every original credential does not invalidate it,
+ *   4. a credential introduced AFTER construction cannot authorise a request.
+ */
+const credentialSnapshot = async (id, options, entries, { key, introduce }) => {
+  // A fresh copy of the caller's credential array (raw key bytes included) so
+  // this control cannot disturb the provider's other assertions.
+  const credentials = options[key].map((value) => (value instanceof Uint8Array ? new Uint8Array(value) : value));
+  const snapshotOptions = { ...options, [key]: credentials };
+
+  assert.equal(Array.isArray(credentials), true, id + ': no credential array to mutate at ' + key);
+
+  const verifier = hooklatch.createVerifier(snapshotOptions);
+
+  assert.equal((await verifier({ rawBody: BODY, headers: entries })).ok, true,
+    id + ': snapshot baseline rejected the original credential');
+
+  if (credentials[0] instanceof Uint8Array) credentials[0].fill(0xff);
+  else credentials[0] = 'phase10-replaced-credential';
+
+  assert.equal((await verifier({ rawBody: BODY, headers: entries })).ok, true,
+    id + ': replacing the original credential invalidated the constructed verifier');
+
+  credentials.length = 0;
+
+  assert.equal((await verifier({ rawBody: BODY, headers: entries })).ok, true,
+    id + ': removing the original credentials invalidated the constructed verifier');
+
+  const introduced = introduce();
+
+  credentials.push(...introduced.credentials);
+
+  const rescued = await verifier({ rawBody: BODY, headers: introduced.entries });
+
+  assert.equal(rescued.ok, false, id + ': a credential introduced after construction authorised a request');
+  assert.equal(rescued.reason, 'invalid-signature', id + ': introduced-credential rejection reason');
+
+  return {
+    replacedOriginalStillAccepted: true,
+    removedOriginalStillAccepted: true,
+    introducedCredentialRejected: true,
+    introducedRejectedReason: rescued.reason,
+  };
+};
+
+const assertTriplet = async (id, options, entries, identity, snapshot) => {
   const viaVerify = await hooklatch.verify({ rawBody: BODY, headers: entries }, options);
 
   assert.equal(viaVerify.ok, true, id + ': verify failed: ' + JSON.stringify(viaVerify));
@@ -167,20 +249,30 @@ const assertTriplet = async (id, options, entries, identity) => {
   assert.equal(verifier instanceof Promise, false, id + ': createVerifier returned a Promise');
   assert.equal(verifier.then, undefined, id + ': createVerifier returned a thenable');
 
-  // Snapshot proof: mutate the caller-owned credential arrays after creation.
-  if (Array.isArray(options.secrets)) options.secrets.push('phase10-mutated-extra-secret');
-  if (Array.isArray(options.publicKeys)) options.publicKeys.push(new Uint8Array(32));
+  // Runs against options whose credential array IS mutated in place afterwards.
+  const snapshotEvidence = snapshot === undefined
+    ? null
+    : await credentialSnapshot(id, options, entries, snapshot);
 
   const viaVerifier = await verifier({ rawBody: BODY, headers: entries });
 
   assert.equal(viaVerifier.ok, true, id + ': createVerifier snapshot broken');
   assert.deepEqual([...viaVerifier.rawBody], [...BODY], id + ': createVerifier rawBody bytes differ');
 
-  return { identity: viaVerifier.identity };
+  return { identity: viaVerifier.identity, snapshot: snapshotEvidence };
 };
 
 await record('inventory.21-providers', async () => {
-  for (const provider of KNOWN_PROVIDERS) {
+  // Read the candidate's OWN built registry: the claim is about the artifact, so
+  // the harness literal is compared against the built array, never the reverse.
+  const registry = await builtRegistry();
+  const built = registry.providers;
+
+  assert.equal(built.length, 21, 'built registry must contain exactly 21 provider IDs');
+  assert.equal(new Set(built).size, 21, 'built registry contains duplicate provider IDs');
+  assert.deepEqual(built, KNOWN_PROVIDERS, 'built registry order differs from the frozen 21-provider contract');
+
+  for (const provider of built) {
     assert.equal(typeof hooklatch.createVerifier(inventoryOptions(provider)), 'function', provider + ': createVerifier');
 
     const diagnostic = diagnostics.diagnose({
@@ -197,7 +289,9 @@ await record('inventory.21-providers', async () => {
   assert.throws(() => diagnostics.diagnose({ ok: false, provider: 'webflow', reason: 'invalid-signature', message: 'x' }),
     (error) => error?.code === 'invalid-input');
 
-  return { providers: KNOWN_PROVIDERS.length, order: KNOWN_PROVIDERS };
+  return {
+    providers: built.length, order: built, source: 'built-registry', artifact: registry.artifact,
+  };
 });
 
 await record('github.node-crypto', async () => {
@@ -207,8 +301,18 @@ await record('github.node-crypto', async () => {
     ['x-github-delivery', 'delivery-phase10-github'],
   ];
   const options = { provider: 'github', secrets: [secret] };
+  const introducedSecret = 'phase10-github-introduced-secret';
   const detail = await assertTriplet('github', options, entries, {
     deliveryId: 'delivery-phase10-github', eventId: null, timestamp: null, authenticatedFields: [],
+  }, {
+    key: 'secrets',
+    introduce: () => ({
+      credentials: [introducedSecret],
+      entries: [
+        ['x-hub-signature-256', 'sha256=' + hmacHex('sha256', introducedSecret, BODY)],
+        ['x-github-delivery', 'delivery-phase10-github-introduced'],
+      ],
+    }),
   });
 
   const tampered = await hooklatch.verify({ rawBody: BODY.slice(0, BODY.length - 1), headers: entries }, options);
@@ -226,8 +330,15 @@ await record('vercel.node-crypto', async () => {
   const signature = createHmac('sha1', secret).update(BODY).digest('hex');
   const entries = [['x-vercel-signature', signature]];
   const options = { provider: 'vercel', secrets: [secret] };
+  const introducedSecret = 'phase10-vercel-introduced-secret';
   const detail = await assertTriplet('vercel', options, entries, {
     deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [],
+  }, {
+    key: 'secrets',
+    introduce: () => ({
+      credentials: [introducedSecret],
+      entries: [['x-vercel-signature', createHmac('sha1', introducedSecret).update(BODY).digest('hex')]],
+    }),
   });
 
   assert.equal(signature.length, 40, 'vercel: expected a 20-byte SHA-1 signature');
@@ -259,6 +370,22 @@ await record('fal.ed25519', async () => {
   const options = { provider: 'fal', publicKeys: [rawPublic], expectedUserId: userId, now: () => NOW + 10 };
   const detail = await assertTriplet('fal', options, entries, {
     deliveryId: null, eventId: null, timestamp: NOW, authenticatedFields: ['timestamp'],
+  }, {
+    key: 'publicKeys',
+    introduce: () => {
+      const other = generateKeyPairSync('ed25519');
+      const otherPublic = new Uint8Array(other.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32));
+
+      return {
+        credentials: [otherPublic],
+        entries: [
+          ['x-fal-webhook-signature', sign(null, content, other.privateKey).toString('hex')],
+          ['x-fal-webhook-request-id', requestId],
+          ['x-fal-webhook-user-id', userId],
+          ['x-fal-webhook-timestamp', timestamp],
+        ],
+      };
+    },
   });
 
   // Account before freshness: correct MAC but the wrong userId must be reported
@@ -292,8 +419,18 @@ await record('grafana.timestamped', async () => {
     provider: 'grafana', secrets: [secret],
     providerOptions: { mode: 'timestamped', timestampHeader: 'x-grafana-timestamp' }, now: () => NOW,
   };
+  const introducedSecret = 'phase10-grafana-introduced-secret';
   const detail = await assertTriplet('grafana', options, entries, {
     deliveryId: null, eventId: null, timestamp: NOW, authenticatedFields: ['timestamp'],
+  }, {
+    key: 'secrets',
+    introduce: () => ({
+      credentials: [introducedSecret],
+      entries: [
+        ['x-grafana-alerting-signature', hmacHex('sha256', introducedSecret, content)],
+        ['x-grafana-timestamp', timestamp],
+      ],
+    }),
   });
 
   // Receiver configuration is snapshotted even if the caller mutates it later.
@@ -333,8 +470,19 @@ await record('polar.legacy', async () => {
     ['webhook-signature', 'v1,' + createHmac('sha256', secret).update(content).digest('base64')],
   ];
   const options = { provider: 'polar', secrets: [secret], providerOptions: { secretMode: 'legacy' }, now: () => NOW };
+  const introducedSecret = 'whsec_phase10-polar-introduced-literal';
   const detail = await assertTriplet('polar', options, entries, {
     deliveryId: null, eventId, timestamp: NOW, authenticatedFields: ['eventId', 'timestamp'],
+  }, {
+    key: 'secrets',
+    introduce: () => ({
+      credentials: [introducedSecret],
+      entries: [
+        ['webhook-id', eventId],
+        ['webhook-timestamp', timestamp],
+        ['webhook-signature', 'v1,' + createHmac('sha256', introducedSecret).update(content).digest('base64')],
+      ],
+    }),
   });
 
   let currentMode = null;
@@ -380,35 +528,72 @@ const esmDiagnostics = await import('hooklatch/diagnostics');
 const cjsRoot = requireFromHere('hooklatch');
 const cjsDiagnostics = requireFromHere('hooklatch/diagnostics');
 
+const describe = (error) => ({ name: error?.name ?? null, code: error?.code ?? null, message: String(error?.message ?? error) });
 const identity = {
   node: process.version,
   crossFormatClassIdentity: esmRoot.HooklatchError === cjsRoot.HooklatchError,
   crossFormatInstanceof: new cjsRoot.HooklatchError('invalid-input', 'synthetic') instanceof esmRoot.HooklatchError,
   crossFormatVerifyIdentity: esmRoot.verify === cjsRoot.verify,
   crossFormatCreateVerifierIdentity: esmRoot.createVerifier === cjsRoot.createVerifier,
-  crossSubpathClassIdentity: [esmRoot.HooklatchError === esmRoot.HooklatchError, cjsRoot.HooklatchError === cjsRoot.HooklatchError],
-  sameFormatDiagnoseAccepted: null,
-  crossFormatDiagnoseAccepted: null,
-  crossFormatDiagnoseErrorCode: null,
+  sameFormatRootErrorAccepted: { import: null, require: null },
+  sameFormatRootErrorCode: { import: null, require: null },
+  sameFormatVerificationFailureAccepted: { import: null, require: null },
+  crossFormat: { esmErrorToCjsDiagnose: null, cjsErrorToEsmDiagnose: null, refusalCodes: [] },
+  rootErrorShape: { import: null, require: null },
 };
 
-// Same format across subpaths: a root error must be accepted by diagnostics.
-const esmError = new esmRoot.HooklatchError('invalid-input', 'synthetic');
-const sameFormat = esmDiagnostics.diagnose(esmError);
+// Same format, behavioural: a ROOT error (constructed by the root subpath, not by
+// the diagnostics subpath) must be ACCEPTED by the same format's diagnose(), and a
+// real verification failure from the root must classify as a verification failure.
+for (const [format, root, diagnostics] of [['import', esmRoot, esmDiagnostics], ['require', cjsRoot, cjsDiagnostics]]) {
+  const error = new root.HooklatchError('invalid-input', 'synthetic');
 
-identity.sameFormatDiagnoseAccepted = sameFormat.kind === 'setup';
+  identity.rootErrorShape[format] = describe(error);
 
-// Cross format: the ESM error is handed to the CJS diagnostics copy. This is a
-// behavioural probe, not a name comparison.
-try {
-  cjsDiagnostics.diagnose(esmError);
-  identity.crossFormatDiagnoseAccepted = true;
-} catch (error) {
-  identity.crossFormatDiagnoseAccepted = false;
-  identity.crossFormatDiagnoseErrorCode = error?.code ?? null;
+  const accepted = diagnostics.diagnose(error);
+
+  identity.sameFormatRootErrorAccepted[format] = accepted.kind === 'setup';
+  identity.sameFormatRootErrorCode[format] = accepted.code;
+
+  assert.equal(error.name, 'HooklatchError', format + ': root error name');
+  assert.equal(error.code, 'invalid-input', format + ': root error code');
+  assert.equal(accepted.kind, 'setup', format + ': same-format diagnose must accept a root error');
+  assert.equal(accepted.code, 'invalid-input', format + ': same-format diagnostic code');
+
+  const failure = await root.verify(
+    { rawBody: new Uint8Array([1, 2, 3]), headers: { 'x-hub-signature-256': 'sha256=' + '0'.repeat(64) } },
+    { provider: 'github', secrets: ['phase10-identity-synthetic'] },
+  );
+
+  assert.equal(failure.ok, false, format + ': synthetic failure was accepted');
+
+  identity.sameFormatVerificationFailureAccepted[format] = diagnostics.diagnose(failure).kind === 'verification';
+  assert.equal(identity.sameFormatVerificationFailureAccepted[format], true, format + ': verification failure must classify as verification');
 }
 
-assert.equal(identity.sameFormatDiagnoseAccepted, true, 'diagnose must accept a same-format HooklatchError');
+// Cross format: a root error from one format handed to the OTHER format's
+// diagnostics copy. Measured behaviour, never a class-name comparison.
+const esmError = new esmRoot.HooklatchError('invalid-input', 'synthetic');
+const cjsError = new cjsRoot.HooklatchError('invalid-input', 'synthetic');
+
+try {
+  const accepted = cjsDiagnostics.diagnose(esmError);
+
+  identity.crossFormat.esmErrorToCjsDiagnose = { accepted: true, kind: accepted.kind ?? null, code: accepted.code ?? null };
+} catch (error) {
+  identity.crossFormat.esmErrorToCjsDiagnose = { accepted: false, ...describe(error) };
+  identity.crossFormat.refusalCodes.push(error?.code ?? null);
+}
+
+try {
+  const accepted = esmDiagnostics.diagnose(cjsError);
+
+  identity.crossFormat.cjsErrorToEsmDiagnose = { accepted: true, kind: accepted.kind ?? null, code: accepted.code ?? null };
+} catch (error) {
+  identity.crossFormat.cjsErrorToEsmDiagnose = { accepted: false, ...describe(error) };
+  identity.crossFormat.refusalCodes.push(error?.code ?? null);
+}
+
 console.log(JSON.stringify({ ok: true, identity }));
 `;
 
@@ -562,7 +747,9 @@ export const workerOptions: WorkerWebhookHandlerOptions = {
 export const workerHandler = createWorkerHandler(workerOptions);
 `;
 
-function compileConfig(include, { skipLibCheck = true } = {}) {
+// Strict by default: declaration files are CHECKED, not skipped, so a corrupted
+// candidate declaration graph cannot hide behind skipLibCheck.
+function compileConfig(include, { skipLibCheck = false } = {}) {
   return {
     compilerOptions: {
       target: 'ES2022',
@@ -600,6 +787,11 @@ function writeConsumerFiles(root, { peers }) {
  * Matrix
  * ------------------------------------------------------------------ */
 
+/**
+ * Per-candidate design expectation. The cross-format hazard is EVIDENCE to
+ * report, not something to hide: the per-module CJS candidate genuinely has two
+ * HooklatchError classes, the bridge genuinely has one.
+ */
 const EXPECTED_IDENTITY = {
   'per-module-cjs': {
     crossFormatClassIdentity: false,
@@ -616,6 +808,35 @@ const EXPECTED_IDENTITY = {
     crossFormatDiagnoseErrorCode: null,
   },
 };
+
+/**
+ * Behavioural comparison against the expectation: same-format root errors and
+ * real verification failures must be classified in BOTH formats, and the
+ * cross-format outcome must match the candidate's design in both directions.
+ */
+function identityMatches(expected, measured) {
+  if (measured === null || measured === undefined) return false;
+
+  const both = (field, value) => measured[field]?.import === value && measured[field]?.require === value;
+
+  return both('sameFormatRootErrorAccepted', true)
+    && both('sameFormatRootErrorCode', 'invalid-input')
+    && both('sameFormatVerificationFailureAccepted', true)
+    && measured.rootErrorShape?.import?.name === 'HooklatchError'
+    && measured.rootErrorShape?.require?.name === 'HooklatchError'
+    && measured.rootErrorShape?.import?.code === 'invalid-input'
+    && measured.rootErrorShape?.require?.code === 'invalid-input'
+    && measured.crossFormatClassIdentity === expected.crossFormatClassIdentity
+    && measured.crossFormatInstanceof === expected.crossFormatInstanceof
+    && measured.crossFormatVerifyIdentity === expected.crossFormatVerifyIdentity
+    && measured.crossFormat?.esmErrorToCjsDiagnose?.accepted === expected.crossFormatDiagnoseAccepted
+    && measured.crossFormat?.cjsErrorToEsmDiagnose?.accepted === expected.crossFormatDiagnoseAccepted
+    && (expected.crossFormatDiagnoseAccepted
+      ? measured.crossFormat.esmErrorToCjsDiagnose.kind === 'setup'
+        && measured.crossFormat.cjsErrorToEsmDiagnose.kind === 'setup'
+      : measured.crossFormat.refusalCodes.length === 2
+        && measured.crossFormat.refusalCodes.every((code) => code === expected.crossFormatDiagnoseErrorCode));
+}
 
 async function runtimeInfo(executable) {
   if (!existsSync(executable)) throw new PrerequisiteError(`Runtime executable missing: ${executable}`);
@@ -662,6 +883,7 @@ async function compileProbe({ executable, root, label, configName = 'tsconfig.js
     exitCode: evidence.exitCode,
     classification: classification.kind,
     diagnostics: classification.diagnostics,
+    diagnosticCodes: classification.codes,
     ok: classification.kind === 'clean',
   };
 }
@@ -701,6 +923,8 @@ async function runMatrix({ toolchain, runtimes, report }) {
       if (!inspection.exportKeysExact) throw new Error(`${inspection.kind}: exports are not exactly the six public subpaths.`);
 
       if (inspection.missingTargets.length > 0) throw new Error(`${inspection.kind}: missing export targets ${JSON.stringify(inspection.missingTargets)}.`);
+
+      if (inspection.binTargetsMissing.length > 0) throw new Error(`${inspection.kind}: missing bin targets ${JSON.stringify(inspection.binTargetsMissing)}.`);
 
       if (inspection.declarations.unresolved.length > 0 || inspection.declarations.stale.length > 0) {
         throw new Error(`${inspection.kind}: broken declaration graph.`);
@@ -830,7 +1054,7 @@ async function runMatrix({ toolchain, runtimes, report }) {
 
         for (const format of ['import', 'require']) {
           const evidence = await runChild(runtime.executable, [path.join(consumer.root, 'deep.mjs'), format], {
-            cwd: consumer.root, timeoutMs: 120000,
+            cwd: consumer.root, timeoutMs: 120000, env: { ...process.env, PHASE10_PACKAGE_ROOT: consumer.installed },
           });
 
           let parsed = null;
@@ -872,16 +1096,9 @@ async function runMatrix({ toolchain, runtimes, report }) {
         const expected = EXPECTED_IDENTITY[candidate.kind];
         const identity = parsed?.identity ?? null;
 
-        const matches = identity !== null
-          && identity.crossFormatClassIdentity === expected.crossFormatClassIdentity
-          && identity.crossFormatInstanceof === expected.crossFormatInstanceof
-          && identity.crossFormatVerifyIdentity === expected.crossFormatVerifyIdentity
-          && identity.crossFormatDiagnoseAccepted === expected.crossFormatDiagnoseAccepted
-          && identity.crossFormatDiagnoseErrorCode === expected.crossFormatDiagnoseErrorCode;
-
         record({
           area: 'identity', candidate: candidate.kind, runtime: runtime.version, format: 'cross-format',
-          ok: evidence.ok && matches,
+          ok: evidence.ok && identityMatches(expected, identity),
           detail: { expected, measured: identity },
         });
       }
@@ -916,22 +1133,61 @@ async function runMatrix({ toolchain, runtimes, report }) {
       }
     }
 
+    // Installed CLI qualification: the real ESM bin mapping is preserved in both
+    // candidates, so the installed bin target is EXECUTED (not just inspected).
+    for (const runtime of runtimes) {
+      for (const { candidate } of packaged) {
+        const consumer = consumers.get(`${candidate.kind}-core`);
+
+        for (const [name, target] of Object.entries(candidate.manifest.bin ?? {})) {
+          const cliPath = path.join(consumer.installed, String(target));
+          const shim = path.join(consumer.root, 'node_modules', '.bin', IS_WINDOWS ? `${name}.cmd` : name);
+          const evidence = await runChild(runtime.executable, [cliPath, '--help'], { cwd: consumer.root, timeoutMs: 60000 });
+          const usagePrinted = /Usage: hooklatch/.test(evidence.stdout);
+
+          record({
+            area: 'cli', candidate: candidate.kind, runtime: runtime.version, format: 'esm-bin', subpath: `bin:${name}`,
+            ok: evidence.ok && usagePrinted && existsSync(cliPath) && existsSync(shim),
+            detail: {
+              binTarget: String(target), targetExists: existsSync(cliPath), shimExists: existsSync(shim),
+              exitCode: evidence.exitCode, signal: evidence.signal, timedOut: evidence.timedOut, usagePrinted,
+              stdout: evidence.stdout.slice(0, 200), stderr: evidence.stderr.slice(0, 200),
+            },
+          });
+        }
+      }
+    }
+
     report.candidates = inspections;
+    const subpathEntries = entries.filter((entry) => entry.area === 'subpath');
+
     report.tarballs = packaged.map(({ candidate, tarball }) => ({ kind: candidate.kind, ...tarball }));
     report.moduleGraph = { version: graph.version, count: graph.count, coverage: coverage.length, uncovered: uncovered.length };
     report.esmBuild = { steps: esmBuild.length };
     report.cjsBuild = { modules: cjsBuild.renamed.scripts, declarations: cjsBuild.renamed.declarations };
     report.compilerSettings = compileConfig([]).compilerOptions;
+
+    const extraExports = subpathEntries.flatMap((entry) => ((entry.detail?.extra ?? []).length > 0
+      ? [{ candidate: entry.candidate, runtime: entry.runtime, subpath: entry.subpath, extra: entry.detail.extra }]
+      : []));
+
+    report.exactExportSets = {
+      checked: subpathEntries.length,
+      exact: subpathEntries.filter((entry) => entry.detail?.exact === true).length,
+      withExtraExports: extraExports,
+    };
+    report.bin = inspections.map((inspection) => ({ kind: inspection.kind, binTargets: inspection.binTargets }));
     report.limitations = [
       'CJS remains a prototype: no package.json, exports, engines, dependencies or build configuration is changed by this task.',
       'The per-module CJS emit requires a temp type:commonjs source copy and .js->.cjs/.d.cts specifier rewriting; the repository build is untouched.',
-      'The CJS emit covers the six exported subpaths; the CLI bin remains ESM-only in this prototype.',
-      'Only Node 22.23.4 and 24.15.0 were executed. No Node 18/20 support and no generic Node >=22 require(esm) support is inferred.',
+      'The CLI bin mapping is preserved unchanged and is ESM in both candidates; the installed bin target is executed with --help, but no CJS CLI is claimed.',
+      'Only Node 22.23.4 and 24.15.0 were executed. No Node 18/20 support and no generic Node >=22 require(esm) support is inferred, and no minimum Node minor is claimed as run.',
       'require(esm) is unflagged from Node 22.12.0; Node 22.0-22.11 needs --experimental-require-module, so the bridge candidate narrows engines to >=22.12.0.',
       'TypeScript 6.0.3 accepted the ESM declaration graph for .cts consumers in this pin; older compilers may require a .d.cts graph under the require condition.',
       'The matrix ran on win32 only; no cross-platform module-resolution claim is made.',
       'All provider cases are synthetic, locally signed with node:crypto. No live provider, account, registry or network call was made.',
-      'The consumer projects use the repository default skipLibCheck:true; only the wrong-declaration-graph control disables it to observe TS2307.',
+      'Every consumer compile runs with skipLibCheck:false, so candidate declaration files are checked rather than skipped.',
+      'Provider inventory order is read from the candidate built registry (dist or dist-cjs), not inferred from the harness literal.',
     ];
   } finally {
     const after = snapshotRunInputs();
@@ -953,138 +1209,180 @@ async function runMatrix({ toolchain, runtimes, report }) {
  * Controls
  * ------------------------------------------------------------------ */
 
+/**
+ * Controls for the consumer harness. Each control has a positive baseline (the
+ * real candidate passes) and a genuine negative case, so a vacuous assertion
+ * cannot look like discrimination.
+ *
+ * Type evidence is only ever a real `error TSxxxx` line from tsc: exit 2, a
+ * crash or a timeout is classified as infrastructure, never as a type failure.
+ */
 async function controls({ toolchain, runtime, workspace }) {
-  const results = {};
+  const results = { compileEvidence: {}, declarations: {}, compiles: [] };
+  const esmBuild = await buildEsmDist();
+  const cjsBuild = await buildCjsEmit(workspace);
 
-  {
-    const esmBuild = await buildEsmDist();
-    const cjsBuild = await buildCjsEmit(workspace);
-    const candidate = createCandidate(workspace, 'per-module-cjs', cjsBuild);
+  const candidates = [
+    createCandidate(workspace, 'per-module-cjs', cjsBuild),
+    createCandidate(workspace, 'require-bridge'),
+  ];
+
+  const consumers = new Map();
+
+  for (const candidate of candidates) {
     const tarball = await packCandidate(candidate, workspace, toolchain.npmCli);
-    const consumer = await installConsumer(workspace, { name: 'controls-core', tarball: tarball.tarball, peers: false, npmCli: toolchain.npmCli });
+
+    const consumer = await installConsumer(workspace, {
+      name: `controls-${candidate.kind}`, tarball: tarball.tarball, peers: false, npmCli: toolchain.npmCli,
+    });
 
     writeConsumerFiles(consumer.root, { peers: false });
+    consumers.set(candidate.kind, consumer);
 
-    // Baseline: the real probe compiles cleanly.
-    const clean = await compileProbe({ executable: runtime.executable, root: consumer.root, label: 'control-clean' });
+    // 1. STRICT clean baseline for BOTH declaration programs, skipLibCheck:false.
+    const clean = await compileProbe({ executable: runtime.executable, root: consumer.root, label: `control-clean:${candidate.kind}` });
 
-    // A genuine type error must be classified as a compiler diagnostic.
-    writeFileSync(path.join(consumer.root, 'compile', 'broken.cts'), "const broken: number = 'phase10';\nexport { broken };\n");
-    writeFileSync(path.join(consumer.root, 'compile', 'tsconfig.json'),
-      `${JSON.stringify(compileConfig(['probe.mts', 'probe.cts', 'broken.cts']), null, 2)}\n`);
-    const diagnosed = await compileProbe({ executable: runtime.executable, root: consumer.root, label: 'control-diagnostic' });
+    // 2. Corrupt the require-condition declaration graph the .cts program uses.
+    const declarationFile = candidate.kind === 'per-module-cjs'
+      ? path.join(consumer.installed, 'dist-cjs', 'index.d.cts')
+      : path.join(consumer.installed, 'dist', 'index.d.ts');
 
-    // A broken declaration graph must ALSO surface as a diagnostic, proving the
-    // .d.cts graph is really consumed rather than the ESM declarations.
-    writeFileSync(path.join(consumer.root, 'compile', 'tsconfig.json'),
-      `${JSON.stringify(compileConfig(['probe.mts', 'probe.cts']), null, 2)}\n`);
-    // An internal declaration reference is broken on purpose. The consumer
-    // project uses the repository default skipLibCheck:true (which suppresses
-    // errors INSIDE declaration files), so this control compiles probe.cts with
-    // skipLibCheck:false to observe the TS2307. That proves the require-condition
-    // .d.cts graph is the graph actually consumed, not the ESM declarations.
-    writeFileSync(path.join(consumer.root, 'compile', 'tsconfig.wrong-graph.json'),
-      `${JSON.stringify(compileConfig(['probe.cts'], { skipLibCheck: false }), null, 2)}\n`);
-    const declarationFile = path.join(consumer.root, 'node_modules', 'hooklatch', 'dist-cjs', 'index.d.cts');
     const original = readFileSync(declarationFile, 'utf8');
 
-    writeFileSync(declarationFile, original.replace('/core.cjs', '/core.js'));
+    const corrupted = candidate.kind === 'per-module-cjs'
+      ? original.replace('/core.cjs', '/core.js')
+      : original.replace('/core.js', '/core-missing.js');
 
-    const wrongGraph = await compileProbe({
-      executable: runtime.executable, root: consumer.root, label: 'control-wrong-graph', configName: 'tsconfig.wrong-graph.json',
-    });
+    assert.notEqual(corrupted, original, `${candidate.kind}: the declaration control did not alter the graph.`);
+    writeFileSync(declarationFile, corrupted);
+
+    const wrongGraph = await compileProbe({ executable: runtime.executable, root: consumer.root, label: `control-wrong-graph:${candidate.kind}` });
 
     writeFileSync(declarationFile, original);
 
-    // Exit 2 with no diagnostic is infrastructure, not a type failure.
-    const exitTwo = await runChild(runtime.executable, ['-e', 'process.exit(2)'], { cwd: consumer.root, timeoutMs: 30000 });
-    const exitTwoClass = classifyCompile(exitTwo);
+    // 3. Restoring the graph must make the same program compile again.
+    const restored = await compileProbe({ executable: runtime.executable, root: consumer.root, label: `control-restored:${candidate.kind}` });
 
-    // A timeout is its own class and must withhold cleanup. The control uses a
-    // throwaway workspace so the outer workspace stays usable.
-    resetProcessHealth();
-    const timeoutWorkspace = createWorkspace('hooklatch-phase10-cjs-timeout-control-');
-
-    const timeout = await runChild(runtime.executable, ['-e', 'setInterval(() => {}, 1000);'], {
-      cwd: timeoutWorkspace.root, timeoutMs: 250,
-    });
-
-    const timeoutClass = classifyCompile(timeout);
-    const timedOutUncertain = processHealth.uncertain;
-    let withheld = false;
-
-    try {
-      disposeWorkspace(timeoutWorkspace);
-    } catch (error) {
-      withheld = /preserved/i.test(error.message);
+    for (const compile of [clean, wrongGraph, restored]) {
+      results.compiles.push({
+        label: compile.label, ok: compile.ok, classification: compile.classification, codes: compile.diagnosticCodes,
+      });
     }
 
-    const preservedExists = existsSync(timeoutWorkspace.root);
-
-    resetProcessHealth();
-
-    if (preservedExists) rmSync(timeoutWorkspace.root, { recursive: true, force: true });
-
-    results.compileEvidence = {
-      clean: { classification: clean.classification, diagnostics: clean.diagnostics },
-      wrongUsage: { classification: diagnosed.classification, diagnostics: diagnosed.diagnostics },
-      wrongDeclarationGraph: { classification: wrongGraph.classification, diagnostics: wrongGraph.diagnostics },
+    results.compileEvidence[candidate.kind] = {
+      clean: { classification: clean.classification, codes: clean.diagnosticCodes, diagnostics: clean.diagnostics },
+      wrongDeclarationGraph: { classification: wrongGraph.classification, codes: wrongGraph.diagnosticCodes, diagnostics: wrongGraph.diagnostics },
+      restored: { classification: restored.classification, diagnostics: restored.diagnostics },
     };
-
-    results.distDigestAfterBuild = snapshotTree(path.join(REPO_ROOT, 'dist'));
-    results.compilerDiagnostic = {
-      baselineClean: clean.ok,
-      wrongUsageDiagnosed: diagnosed.classification === 'diagnostic' && diagnosed.ok === false,
-      wrongDeclarationGraphDiagnosed: wrongGraph.classification === 'diagnostic' && wrongGraph.ok === false,
-      exitTwoIsInfrastructure: exitTwoClass.kind === 'exit-2',
-      timeoutIsInfrastructure: timeoutClass.kind === 'timeout',
-      timeoutMarksUncertain: timedOutUncertain === true,
-      timeoutWithheldCleanup: withheld && preservedExists,
+    results.declarations[candidate.kind] = {
+      target: path.relative(consumer.installed, declarationFile),
+      skipLibCheck: false,
+      cleanBeforeCorruption: clean.ok,
+      wrongDeclarationGraphDiagnosed: wrongGraph.classification === 'diagnostic'
+        && wrongGraph.diagnosticCodes.includes('2307'),
+      diagnosticCodes: wrongGraph.diagnosticCodes,
+      restoredClean: restored.ok,
     };
-    results.compilerDiagnostic.discriminates = Object.entries(results.compilerDiagnostic)
-      .filter(([key]) => key !== 'discriminates')
-      .every(([, value]) => value === true);
-
-    // Export-shape probe discrimination: an installed copy with disconnected
-    // exports must fail the same shape check that passes on the real candidate.
-    const disconnected = path.join(workspace.root, 'controls', 'disconnected');
-    const disconnectedPackage = path.join(disconnected, 'node_modules', 'hooklatch');
-
-    mkdirSync(disconnected, { recursive: true });
-    writeFileSync(path.join(disconnected, 'package.json'), `${JSON.stringify({ name: 'phase10-control-disconnected', private: true })}\n`);
-    writeFileSync(path.join(disconnected, 'probe-require.cjs'), PROBE_REQUIRE);
-
-    const install = await runNpm(toolchain.npmCli,
-      ['install', tarball.tarball, '--no-save', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--legacy-peer-deps'],
-      disconnected, workspace);
-
-    assert.equal(install.exitCode, 0, 'control install failed');
-    assert(existsSync(disconnectedPackage), 'control package was not installed');
-
-    const baselineProbe = await runChild(runtime.executable, [path.join(consumer.root, 'probe-require.cjs'), 'hooklatch', JSON.stringify(ENTRY_POINTS[0].exports)], {
-      cwd: consumer.root, env: { ...process.env, PHASE10_FORBIDDEN: '[]' }, timeoutMs: 60000,
-    });
-
-    writeFileSync(path.join(disconnectedPackage, 'dist-cjs', 'index.cjs'), "'use strict';\nmodule.exports = {};\n");
-
-    const disconnectedProbe = await runChild(runtime.executable, [path.join(disconnected, 'probe-require.cjs'), 'hooklatch', JSON.stringify(ENTRY_POINTS[0].exports)], {
-      cwd: disconnected, env: { ...process.env, PHASE10_FORBIDDEN: '[]' }, timeoutMs: 60000,
-    });
-
-    results.disconnectedExports = {
-      baselinePasses: baselineProbe.ok,
-      detected: !disconnectedProbe.ok,
-    };
-    results.disconnectedExports.discriminates = results.disconnectedExports.baselinePasses && results.disconnectedExports.detected;
-
-    results.controlHealthReset = processHealth.uncertain === false;
-    results.esmBuildSteps = esmBuild.length;
-    results.controlsPassed = results.compilerDiagnostic.discriminates
-      && results.disconnectedExports.discriminates
-      && results.controlHealthReset;
   }
 
-  resetProcessHealth();
+  // A genuine type error in an otherwise clean program is a diagnostic.
+  const usageConsumer = consumers.get('per-module-cjs');
+
+  writeFileSync(path.join(usageConsumer.root, 'compile', 'broken.cts'), "const broken: number = 'phase10';\nexport { broken };\n");
+  writeFileSync(path.join(usageConsumer.root, 'compile', 'tsconfig.wrong-usage.json'),
+    `${JSON.stringify(compileConfig(['probe.mts', 'probe.cts', 'broken.cts']), null, 2)}\n`);
+
+  const wrongUsage = await compileProbe({
+    executable: runtime.executable, root: usageConsumer.root, label: 'control-wrong-usage', configName: 'tsconfig.wrong-usage.json',
+  });
+
+  results.compileEvidence.wrongUsage = {
+    classification: wrongUsage.classification, codes: wrongUsage.diagnosticCodes, diagnostics: wrongUsage.diagnostics,
+  };
+
+  // Infrastructure is not type evidence.
+  const exitTwo = await runChild(runtime.executable, ['-e', 'process.exit(2)'], { cwd: workspace.root, timeoutMs: 30000 });
+  const exitTwoClass = classifyCompile(exitTwo);
+
+  // Timeout / confirmed-close branches on SEPARATE ledgers (real children).
+  const termination = await terminationControl();
+
+  // Exact export-set discrimination: appending an export must be detected.
+  const extraRoot = path.join(workspace.root, 'controls', 'extra-export');
+  const extraPackage = path.join(extraRoot, 'node_modules', 'hooklatch');
+
+  mkdirSync(path.join(extraRoot, 'node_modules'), { recursive: true });
+  cpSync(candidates.find((candidate) => candidate.kind === 'per-module-cjs').directory, extraPackage, { recursive: true });
+  writeFileSync(path.join(extraRoot, 'package.json'), `${JSON.stringify({ name: 'phase10-control-extra-export', private: true, type: 'module' })}\n`);
+  writeFileSync(path.join(extraRoot, 'probe-require.cjs'), PROBE_REQUIRE);
+
+  const exactProbe = (root) => runChild(runtime.executable, [path.join(root, 'probe-require.cjs'), 'hooklatch', JSON.stringify(ENTRY_POINTS[0].exports)], {
+    cwd: root, env: { ...process.env, PHASE10_FORBIDDEN: '[]' }, timeoutMs: 60000,
+  });
+
+  const baselineProbe = await exactProbe(usageConsumer.root);
+
+  writeFileSync(path.join(extraPackage, 'dist-cjs', 'index.cjs'),
+    `${readFileSync(path.join(extraPackage, 'dist-cjs', 'index.cjs'), 'utf8')}\nmodule.exports.phase10Extra = true;\n`);
+
+  const extraProbe = await exactProbe(extraRoot);
+
+  const extraParsed = (() => {
+    try {
+      return JSON.parse(extraProbe.stdout.trim());
+    } catch {
+      return null;
+    }
+  })();
+
+  results.exactExportSet = {
+    baselineExact: baselineProbe.ok,
+    extraDetected: !extraProbe.ok && Array.isArray(extraParsed?.extra) && extraParsed.extra.includes('phase10Extra'),
+    extra: extraParsed?.extra ?? null,
+  };
+  results.exactExportSet.discriminates = results.exactExportSet.baselineExact && results.exactExportSet.extraDetected;
+
+  // Disconnected exports: the shape probe that passes on the real candidate fails.
+  const disconnected = path.join(workspace.root, 'controls', 'disconnected');
+  const disconnectedPackage = path.join(disconnected, 'node_modules', 'hooklatch');
+
+  mkdirSync(path.join(disconnected, 'node_modules'), { recursive: true });
+  cpSync(candidates.find((candidate) => candidate.kind === 'per-module-cjs').directory, disconnectedPackage, { recursive: true });
+  writeFileSync(path.join(disconnected, 'package.json'), `${JSON.stringify({ name: 'phase10-control-disconnected', private: true, type: 'module' })}\n`);
+  writeFileSync(path.join(disconnected, 'probe-require.cjs'), PROBE_REQUIRE);
+  writeFileSync(path.join(disconnectedPackage, 'dist-cjs', 'index.cjs'), "'use strict';\nmodule.exports = {};\n");
+
+  const disconnectedProbe = await exactProbe(disconnected);
+
+  results.disconnectedExports = {
+    baselinePasses: baselineProbe.ok, detected: !disconnectedProbe.ok,
+  };
+  results.disconnectedExports.discriminates = results.disconnectedExports.baselinePasses && results.disconnectedExports.detected;
+
+  results.distDigestAfterBuild = snapshotTree(path.join(REPO_ROOT, 'dist'));
+  results.termination = termination;
+  results.infrastructure = { exitTwo: exitTwoClass.kind, timeout: termination.timeout.timedOut === true };
+  results.compilerDiagnostic = {
+    cleanBothCandidates: candidates.every((candidate) => results.declarations[candidate.kind].cleanBeforeCorruption),
+    wrongUsageDiagnosed: wrongUsage.classification === 'diagnostic' && wrongUsage.diagnosticCodes.includes('2322'),
+    perModuleWrongGraphDiagnosed: results.declarations['per-module-cjs'].wrongDeclarationGraphDiagnosed,
+    bridgeWrongGraphDiagnosed: results.declarations['require-bridge'].wrongDeclarationGraphDiagnosed,
+    restoredBothCandidates: candidates.every((candidate) => results.declarations[candidate.kind].restoredClean),
+    exitTwoIsInfrastructure: exitTwoClass.kind === 'exit-2',
+    timeoutIsInfrastructure: termination.timeout.timedOut === true,
+    timeoutPreservedScratch: termination.disposalFailedWhileUnconfirmed === true
+      && termination.scratchPreservedWhileUnconfirmed === true,
+    timeoutRemovedAfterConfirmation: termination.removedAfterConfirmedTermination === true,
+    separateControlLedger: termination.runLedgerUntouched === true,
+  };
+  results.compilerDiagnostic.discriminates = Object.entries(results.compilerDiagnostic)
+    .filter(([key]) => key !== 'discriminates')
+    .every(([, value]) => value === true);
+
+  results.esmBuildSteps = esmBuild.length;
+  results.controlsPassed = results.compilerDiagnostic.discriminates
+    && results.exactExportSet.discriminates
+    && results.disconnectedExports.discriminates;
 
   return results;
 }
@@ -1098,6 +1396,7 @@ function usage() {
   console.log('Exit 0 the actual Node22/24 consumer matrix qualified, 1 failure, 2 usage, 3 prerequisite blocked.');
   console.log('Discovers the two runtimes from the Phase10 manifest defaults (PHASE10_NODE22/PHASE10_NODE24 override).');
   console.log('PASS is printed only after scratch cleanup and tracked+dist integrity checks.');
+  console.log(`--out is restricted to ${REPORT_DIRECTORY}/<name>.json (ignored evidence); anything else is refused.`);
 }
 
 function parseArgs(args) {
@@ -1137,7 +1436,15 @@ function summarise(report) {
       cjsModules: candidate.requires.files,
       packageBytes: candidate.packageBytes,
     })),
-    compiles: report.compiles?.map((compile) => ({ label: compile.label, clean: compile.ok, classification: compile.classification })),
+    compiles: report.compiles?.map((compile) => ({
+      label: compile.label, clean: compile.ok, classification: compile.classification, codes: compile.diagnosticCodes ?? null,
+    })),
+    compilerSettings: report.compilerSettings ?? null,
+    exactExportSets: report.exactExportSets ?? null,
+    cli: entries.filter((entry) => entry.area === 'cli').map((entry) => ({
+      candidate: entry.candidate, runtime: entry.runtime, ok: entry.ok, detail: entry.detail,
+    })),
+    bin: report.bin ?? null,
     totals: {
       total: entries.length,
       passed: entries.filter((entry) => entry.ok).length,
@@ -1169,6 +1476,20 @@ async function main() {
     usage();
 
     return 0;
+  }
+
+  // Validated BEFORE the run: a refused destination can never touch protected
+  // bytes and costs no build or install work.
+  let outTarget = null;
+
+  if (parsed.options.out) {
+    try {
+      outTarget = resolveReportDestination(parsed.options.out);
+    } catch (error) {
+      console.error(`--out refused: ${error instanceof Error ? error.message : String(error)}`);
+
+      return 1;
+    }
   }
 
   let report;
@@ -1251,7 +1572,10 @@ async function main() {
             candidate: entry.candidate, runtime: entry.runtime,
             classIdentity: entry.detail.measured.crossFormatClassIdentity,
             instanceofIdentity: entry.detail.measured.crossFormatInstanceof,
-            crossFormatDiagnoseAccepted: entry.detail.measured.crossFormatDiagnoseAccepted,
+            crossFormatDiagnose: {
+              esmErrorToCjs: entry.detail.measured.crossFormat?.esmErrorToCjsDiagnose ?? null,
+              cjsErrorToEsm: entry.detail.measured.crossFormat?.cjsErrorToEsmDiagnose ?? null,
+            },
           })),
         requireEsm: {
           runtimeSupport: report.runtimes.map((runtime) => ({ version: runtime.version, requireModule: runtime.requireModule })),
@@ -1280,16 +1604,33 @@ async function main() {
     }
   }
 
-  if (parsed.options.out) {
-    const destination = path.resolve(REPO_ROOT, parsed.options.out);
+  let evidenceWrite = null;
 
-    mkdirSync(path.dirname(destination), { recursive: true });
-    writeFileSync(destination, `${JSON.stringify(report, null, 2)}\n`);
+  if (outTarget !== null) {
+    try {
+      const preWrite = snapshotRunInputs();
+      const written = writeEvidenceReport(outTarget, report, { preWrite });
+
+      evidenceWrite = { path: outTarget.relative, ...written.postWrite, finalProblems: written.finalProblems };
+
+      if (written.finalProblems.length > 0) {
+        report.status = 'FAILED';
+        exitCode = 1;
+      }
+    } catch (error) {
+      evidenceWrite = {
+        path: outTarget.relative, refused: error instanceof Error ? error.message : String(error), problems: ['--out write failed'],
+      };
+      report.status = 'FAILED';
+      exitCode = 1;
+    }
   }
 
-  if (parsed.options.json) console.log(JSON.stringify(report, null, 2));
+  const printable = evidenceWrite === null ? report : { ...report, evidenceWrite };
+
+  if (parsed.options.json) console.log(JSON.stringify(printable, null, 2));
   else {
-    console.log(JSON.stringify(summarise(report), null, 2));
+    console.log(JSON.stringify({ ...summarise(report), evidenceWrite }, null, 2));
 
     if (report.status === 'PASS') {
       console.log(`PASS: ${report.totals.entries} matrix entries and ${report.totals.compilesClean}/${report.totals.compiles} compiles passed on Node ${report.runtimes.map((runtime) => runtime.version).join(' and ')}; scratch removed and tracked/dist bytes unchanged.`);
