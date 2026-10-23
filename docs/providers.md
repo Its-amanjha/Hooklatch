@@ -1,6 +1,7 @@
 # Provider guide
 
-Reference for nineteen locally qualified provider IDs. Paddle support covers Billing webhooks only.
+Reference for nineteen locally qualified provider IDs plus Vercel and fal.ai pending
+integration and qualification. Paddle support covers Billing webhooks only.
 Verification authenticates exact bytes before application parsing.
 
 See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
@@ -287,6 +288,69 @@ from the payload. Retry consistency follows each provider's documented rules.
   https://linear.app/developers/sdk-webhooks.
 - **Status:** implemented and locally qualified (signature authentication only).
 
+## Providers pending integration and qualification
+
+The following two provider IDs are documented here only as planned protocol
+mappings. They are **not registered or qualified for public verification**.
+Do not treat anything in this section as advertised support.
+
+| ID | Header | Signed content | Secret form | Identity | Status |
+|---|---|---|---|---|---|
+| vercel | `x-vercel-signature` | raw body | Literal string | all identity fields null | Pending |
+| fal | `x-fal-webhook-signature` | raw body | Raw 32-byte public keys (1..16) + required `expectedUserId` | all identity fields null | Pending |
+
+### Vercel webhook signature
+
+- **Provider id:** `vercel`.
+- **Header:** `x-vercel-signature` — exactly 40 ASCII hex characters, either hex
+  case; lookup is case-insensitive.
+- **Missing or trim-blank header** → `missing-signature`. Otherwise must be
+  exactly 40 hex characters; prefixes, outer whitespace, commas, lists,
+  nonhex characters, or wrong length → `malformed-signature`.
+- **Signed content:** the exact `rawBody` bytes — HMAC-SHA1 over the raw
+  body. No UTF-8 decode, no JSON parse, no body parsing. Binary, invalid
+  UTF-8, NUL, and empty bodies are accepted as opaque bytes.
+- **Secret:** nonempty literal untrimmed UTF-8 string via
+  `decodeLiteralSecret(secret, 'Vercel')`. Empty → `invalid-secret`.
+  Whitespace-only or non-ASCII bytes are literal keys; no inferred prefix
+  stripping, no Base64 decoding, no invented UI-length bound.
+- **Identity:** `deliveryId`, `eventId`, and `timestamp` are all `null`;
+  `authenticatedFields` is empty. `Vercel-Webhook-Id` and related headers
+  are ignored. Never derive identity or time from the body — the body
+  contains authenticated bytes, not extracted claims.
+- **Freshness:** no freshness enforcement for `vercel`. It is body-only
+  authentication. Old or future unsigned timestamps cannot change
+  authenticity or become replay protection. Do not claim full Vercel SDK
+  parity, replay resistance, or business idempotency.
+- **Sources:** https://vercel.com/docs/webhooks/webhooks-api;
+  https://vercel.com/docs/headers/request-headers.
+- **Status:** pending integration and qualification.
+
+### fal webhook signature
+
+- **Provider id:** `fal`.
+- **Header:** `x-fal-webhook-signature` — exactly 128 ASCII hex characters,
+  either hex case; lookup is case-insensitive.
+- **Missing or trim-blank header** → `missing-signature`. Otherwise must be
+  exactly 128 hex characters; prefixes, outer whitespace, commas, lists,
+  nonhex characters, or wrong length → `malformed-signature`.
+- **Signed content:** `UTF8(requestId + '\n' + userId + '\n' + timestamp + '\n' + lowercaseHex(SHA256(rawBody)))` — HMAC is replaced by Ed25519 signature over this canonical string.
+- **Secret:** raw 32-byte Ed25519 public keys (1..16 entries) supplied by the
+  application out of band. No `secrets[]`, no shared secret, no dummy shared
+  secret, no JWKS fetch, no key URL from request data. Keys are raw 32-byte
+  values, not PEM/JWK/CryptoKey/PEM/DER.
+- **Identity:** `deliveryId`, `eventId`, and `timestamp` are all `null`;
+  `authenticatedFields` is empty. `x-fal-webhook-request-id`,
+  `x-fal-webhook-user-id`, `x-fal-webhook-timestamp` are used for signature
+  construction but their values are not extracted into public identity.
+  `expectedUserId` must match `userId` exactly after signature verification.
+- **Freshness:** no freshness enforcement for `fal` beyond the signed timestamp
+  field in the canonical signing string. Do not claim full fal SDK parity,
+  replay resistance, or business idempotency. Caller-owned parsing/freshness
+  after verification is outside core and this phase.
+- **Sources:** https://fal.ai/docs/documentation/model-apis/inference/webhooks.
+- **Status:** pending integration and qualification.
+
 ## Configured provider protocols
 
 Grafana requires explicit layout configuration. Polar selects one secret mode
@@ -408,7 +472,8 @@ for the entire accept-set. These choices come from trusted application code.
 - No queue guarantees, retry, DLQ, or delivery semantics.
 - No account setup, secret registration, or dashboard flows.
 - Provider selection is explicit; automatic detection is not implemented.
-- No Vercel/SHA-1, new algorithms, or dependency updates.
+- No new algorithms beyond scoped Vercel SHA-1 and fal Ed25519, or dependency
+  updates.
 - No live-provider validation or exactly-once delivery claims.
 - No Relay exists or is advertised: Relay is a future separately installed
   package; its name, backend and API are not frozen. Do not add queue switches

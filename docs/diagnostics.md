@@ -80,6 +80,23 @@ explains that the selected `secretMode` (`current` or `legacy`) is
 application configuration and applies to every configured secret in the
 accept-set; no mixed-era or dual-key migration is performed.
 
+### Vercel (pending integration)
+
+Static diagnostics only; Vercel is not registered in the current CLI.
+`expectedHeaders` lists `x-vercel-signature`. The verbose `grammar` describes
+HMAC-SHA1 over the exact raw body with exactly 40 hex characters, either case,
+and uppercase acceptance as a Hooklatch receiver policy.
+
+### fal (pending integration)
+
+Static diagnostics only; fal is not registered in the current CLI.
+`expectedHeaders` lists `x-fal-webhook-signature`, `x-fal-webhook-request-id`,
+`x-fal-webhook-user-id`, `x-fal-webhook-timestamp`. The verbose `grammar`
+describes Ed25519 over `requestId + '\n' + userId + '\n' + timestamp + '\n' +
+sha256hex(rawBody)`, raw 32-byte public keys (1..16), and a required
+`expectedUserId` that must match `userId` exactly after signature
+verification. No shared secrets, no JWKS fetch, no key URL from request data.
+
 ### Redaction guarantees
 
 Diagnostics never echo:
@@ -163,28 +180,6 @@ try {
   }
 }
 ```
-
-## Source-typing migration impact
-
-The public `VerifyOptions` type changes from an interface to a union that
-discriminates on `provider`:
-
-```ts
-export type VerifyOptions = CommonVerifyOptions & (
-  | { readonly provider: Exclude<Provider, 'grafana' | 'polar'>; readonly providerOptions?: never }
-  | { readonly provider: 'grafana'; readonly providerOptions: GrafanaOptions }
-  | { readonly provider: 'polar'; readonly providerOptions?: PolarOptions }
-);
-```
-
-`GrafanaOptions` is a mode-discriminated union (`body` or `timestamped`);
-`PolarOptions` carries an optional `secretMode` (`current` | `legacy`).
-
-Objects built from an uncorrelated broad `Provider` value may need narrowing.
-A variable already typed `VerifyOptions` remains valid. Interfaces cannot extend
-this union; use an intersection type, as `NextWebhookHandlerOptions` does.
-Existing concrete-provider calls remain valid; `providerOptions` is required
-for `grafana`, optional for `polar`, and forbidden for the other providers.
 
 ## Purity
 

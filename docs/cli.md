@@ -15,8 +15,9 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
   `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`,
-  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, or `linear`. The list comes from the
-  package's internal provider registry; pending providers are not accepted.
+  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, `linear`, `vercel`, or `fal`. The
+  list comes from the package's internal provider registry; pending providers
+  are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
 
 ### Optional flags
@@ -32,7 +33,8 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
   `LEMON_SQUEEZY_WEBHOOK_SECRET`, `DODO_WEBHOOK_SECRET`,
   `GITLAB_WEBHOOK_SECRET`, `REPLICATE_WEBHOOK_SECRET`, `WORKOS_WEBHOOK_SECRET`,
   `SENTRY_WEBHOOK_SECRET`, `DOPPLER_WEBHOOK_SECRET`, `SANITY_WEBHOOK_SECRET`,
-  `GRAFANA_WEBHOOK_SECRET`, `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`.
+  `GRAFANA_WEBHOOK_SECRET`, `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`,
+  `VERCEL_WEBHOOK_SECRET`, `FAL_WEBHOOK_PUBLIC_KEYS`.
 - `--body-limit <bytes>` — positive safe integer body limit baked into the
   generated options. Default: `1048576`.
 - `--dry-run` — validate arguments and the target path, then print the
@@ -57,7 +59,28 @@ The built CLI accepts these provider-specific configuration flags:
 - `--polar-secret-mode current|legacy` — polar only; default `current`. Applies
   to every configured secret in the accept-set; no mixed-era migration.
 - New environment variable names: `GRAFANA_WEBHOOK_SECRET`,
-  `POLAR_WEBHOOK_SECRET`.
+  `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`,
+  `VERCEL_WEBHOOK_SECRET`, `FAL_WEBHOOK_PUBLIC_KEYS`,
+  `FAL_WEBHOOK_USER_ID`.
+
+### Vercel and fal configuration flags (pending integration)
+
+The following flags are planned for Vercel and fal support. They are **not
+available in the current built CLI** and do not change generated output until
+Codex completes public registration and qualification:
+
+- `--vercel-secret-env NAME` — vercel only; optional environment variable name
+  for the HMAC secret. Defaults to `VERCEL_WEBHOOK_SECRET`. Must match
+  `/^[A-Za-z_][A-Za-z0-9_]*$/`.
+- `--fal-public-key-env NAME` — fal only; optional environment variable name
+  for the comma-separated canonical unpadded Base64url 32-byte public keys.
+  Defaults to `FAL_WEBHOOK_PUBLIC_KEYS`. Must match
+  `/^[A-Za-z_][A-Za-z0-9_]*$/`.
+- `--fal-expected-user-env NAME` — fal only; optional environment variable name
+  for the expected user ID. Defaults to `FAL_WEBHOOK_USER_ID`. Must match
+  `/^[A-Za-z_][A-Za-z0-9_]*$/`.
+- `--fal-secret-env` — fal only; explicitly forbidden. fal uses static trusted
+  public keys, not shared secrets.
 
 Duplicate flags, unknown flags, missing values, unknown providers/frameworks,
 wrong-provider, duplicate, invalid, colliding, or reserved names,
@@ -114,3 +137,24 @@ absolute paths, and no secret environment variable values.
 by default. Linear has no provider-specific CLI flags. The generated handler
 preserves authenticated bytes and leaves parsing and body-timestamp freshness
 validation to application code; unsigned headers do not establish freshness.
+
+## Vercel authentication scope (pending integration)
+
+`--provider vercel` generates signature verification using `VERCEL_WEBHOOK_SECRET`
+by default. Vercel has no provider-specific CLI flags. The generated handler
+verifies HMAC-SHA1 over the exact raw body using a 40-hex signature in the
+`x-vercel-signature` header; uppercase hex is accepted as a Hooklatch receiver
+policy. No freshness or body-field extraction; unsigned headers do not
+establish freshness.
+
+## fal authentication scope (pending integration)
+
+`--provider fal` generates Ed25519 signature verification using static trusted
+public keys supplied out of band via `FAL_WEBHOOK_PUBLIC_KEYS` and an expected
+user ID via `FAL_WEBHOOK_USER_ID`. The generated handler verifies the Ed25519
+signature over `requestId + '\n' + userId + '\n' + timestamp + '\n' +
+sha256hex(rawBody)` using the `x-fal-webhook-signature`, `x-fal-webhook-request-id`,
+`x-fal-webhook-user-id`, and `x-fal-webhook-timestamp` headers. The expected user
+ID must match `userId` exactly after signature verification. No shared secrets,
+no JWKS fetch, no key URL from request data; raw 32-byte public keys only
+(1..16 entries).
