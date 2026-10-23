@@ -15,7 +15,7 @@ hooklatch init webhook --provider <id> --framework <id> [--out <dir>]
 
 - `--provider <id>` — an implemented provider id: `stripe`, `github`,
   `shopify`, `standard-webhooks`, `clerk`, `svix`, `razorpay`, `paddle`,
-  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, `linear`, `vercel`, or `fal`. The
+  `lemon-squeezy`, `dodo-payments`, `gitlab`, `replicate`, `workos`, `sentry`, `doppler`, `sanity`, `grafana`, `polar`, or `linear`. The
   list comes from the package's internal provider registry; pending providers
   are not accepted.
 - `--framework <id>` — one of `express`, `nextjs`, `hono`, `cloudflare`.
@@ -69,18 +69,17 @@ The following flags are planned for Vercel and fal support. They are **not
 available in the current built CLI** and do not change generated output until
 Codex completes public registration and qualification:
 
-- `--vercel-secret-env NAME` — vercel only; optional environment variable name
-  for the HMAC secret. Defaults to `VERCEL_WEBHOOK_SECRET`. Must match
+- `--secret-env NAME` — vercel only; optional environment variable name for the
+  HMAC secret. Defaults to `VERCEL_WEBHOOK_SECRET`. Must match
   `/^[A-Za-z_][A-Za-z0-9_]*$/`.
-- `--fal-public-key-env NAME` — fal only; optional environment variable name
-  for the comma-separated canonical unpadded Base64url 32-byte public keys.
+- `--public-key-env NAME` — fal only; optional environment variable name for
+  the comma-separated canonical unpadded Base64url 32-byte public keys.
   Defaults to `FAL_WEBHOOK_PUBLIC_KEYS`. Must match
   `/^[A-Za-z_][A-Za-z0-9_]*$/`.
-- `--fal-expected-user-env NAME` — fal only; optional environment variable name
-  for the expected user ID. Defaults to `FAL_WEBHOOK_USER_ID`. Must match
+- `--expected-user-env NAME` — fal only; optional environment variable name for
+  the expected user ID. Defaults to `FAL_WEBHOOK_USER_ID`. Must match
   `/^[A-Za-z_][A-Za-z0-9_]*$/`.
-- `--fal-secret-env` — fal only; explicitly forbidden. fal uses static trusted
-  public keys, not shared secrets.
+- `--secret-env` is forbidden for fal; `--fal-secret-env` does not exist.
 
 Duplicate flags, unknown flags, missing values, unknown providers/frameworks,
 wrong-provider, duplicate, invalid, colliding, or reserved names,
