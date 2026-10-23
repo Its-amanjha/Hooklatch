@@ -69,7 +69,7 @@ The following flags are planned for Vercel and fal support. They are **not
 available in the current built CLI** and do not change generated output until
 Codex completes public registration and qualification:
 
-- `--secret-env NAME` — vercel only; optional environment variable name for the
+- `--secret-env NAME` — HMAC providers only; optional environment variable name for the
   HMAC secret. Defaults to `VERCEL_WEBHOOK_SECRET`. Must match
   `/^[A-Za-z_][A-Za-z0-9_]*$/`.
 - `--public-key-env NAME` — fal only; optional environment variable name for

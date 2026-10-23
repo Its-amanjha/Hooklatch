@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 assert(process.env.npm_execpath, 'Run via npm run verify.');
 
 for (const script of ['lint', 'typecheck', 'typecheck:workers', 'build',
-  'typecheck:examples', 'test:coverage', 'test:workers', 'test:package', 'test:templates', 'test:provider-config', 'test:configured-templates', 'test:mutations', 'test:public-contracts']) {
+  'typecheck:examples', 'test:coverage', 'test:workers', 'test:package', 'test:templates', 'test:provider-config', 'test:configured-templates', 'test:crypto-runtime', 'test:mutations', 'test:public-contracts']) {
   const result = spawnSync(process.execPath, [process.env.npm_execpath, 'run', script], { stdio: 'inherit' });
 
   if (result.error) throw result.error;

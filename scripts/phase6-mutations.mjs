@@ -215,7 +215,12 @@ export const stripeDescriptor: ProviderDescriptor = {
     category: 'MAC-before-freshness',
     target: 'src/internal/verification.ts',
     selectedSuites: ['tests/internal/verification.test.ts'],
-    original: `  if (!await verifyHmac(prepared.keys, parsed.signatures, parsed.signedContent)) {
+    original: `  const valid = prepared.descriptor.provider === 'fal'
+    ? await verifyEd25519(prepared.keys, parsed.signatures, parsed.signedContent)
+    : await verifyHmac(prepared.keys, parsed.signatures, parsed.signedContent, prepared.descriptor.crypto);
+
+  if (!valid || (prepared.options.provider === 'fal'
+    && (!('recipient' in parsed) || parsed.recipient !== prepared.options.expectedUserId))) {
     return failure(prepared, 'invalid-signature', 'Webhook signature is invalid.');
   }
 
@@ -238,7 +243,12 @@ export const stripeDescriptor: ProviderDescriptor = {
     if (age < -prepared.options.toleranceSeconds) return failure(prepared, 'timestamp-future', 'Webhook timestamp is outside the allowed future window.');
   }
 
-  if (!await verifyHmac(prepared.keys, parsed.signatures, parsed.signedContent)) {
+  const valid = prepared.descriptor.provider === 'fal'
+    ? await verifyEd25519(prepared.keys, parsed.signatures, parsed.signedContent)
+    : await verifyHmac(prepared.keys, parsed.signatures, parsed.signedContent, prepared.descriptor.crypto);
+
+  if (!valid || (prepared.options.provider === 'fal'
+    && (!('recipient' in parsed) || parsed.recipient !== prepared.options.expectedUserId))) {
     return failure(prepared, 'invalid-signature', 'Webhook signature is invalid.');
   }`,
     historicalNote: 'Killed by tests/internal/verification.test.ts in original replay.',

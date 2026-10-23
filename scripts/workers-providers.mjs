@@ -3,6 +3,7 @@ import { createHash, createHmac, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { validateHeaderValue } from 'node:http';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
@@ -188,7 +189,7 @@ function decideRegistryReadiness(providers) {
 }
 
 function isCallable(value) {
-  return jsonKind(value) === 'Function';
+  return value instanceof Function;
 }
 
 /**
@@ -1097,7 +1098,7 @@ for (const provider of requiredProviders) {
 }
 
 const workerSource = `
-  import { verifyRequest } from './src/index.ts';
+  import { verify, createVerifier, verifyRequest } from './src/index.ts';
   import { diagnose } from './src/diagnostics/index.ts';
 
   const cases = ${JSON.stringify(cases)};
@@ -1120,9 +1121,11 @@ const workerSource = `
         });
       }
 
-      if (!url.pathname.startsWith('/case/')) return new Response('not found', { status: 404 });
+      const rawCase = url.pathname.startsWith('/raw-case/');
 
-      const index = Number(url.pathname.slice('/case/'.length));
+      if (!rawCase && !url.pathname.startsWith('/case/')) return new Response('not found', { status: 404 });
+
+      const index = Number(url.pathname.slice(rawCase ? '/raw-case/'.length : '/case/'.length));
       const testCase = cases[index];
 
       if (testCase === undefined) return new Response('not found', { status: 404 });
@@ -1154,7 +1157,22 @@ const workerSource = `
         options.providerOptions = testCase.options.providerOptions;
       }
 
-      const result = await verifyRequest(request, options);
+      let result;
+
+      if (rawCase) {
+        const rawBody = new Uint8Array(await request.arrayBuffer());
+        const input = { rawBody, headers: testCase.headers };
+        result = await verify(input, options);
+        const tupleResult = await verify({ rawBody, headers: Object.entries(testCase.headers) }, options);
+        const factoryResult = await createVerifier(options)(input);
+
+        if (JSON.stringify(result) !== JSON.stringify(tupleResult)
+          || JSON.stringify(result) !== JSON.stringify(factoryResult)) {
+          return new Response('direct API disagreement', { status: 500 });
+        }
+      } else {
+        result = await verifyRequest(request, options);
+      }
 
       return Response.json(result.ok
         ? {
@@ -1224,18 +1242,43 @@ try {
   assert(!JSON.stringify(diagnostic).includes('WORKER_PRIVATE_CANARY'));
   console.log('PASS: pure diagnostics run in real workerd without leaking input messages.');
 
+  const rawOnlyIds = new Set([
+    'fal: id-grammar-user-id-with-unicode', 'fal: id-grammar-user-id-crlf',
+    'fal: id-grammar-user-id-nul-byte', 'fal: ts-grammar-unicode-digit-malformed',
+    'fal: id-grammar-user-id-del-byte',
+  ]);
+
+  const observedRawOnlyIds = new Set();
+
   for (const [index, testCase] of cases.entries()) {
     const headers = new Headers();
+    const rawOnly = rawOnlyIds.has(testCase.id);
 
-    for (const [name, value] of Object.entries(testCase.headers)) {
-      for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
+    const appendHeaders = () => {
+      for (const [name, value] of Object.entries(testCase.headers)) {
+        for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
+      }
+    };
+
+    if (rawOnly) {
+      if (testCase.id === 'fal: id-grammar-user-id-del-byte') {
+        appendHeaders();
+        assert.throws(() => validateHeaderValue('x-fal-webhook-user-id', testCase.headers['x-fal-webhook-user-id']),
+          { code: 'ERR_INVALID_CHAR' }, 'HTTP rejects DEL even though WHATWG Headers accepts it');
+      } else {
+        assert.throws(appendHeaders, TypeError, testCase.id + ': transport must reject raw headers');
+      }
+
+      observedRawOnlyIds.add(testCase.id);
+    } else {
+      appendHeaders();
     }
 
     const body = new Uint8Array(Buffer.from(testCase.bodyBase64, 'base64'));
 
-    const response = await runtime.dispatchFetch(`https://example.test/case/${index}`, {
+    const response = await runtime.dispatchFetch(`https://example.test/${rawOnly ? 'raw-case' : 'case'}/${index}`, {
       method: 'POST',
-      headers,
+      headers: rawOnly ? {} : headers,
       body,
     });
 
@@ -1259,22 +1302,34 @@ try {
       console.log(`PASS: ${testCase.id} -> ${result.provider}`);
     }
   }
+
+  assert.deepEqual([...observedRawOnlyIds].sort(), [...rawOnlyIds].sort());
+  console.log('PASS: five raw fal header cases verify via record/tuple/factory in workerd; HTTP transport rejects them.');
 } catch (error) {
   failure = error;
   console.error('');
   console.error(`RESULT: FAIL — ${error instanceof Error ? error.stack : String(error)}`);
+
+  if (error instanceof Error && error.cause !== undefined) console.error('CAUSE:', error.cause);
 } finally {
+  let terminationConfirmed = runtime === undefined;
+
   if (runtime !== undefined) {
     try {
       await runtime.dispose();
+      terminationConfirmed = true;
     } catch (error) {
       failure ??= error;
       console.error(`failed to dispose miniflare: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  await rm(tempDir, { recursive: true, force: true });
-  assert.equal(existsSync(tempDir), false, 'Temporary Worker module root was not removed.');
+  if (terminationConfirmed) {
+    await rm(tempDir, { recursive: true, force: true });
+    assert.equal(existsSync(tempDir), false, 'Temporary Worker module root was not removed.');
+  } else {
+    console.error('Worker termination unconfirmed; preserving module root: ' + tempDir);
+  }
 }
 
 if (failure !== null) process.exit(1);

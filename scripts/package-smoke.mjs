@@ -107,7 +107,7 @@ function requireHeaderName(value, label) {
 }
 
 function isCallable(value) {
-  return jsonKind(value) === 'Function';
+  return value instanceof Function;
 }
 
 function syntheticFalPublicKey() {
@@ -645,6 +645,12 @@ try {
       return resolved;
     };
 
+    const transportRejected = new Set([
+      'id-grammar-user-id-with-unicode', 'id-grammar-user-id-crlf',
+      'id-grammar-user-id-nul-byte', 'ts-grammar-unicode-digit-malformed',
+    ]);
+    const observedTransportRejections = new Set();
+
     for (const { provider, cases } of providerFixtures) {
       for (const fixture of cases) {
         const headers = materialize(fixture.request.headers);
@@ -680,9 +686,16 @@ try {
 
         assertResult(await verify(input, options), false);
         assertResult(await createVerifier(options)(input), false);
-        assertResult(await verifyRequest(new Request('https://example.test/hook', {
-          method: 'POST', headers, body: rawBody,
-        }), options), true);
+        assertResult(await verify({ rawBody, headers: Object.entries(headers) }, options), false);
+
+        if (provider === 'fal' && transportRejected.has(fixture.id)) {
+          assert.throws(() => new Headers(headers), TypeError, label + ': HTTP must reject this raw header');
+          observedTransportRejections.add(fixture.id);
+        } else {
+          assertResult(await verifyRequest(new Request('https://example.test/hook', {
+            method: 'POST', headers, body: rawBody,
+          }), options), true);
+        }
 
         if (fixture.expected.ok) {
           const backing = new Uint8Array(rawBody.length + 2);
@@ -703,7 +716,7 @@ try {
         }
       }
 
-      console.log('PASS: packed ' + provider + ' corpus passes all three APIs, metadata, diagnostics and tamper rejection.');
+      console.log('PASS: packed ' + provider + ' corpus passes direct APIs, representable Request cases, metadata, diagnostics and tamper rejection.');
 
       const configured = cases.filter((fixture) => fixture.options.providerOptions !== undefined);
 
@@ -769,6 +782,8 @@ try {
     for (const name of ['express', 'hono']) {
       await assert.rejects(import(name), { code: 'ERR_MODULE_NOT_FOUND' });
     }
+    assert.deepEqual([...observedTransportRejections].sort(), [...transportRejected].sort());
+    console.log('PASS: all four unrepresentable fal headers rejected by HTTP; direct record/tuple/factory results verified.');
     console.log('PASS: packed core imports and verifies offline without optional frameworks.');
   `;
 

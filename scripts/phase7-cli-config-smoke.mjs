@@ -768,27 +768,74 @@ function findObjectMember(objectLiteral, name, T) {
   return null;
 }
 
-/** Top-level initializer text for a shorthand-bound identifier, or ''. */
-function shorthandInitializerText(sourceFile, name, T) {
+/** Resolve only a top-level immutable credential binding, never comments/dead scopes. */
+function resolveCredential(node, sourceFile, T, seen = new Set()) {
+  let expression = node;
+
+  while (T.isParenthesizedExpression(expression) || T.isNonNullExpression(expression)) expression = expression.expression;
+
+  if (!T.isIdentifier(expression)) return expression;
+
+  if (seen.has(expression.text)) fail('Cyclic credential binding.');
+
+  seen.add(expression.text);
+
   for (const statement of sourceFile.statements) {
-    if (!T.isVariableStatement(statement)) continue;
+    if (!T.isVariableStatement(statement) || (statement.declarationList.flags & T.NodeFlags.Const) === 0) continue;
 
     for (const declaration of statement.declarationList.declarations) {
-      if (T.isIdentifier(declaration.name) && declaration.name.text === name && declaration.initializer !== undefined) {
-        return declaration.initializer.getText(sourceFile);
+      if (T.isIdentifier(declaration.name) && declaration.name.text === expression.text && declaration.initializer !== undefined) {
+        return resolveCredential(declaration.initializer, sourceFile, T, seen);
       }
     }
   }
 
+  fail('Unresolved credential binding.');
+}
+
+function credentialExpression(member, sourceFile, T) {
+  return resolveCredential(member.shorthand ? member.property.name : member.property.initializer, sourceFile, T);
+}
+
+function propertyPath(node, T) {
+  if (T.isIdentifier(node)) return node.text;
+
+  if (T.isPropertyAccessExpression(node)) return propertyPath(node.expression, T) + '.' + node.name.text;
+
   return '';
 }
 
-function memberExpressionText(member, sourceFile, T) {
-  if (member === null) return '';
+/** Execute the actually bound local decoder against independent canonical controls. */
+function assertBoundDecoder(call, sourceFile, T, expectedEnv) {
+  if (!T.isCallExpression(call) || !T.isIdentifier(call.expression) || call.arguments.length !== 1) {
+    fail('Generated fal publicKeys must call its local decoder.');
+  }
 
-  return member.shorthand
-    ? shorthandInitializerText(sourceFile, member.property.name.text, T)
-    : member.property.initializer.getText(sourceFile);
+  const argument = resolveCredential(call.arguments[0], sourceFile, T);
+
+  if (propertyPath(argument, T) !== expectedEnv) fail('Generated fal publicKeys reads the wrong PUBLIC_KEYS environment.');
+
+  const declaration = sourceFile.statements.find((statement) => T.isFunctionDeclaration(statement)
+    && statement.name?.text === call.expression.text);
+
+  if (declaration === undefined) fail('Generated fal publicKeys decoder is not a local function.');
+
+  const compiled = T.transpileModule(declaration.getText(sourceFile), {
+    compilerOptions: { target: T.ScriptTarget.ES2022, module: T.ModuleKind.None },
+  }).outputText;
+
+  const decode = new Function(compiled + '\nreturn ' + call.expression.text + ';')();
+  const canonical = 'A'.repeat(43);
+  const result = decode(canonical);
+
+  assert.equal(result.length, 1);
+  assert(result[0] instanceof Uint8Array);
+  assert.deepEqual([...result[0]], Array(32).fill(0));
+  assert.equal(decode(Array(16).fill(canonical).join(',')).length, 16);
+
+  for (const value of [undefined, '', canonical + '=', ' ' + canonical, 'A'.repeat(42) + 'B', Array(17).fill(canonical).join(',')]) {
+    assert.throws(() => decode(value), /Invalid public-key configuration/);
+  }
 }
 
 function unwrapExpression(node, T) {
@@ -1177,8 +1224,8 @@ function expectContent(caseSpec, content) {
 
     if (expectedUserId === null) fail(`Generated fal handler ${label} is missing expectedUserId.`);
 
-    const publicKeysText = memberExpressionText(publicKeys, sourceFile, T);
-    const expectedUserText = memberExpressionText(expectedUserId, sourceFile, T);
+    const publicKeysValue = credentialExpression(publicKeys, sourceFile, T);
+    const expectedUserValue = credentialExpression(expectedUserId, sourceFile, T);
 
     const publicEnv = caseSpec.framework === 'cloudflare'
       ? `env.${credential.publicKeyEnv}` : `process.env.${credential.publicKeyEnv}`;
@@ -1186,19 +1233,15 @@ function expectContent(caseSpec, content) {
     const userEnv = caseSpec.framework === 'cloudflare'
       ? `env.${credential.expectedUserEnv}` : `process.env.${credential.expectedUserEnv}`;
 
-    if (!publicKeysText.includes(publicEnv) && !content.includes(publicEnv)) {
-      fail(`Generated fal handler ${label} does not read ${publicEnv}.`);
-    }
+    assertBoundDecoder(publicKeysValue, sourceFile, T, publicEnv);
 
-    if (!expectedUserText.includes(userEnv) && !content.includes(userEnv)) {
+    if (propertyPath(expectedUserValue, T) !== userEnv) {
       fail(`Generated fal handler ${label} does not read ${userEnv}.`);
     }
 
     if (/\b(?:process\.env|env)\.FAL_WEBHOOK_SECRET\b/.test(content)) {
       fail(`Generated fal handler ${label} must not read a secret placeholder.`);
     }
-
-    if (!content.includes('atob(')) fail(`Generated fal handler ${label} is missing its portable atob decoder.`);
 
     if (/\bBuffer\s*\./.test(content)) fail(`Generated fal handler ${label} must not use Buffer.`);
 
@@ -1767,7 +1810,18 @@ function controlFalInspection() {
 
   const valid = [
     "import { createWebhookMiddleware } from 'hooklatch/express';",
-    "const decoded = atob('AA==');",
+    "function decodeFalPublicKeys(value: string | undefined): Uint8Array[] {",
+    "  if (!value) throw new Error('Invalid public-key configuration.');",
+    "  const entries = value.split(',');",
+    "  if (entries.length > 16) throw new Error('Invalid public-key configuration.');",
+    "  return entries.map((entry) => {",
+    "    if (!/^[A-Za-z0-9_-]{43}$/.test(entry)) throw new Error('Invalid public-key configuration.');",
+    "    const encoded = entry.replace(/-/g, '+').replace(/_/g, '/') + '=';",
+    "    const binary = atob(encoded);",
+    "    if (binary.length !== 32 || btoa(binary) !== encoded) throw new Error('Invalid public-key configuration.');",
+    "    return Uint8Array.from(binary, (char) => char.charCodeAt(0));",
+    "  });",
+    "}",
     "const publicKeys = decodeFalPublicKeys(process.env.FAL_WEBHOOK_PUBLIC_KEYS!);",
     "const expectedUserId = process.env.FAL_WEBHOOK_USER_ID!;",
     "const options = { provider: 'fal', publicKeys, expectedUserId, maxBodyBytes: 4242 };",
@@ -1795,11 +1849,22 @@ function controlFalInspection() {
   const wrongUserEnv = valid.replace('FAL_WEBHOOK_USER_ID', 'OTHER_USER_ID');
   assert.throws(() => expectContent(falCase, wrongUserEnv), /expectedUserId|USER_ID/, 'fal control: a wrong expected-user env was accepted.');
 
-  const noAtob = valid.replace("const decoded = atob('AA==');", '');
-  assert.throws(() => expectContent(falCase, noAtob), /atob/, 'fal control: a missing portable decoder was accepted.');
+  const noAtob = valid.replace('const binary = atob(encoded);', "const binary = 'not decoded';");
+  assert.throws(() => expectContent(falCase, noAtob), /configuration/, 'fal control: a disconnected decoder was accepted.');
 
-  const withBuffer = valid.replace("const decoded = atob('AA==');", "const decoded = atob('AA=='); const b = Buffer.from('AA==', 'base64');");
+  const withBuffer = valid + "\nconst b = Buffer.from('AA==', 'base64');";
   assert.throws(() => expectContent(falCase, withBuffer), /Buffer/, 'fal control: a Buffer decoder was accepted.');
+
+  const commentDecoy = valid.replace('decodeFalPublicKeys(process.env.FAL_WEBHOOK_PUBLIC_KEYS!)', '[new Uint8Array(32)]')
+    .replace('process.env.FAL_WEBHOOK_USER_ID!', "'hardcoded-account'")
+    + '\n// process.env.FAL_WEBHOOK_PUBLIC_KEYS process.env.FAL_WEBHOOK_USER_ID atob(';
+
+  assert.throws(() => expectContent(falCase, commentDecoy), /decoder/, 'Comment-only credentials were accepted.');
+
+  const accountDecoy = valid.replace('const expectedUserId = process.env.FAL_WEBHOOK_USER_ID!;',
+    "const expectedUserId = 'hardcoded-account'; // process.env.FAL_WEBHOOK_USER_ID");
+
+  assert.throws(() => expectContent(falCase, accountDecoy), /USER_ID/, 'Comment-only account binding was accepted.');
 
   const hmacSource = [
     "import { createWebhookMiddleware } from 'hooklatch/express';",

@@ -297,7 +297,7 @@ Do not treat anything in this section as advertised support.
 | ID | Header | Signed content | Secret form | Identity | Status |
 |---|---|---|---|---|---|
 | vercel | `x-vercel-signature` | raw body | Literal string | all identity fields null | Pending |
-| fal | `x-fal-webhook-signature` | raw body | Raw 32-byte public keys (1..16) + required `expectedUserId` | all identity fields null | Pending |
+| fal | `x-fal-webhook-signature` | request/user/time + SHA-256 body digest | Raw 32-byte public keys (1..16) + required `expectedUserId` | signed timestamp only | Pending |
 
 ### Vercel webhook signature
 
@@ -335,19 +335,17 @@ Do not treat anything in this section as advertised support.
   exactly 128 hex characters; prefixes, outer whitespace, commas, lists,
   nonhex characters, or wrong length → `malformed-signature`.
 - **Signed content:** `UTF8(requestId + '\n' + userId + '\n' + timestamp + '\n' + lowercaseHex(SHA256(rawBody)))` — HMAC is replaced by Ed25519 signature over this canonical string.
-- **Secret:** raw 32-byte Ed25519 public keys (1..16 entries) supplied by the
+- **Credentials:** raw 32-byte Ed25519 public keys (1..16 entries) supplied by the
   application out of band. No `secrets[]`, no shared secret, no dummy shared
   secret, no JWKS fetch, no key URL from request data. Keys are raw 32-byte
-  values, not PEM/JWK/CryptoKey/PEM/DER.
-- **Identity:** `deliveryId`, `eventId`, and `timestamp` are all `null`;
-  `authenticatedFields` is empty. `x-fal-webhook-request-id`,
-  `x-fal-webhook-user-id`, `x-fal-webhook-timestamp` are used for signature
-  construction but their values are not extracted into public identity.
-  `expectedUserId` must match `userId` exactly after signature verification.
-- **Freshness:** no freshness enforcement for `fal` beyond the signed timestamp
-  field in the canonical signing string. Do not claim full fal SDK parity,
-  replay resistance, or business idempotency. Caller-owned parsing/freshness
-  after verification is outside core and this phase.
+  values, not PEM/JWK/CryptoKey/DER.
+- **Identity:** `deliveryId` and `eventId` are null; `timestamp` contains the
+  authenticated Unix-seconds timestamp and `authenticatedFields` is `['timestamp']`.
+  Request and user IDs remain private verification inputs. Required `expectedUserId`
+  must match the signed user ID exactly after signature verification.
+- **Freshness:** after signature and account checks, enforce a symmetric inclusive
+  300-second window by default. Explicit tolerance zero is zero-width. These are
+  Hooklatch receiver policies; they do not provide deduplication or exactly-once effects.
 - **Sources:** https://fal.ai/docs/documentation/model-apis/inference/webhooks.
 - **Status:** pending integration and qualification.
 

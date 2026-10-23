@@ -39,6 +39,8 @@ export const PROVIDER_IDS = Object.freeze([
   'grafana',
   'polar',
   'linear',
+  'vercel',
+  'fal',
 ]);
 
 export const CORE_LIBS = Object.freeze(['lib.es2022.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts']);
@@ -93,6 +95,41 @@ export const ENVIRONMENTS = Object.freeze({
 const providerList = PROVIDER_IDS.map((provider) => `  '${provider}',`).join('\n');
 
 export const CASES = Object.freeze([
+  {
+    id: 'core/positive-credential-arms', kind: 'positive', environment: 'core',
+    file: 'positive-credential-arms.ts', description: 'Vercel HMAC and fal static-key public options without Node types.',
+    source: `
+import { createVerifier } from 'hooklatch';
+import type { VerifyOptions, FalVerifyOptions } from 'hooklatch';
+export const fal: FalVerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)], expectedUserId: 'synthetic-user' };
+export const vercel: VerifyOptions = { provider: 'vercel', secrets: ['synthetic-secret'] };
+export const verifier = createVerifier(fal);
+`,
+  },
+  {
+    id: 'core/negative-fal-secrets', kind: 'negative', environment: 'core',
+    file: 'negative-fal-secrets.ts', description: 'fal cannot use HMAC secrets.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const invalid: VerifyOptions = { provider: 'fal', secrets: ['synthetic'] }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-fal-missing-account', kind: 'negative', environment: 'core',
+    file: 'negative-fal-missing-account.ts', description: 'fal requires an expected account.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const invalid: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)] }; // @expect-error TS2322
+`,
+  },
+  {
+    id: 'core/negative-vercel-public-keys', kind: 'negative', environment: 'core',
+    file: 'negative-vercel-public-keys.ts', description: 'Vercel cannot use fal credentials.',
+    source: `
+import type { VerifyOptions } from 'hooklatch';
+export const invalid: VerifyOptions = { provider: 'vercel', publicKeys: [new Uint8Array(32)], expectedUserId: 'synthetic-user' }; // @expect-error TS2353
+`,
+  },
   {
     id: 'core/positive-public-api',
     kind: 'positive',
