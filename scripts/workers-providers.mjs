@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -58,6 +58,40 @@ const SENTINEL_HEADER = {
 
 /** Provider-specific synthetic binary/rotating-key recipes (never inferred). */
 const BINARY_SUPPLEMENT_PROVIDERS = ['razorpay', 'paddle', 'lemon-squeezy'];
+
+/**
+ * Exact Phase 9 target order: the accepted nineteen-provider prefix plus the
+ * reviewed vercel/fal tail. Readiness never infers the tail from a length alone.
+ */
+const EXPECTED_PROVIDER_ORDER = [
+  'stripe',
+  'github',
+  'shopify',
+  'standard-webhooks',
+  'clerk',
+  'svix',
+  'razorpay',
+  'paddle',
+  'lemon-squeezy',
+  'dodo-payments',
+  'gitlab',
+  'replicate',
+  'workos',
+  'sentry',
+  'doppler',
+  'sanity',
+  'grafana',
+  'polar',
+  'linear',
+  'vercel',
+  'fal',
+];
+
+const TARGET_PROVIDERS = EXPECTED_PROVIDER_ORDER.length;
+const NEW_PROVIDERS = ['vercel', 'fal'];
+const EXIT_NOT_READY = 3;
+const FAL_PUBLIC_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const FAL_USER_ID_PATTERN = /^[\x21-\x7e]{1,1024}$/;
 
 /**
  * Public provider-option keys a fixture may supply, per contract. Any other
@@ -126,6 +160,83 @@ async function loadRegistryProviders() {
     'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.');
 
   return [...providers];
+}
+
+/**
+ * Readiness is a prerequisite outcome, not a test pass. A 19/20/22-provider
+ * registry, a reordered tail, or a missing reviewed fixture exits BLOCKED 3
+ * before any temp allocation, bundling or workerd dispatch.
+ */
+function decideRegistryReadiness(providers) {
+  if (providers.length !== TARGET_PROVIDERS) {
+    return {
+      ready: false,
+      reason: `Built registry has ${providers.length} providers; the reviewed Phase 9 target is ${TARGET_PROVIDERS}.`,
+    };
+  }
+
+  for (const [index, expected] of EXPECTED_PROVIDER_ORDER.entries()) {
+    if (providers[index] !== expected) {
+      return {
+        ready: false,
+        reason: `Built registry provider ${index} is ${JSON.stringify(providers[index])}; expected ${JSON.stringify(expected)}.`,
+      };
+    }
+  }
+
+  return { ready: true, reason: '' };
+}
+
+function isCallable(value) {
+  return jsonKind(value) === 'Function';
+}
+
+/**
+ * Built API gate: the real dist modules must accept both new provider credential
+ * arms before this harness creates a temp directory or starts workerd. A missing
+ * export or an unregistered provider is an integration prerequisite, so it is
+ * reported as BLOCKED 3 rather than a runtime failure.
+ */
+async function inspectBuiltApiReadiness() {
+  try {
+    const api = await import(pathToFileURL(join(root, 'dist', 'index.js')).href);
+    const diagnostics = await import(pathToFileURL(join(root, 'dist', 'diagnostics', 'index.js')).href);
+
+    for (const name of ['verify', 'createVerifier', 'verifyRequest']) {
+      if (!isCallable(api[name])) return { ready: false, reason: `Built public API is missing callable ${name}.` };
+    }
+
+    if (!isCallable(diagnostics.diagnose)) {
+      return { ready: false, reason: 'Built diagnostics API is missing callable diagnose.' };
+    }
+
+    const vercelVerifier = api.createVerifier({ provider: 'vercel', secrets: ['synthetic-vercel-secret'] });
+
+    const falVerifier = api.createVerifier({
+      provider: 'fal',
+      publicKeys: [new Uint8Array(rawEd25519PublicKey(generateKeyPairSync('ed25519').publicKey))],
+      expectedUserId: 'user_synthetic_runtime',
+    });
+
+    if (!isCallable(vercelVerifier) || !isCallable(falVerifier)) {
+      return { ready: false, reason: 'Built createVerifier did not return callable verifiers for vercel/fal.' };
+    }
+
+    return { ready: true, reason: '' };
+  } catch (error) {
+    return {
+      ready: false,
+      reason: `Built API rejected the reviewed vercel/fal credential arms: ${error instanceof Error ? error.message : String(error)}.`,
+    };
+  }
+}
+
+function requireNewFixtures() {
+  const missing = NEW_PROVIDERS.filter((provider) => !existsSync(resolve(root, 'tests/fixtures', `${provider}.json`)));
+
+  return missing.length === 0
+    ? { ready: true, reason: '' }
+    : { ready: false, reason: `Reviewed fixtures are missing: ${missing.map((provider) => `tests/fixtures/${provider}.json`).join(', ')}.` };
 }
 
 async function fixtureFile(provider) {
@@ -233,6 +344,36 @@ function validateProviderOptions(provider, value, label) {
   }
 }
 
+/** Strict boundary decoder for the fixture-only canonical unpadded Base64url form. */
+function decodeCanonicalFalKey(value, label) {
+  const encoded = requireKind(value, 'String', label);
+
+  assert(FAL_PUBLIC_KEY_PATTERN.test(encoded), `${label} must be exactly 43 unpadded Base64url characters.`);
+
+  const decoded = Buffer.from(encoded, 'base64url');
+
+  assert.equal(decoded.length, 32, `${label} must encode exactly 32 visible bytes.`);
+  assert.equal(decoded.toString('base64url'), encoded,
+    `${label} is not canonical Base64url (padding, whitespace, or noncanonical unused bits).`);
+
+  return [...decoded];
+}
+
+function requireFalUserId(value, label) {
+  const id = requireKind(value, 'String', label);
+
+  assert(FAL_USER_ID_PATTERN.test(id) && !id.includes(','),
+    `${label} must be 1-1024 visible ASCII characters excluding comma.`);
+
+  return id;
+}
+
+function requireMaxBodyBytes(value, label) {
+  if (value === undefined) return;
+
+  assert(Number.isSafeInteger(value) && value > 0, `${label} must be a positive safe integer.`);
+}
+
 /** Validate fixture request/options data before it reaches any SDK call. */
 function validateFixtureCase(provider, fixture, label) {
   requireNonemptyString(fixture.id, `${label}: fixture id`);
@@ -261,14 +402,29 @@ function validateFixtureCase(provider, fixture, label) {
 
   assert(isPlainRecord(options), `${label}: options must be an object.`);
 
+  const allowedKeys = provider === 'fal'
+    ? ['publicKeysBase64url', 'expectedUserId', 'now', 'toleranceSeconds', 'maxBodyBytes']
+    : ['secrets', 'now', 'toleranceSeconds', 'maxBodyBytes', 'providerOptions'];
+
   for (const key of Object.keys(options)) {
-    assert(['secrets', 'now', 'toleranceSeconds', 'providerOptions'].includes(key),
-      `${label}: unexpected options key ${JSON.stringify(key)}.`);
+    assert(allowedKeys.includes(key), `${label}: unexpected options key ${JSON.stringify(key)}.`);
   }
 
-  assert(Array.isArray(options.secrets) && options.secrets.length > 0, `${label}: options.secrets must be a nonempty array.`);
+  if (provider === 'fal') {
+    assert(Array.isArray(options.publicKeysBase64url) && options.publicKeysBase64url.length >= 1
+      && options.publicKeysBase64url.length <= 16,
+    `${label}: options.publicKeysBase64url must contain 1-16 encoded trusted keys.`);
 
-  for (const secret of options.secrets) requireKind(secret, 'String', `${label}: each secret`);
+    for (const [index, encoded] of options.publicKeysBase64url.entries()) {
+      decodeCanonicalFalKey(encoded, `${label}: options.publicKeysBase64url[${index}]`);
+    }
+
+    requireFalUserId(options.expectedUserId, `${label}: options.expectedUserId`);
+  } else {
+    assert(Array.isArray(options.secrets) && options.secrets.length > 0, `${label}: options.secrets must be a nonempty array.`);
+
+    for (const secret of options.secrets) requireKind(secret, 'String', `${label}: each secret`);
+  }
 
   // Existing corpora deliberately use fractional seconds to model sub-second
   // freshness drift, so the boundary check stays at "fixed nonnegative epoch".
@@ -281,7 +437,9 @@ function validateFixtureCase(provider, fixture, label) {
       `${label}: options.toleranceSeconds must be a nonnegative safe integer.`);
   }
 
-  validateProviderOptions(provider, options.providerOptions, label);
+  requireMaxBodyBytes(options.maxBodyBytes, `${label}: options.maxBodyBytes`);
+
+  if (provider !== 'fal') validateProviderOptions(provider, options.providerOptions, label);
 
   assert(isPlainRecord(fixture.expected), `${label}: expected must be an object.`);
 
@@ -295,15 +453,28 @@ function validateFixtureCase(provider, fixture, label) {
 }
 
 /**
- * Explicit public options: exactly the fixture fields, with providerOption
- * forwarded only when the fixture declares it (an own undefined is invalid).
+ * Explicit public options: exactly the fixture fields, with the credential arm
+ * selected by provider. fal keys are decoded from the canonical fixture form to
+ * raw 32-byte arrays before they cross the Worker boundary; no secret field or
+ * permissive fallback is ever synthesized for fal.
  */
-function publicOptions(options) {
-  const built = { secrets: options.secrets, now: options.now };
+function publicOptions(provider, options) {
+  const built = provider === 'fal'
+    ? {
+      publicKeys: options.publicKeysBase64url.map((encoded) => decodeCanonicalFalKey(
+        encoded,
+        `fal fixture key ${JSON.stringify(encoded)}`,
+      )),
+      expectedUserId: options.expectedUserId,
+      now: options.now,
+    }
+    : { secrets: options.secrets, now: options.now };
 
   if (options.toleranceSeconds !== undefined) built.toleranceSeconds = options.toleranceSeconds;
 
-  if (options.providerOptions !== undefined) built.providerOptions = options.providerOptions;
+  if (options.maxBodyBytes !== undefined) built.maxBodyBytes = options.maxBodyBytes;
+
+  if (provider !== 'fal' && options.providerOptions !== undefined) built.providerOptions = options.providerOptions;
 
   return built;
 }
@@ -358,7 +529,7 @@ function fixtureRuntimeCases(provider, file) {
       provider,
       headers: fixture.request.headers,
       bodyBase64: fixture.request.bodyBase64,
-      options: publicOptions(fixture.options),
+      options: publicOptions(provider, fixture.options),
       expected: expected.ok
         ? { ok: true, identity: resolveFixtureIdentity(provider, fixture) }
         : { ok: false, reason: expected.reason },
@@ -372,7 +543,7 @@ function fixtureRuntimeCases(provider, file) {
     provider,
     headers: positive.request.headers,
     bodyBase64: tamperedBody(positive.request.bodyBase64),
-    options: publicOptions(positive.options),
+    options: publicOptions(provider, positive.options),
     expected: { ok: false, reason: 'invalid-signature' },
   });
 
@@ -422,7 +593,257 @@ function binarySupplementCases(provider) {
   ];
 }
 
+const FAL_TIMESTAMP = 1700000600;
+
+function rawEd25519PublicKey(publicKey) {
+  const jwk = publicKey.export({ format: 'jwk' });
+
+  assert.equal(jwk.kty, 'OKP', 'Synthetic Ed25519 key must export as an OKP JWK.');
+  assert.equal(jwk.crv, 'Ed25519', 'Synthetic Ed25519 key must export curve Ed25519.');
+  requireKind(jwk.x, 'String', 'Synthetic Ed25519 public JWK x');
+
+  const bytes = Buffer.from(jwk.x, 'base64url');
+
+  assert.equal(bytes.length, 32, 'Synthetic Ed25519 public key must be 32 bytes.');
+
+  return [...bytes];
+}
+
+function falSignature(privateKey, requestId, userId, timestamp, body) {
+  const digest = createHash('sha256').update(body).digest('hex');
+  const signed = Buffer.from(`${requestId}\n${userId}\n${timestamp}\n${digest}`, 'utf8');
+
+  return sign(null, signed, privateKey).toString('hex');
+}
+
+function falHeaders(requestId, userId, timestamp, signature) {
+  return {
+    'x-fal-webhook-request-id': requestId,
+    'x-fal-webhook-user-id': userId,
+    'x-fal-webhook-timestamp': String(timestamp),
+    'x-fal-webhook-signature': signature,
+  };
+}
+
+function falSupplementCases() {
+  const active = generateKeyPairSync('ed25519');
+  const retiring = generateKeyPairSync('ed25519');
+  const wrong = generateKeyPairSync('ed25519');
+  const activeKey = rawEd25519PublicKey(active.publicKey);
+  const retiringKey = rawEd25519PublicKey(retiring.publicKey);
+  const requestId = 'req_runtime_synthetic_fal_01';
+  const userId = 'user_runtime_synthetic_fal_01';
+
+  const body = Buffer.from(JSON.stringify({
+    request_id: 'unsigned_body_claim_not_identity',
+    user_id: 'unsigned_body_claim_not_identity',
+    createdAt: 1234567890,
+    synthetic: true,
+  }));
+
+  const bodyBase64 = body.toString('base64');
+  const signature = falSignature(active.privateKey, requestId, userId, FAL_TIMESTAMP, body);
+  const validHeaders = falHeaders(requestId, userId, FAL_TIMESTAMP, signature);
+
+  const identity = {
+    deliveryId: null,
+    eventId: null,
+    timestamp: FAL_TIMESTAMP,
+    authenticatedFields: ['timestamp'],
+  };
+
+  return [
+    {
+      id: 'fal: request account and inclusive past freshness boundary',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP + 300 },
+      expected: { ok: true, identity },
+    },
+    {
+      id: 'fal: inclusive future freshness boundary',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP - 300 },
+      expected: { ok: true, identity },
+    },
+    {
+      id: 'fal: authentic wrong recipient is invalid-signature',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: 'user_runtime_synthetic_other', now: FAL_TIMESTAMP },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'fal: authentic account mismatch still wins over stale timestamp',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: {
+        publicKeys: [activeKey],
+        expectedUserId: 'user_runtime_synthetic_other',
+        now: FAL_TIMESTAMP + 301,
+      },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'fal: one second past freshness is expired',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP + 301 },
+      expected: { ok: false, reason: 'timestamp-expired' },
+    },
+    {
+      id: 'fal: one second before future window is future',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP - 301 },
+      expected: { ok: false, reason: 'timestamp-future' },
+    },
+    {
+      id: 'fal: wrong signature wins over stale timestamp',
+      provider: 'fal',
+      headers: falHeaders(requestId, userId, FAL_TIMESTAMP,
+        falSignature(wrong.privateKey, requestId, userId, FAL_TIMESTAMP, body)),
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP + 301 },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'fal: rotation accepts retiring key in 1..16 accept set',
+      provider: 'fal',
+      headers: falHeaders(requestId, userId, FAL_TIMESTAMP,
+        falSignature(retiring.privateKey, requestId, userId, FAL_TIMESTAMP, body)),
+      bodyBase64,
+      options: { publicKeys: [activeKey, retiringKey], expectedUserId: userId, now: FAL_TIMESTAMP },
+      expected: { ok: true, identity },
+    },
+    {
+      id: 'fal: removed retiring key is rejected',
+      provider: 'fal',
+      headers: falHeaders(requestId, userId, FAL_TIMESTAMP,
+        falSignature(retiring.privateKey, requestId, userId, FAL_TIMESTAMP, body)),
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'fal: wrong static key is rejected',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64,
+      options: { publicKeys: [retiringKey], expectedUserId: userId, now: FAL_TIMESTAMP },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'fal: uppercase signature hex is accepted',
+      provider: 'fal',
+      headers: falHeaders(requestId, userId, FAL_TIMESTAMP, signature.toUpperCase()),
+      bodyBase64,
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP },
+      expected: { ok: true, identity },
+    },
+    {
+      id: 'fal: tampered body is rejected',
+      provider: 'fal',
+      headers: validHeaders,
+      bodyBase64: tamperedBody(bodyBase64),
+      options: { publicKeys: [activeKey], expectedUserId: userId, now: FAL_TIMESTAMP },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+  ];
+}
+
+function vercelSupplementCases() {
+  const activeSecret = 'runtime_active_synthetic_vercel_secret';
+  const retiringSecret = 'runtime_retiring_synthetic_vercel_secret';
+  const wrongSecret = 'runtime_wrong_synthetic_vercel_secret';
+  const body = Buffer.from('{"synthetic":"vercel-runtime"}');
+  const bodyBase64 = body.toString('base64');
+  const signature = createHmac('sha1', activeSecret).update(body).digest('hex');
+  const retiringSignature = createHmac('sha1', retiringSecret).update(body).digest('hex');
+  const etag = { 'x-vercel-signature': signature };
+  const noIdentity = { deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [] };
+
+  return [
+    {
+      id: 'vercel: literal HMAC-SHA1 signs exact body with no freshness inference',
+      provider: 'vercel',
+      headers: etag,
+      bodyBase64,
+      options: { secrets: [activeSecret], now: 1 },
+      expected: { ok: true, identity: noIdentity },
+    },
+    {
+      id: 'vercel: rotation accepts retiring secret',
+      provider: 'vercel',
+      headers: { 'x-vercel-signature': retiringSignature },
+      bodyBase64,
+      options: { secrets: [activeSecret, retiringSecret], now: 1 },
+      expected: { ok: true, identity: noIdentity },
+    },
+    {
+      id: 'vercel: removed retiring secret is rejected',
+      provider: 'vercel',
+      headers: { 'x-vercel-signature': retiringSignature },
+      bodyBase64,
+      options: { secrets: [activeSecret], now: 1 },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'vercel: wrong secret is rejected',
+      provider: 'vercel',
+      headers: { 'x-vercel-signature': createHmac('sha1', wrongSecret).update(body).digest('hex') },
+      bodyBase64,
+      options: { secrets: [activeSecret], now: 1 },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+    {
+      id: 'vercel: uppercase signature hex is accepted',
+      provider: 'vercel',
+      headers: { 'x-vercel-signature': signature.toUpperCase() },
+      bodyBase64,
+      options: { secrets: [activeSecret], now: 1 },
+      expected: { ok: true, identity: noIdentity },
+    },
+    {
+      id: 'vercel: tampered body is rejected',
+      provider: 'vercel',
+      headers: etag,
+      bodyBase64: tamperedBody(bodyBase64),
+      options: { secrets: [activeSecret], now: 1 },
+      expected: { ok: false, reason: 'invalid-signature' },
+    },
+  ];
+}
+
 const requiredProviders = await loadRegistryProviders();
+const registryReadiness = decideRegistryReadiness(requiredProviders);
+
+if (!registryReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${registryReadiness.reason} No fixture replay, bundling, temp allocation or workerd dispatch was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
+const fixtureReadiness = requireNewFixtures();
+
+if (!fixtureReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${fixtureReadiness.reason} No fixture replay, bundling, temp allocation or workerd dispatch was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
+const apiReadiness = await inspectBuiltApiReadiness();
+
+if (!apiReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${apiReadiness.reason} No fixture replay, bundling, temp allocation or workerd dispatch was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
 const fixtures = new Map();
 
 for (const provider of requiredProviders) fixtures.set(provider, await fixtureFile(provider));
@@ -436,6 +857,10 @@ for (const provider of requiredProviders) {
     for (const entry of binarySupplementCases(provider)) pushCase(entry);
   }
 }
+
+for (const entry of falSupplementCases()) pushCase(entry);
+
+for (const entry of vercelSupplementCases()) pushCase(entry);
 
 /**
  * Configured corpora must keep their reviewed layouts/modes and the rows that
@@ -704,12 +1129,22 @@ const workerSource = `
 
       const options = {
         provider: testCase.provider,
-        secrets: testCase.options.secrets,
         now: () => testCase.options.now,
       };
 
+      if (testCase.provider === 'fal') {
+        options.publicKeys = testCase.options.publicKeys.map((bytes) => new Uint8Array(bytes));
+        options.expectedUserId = testCase.options.expectedUserId;
+      } else {
+        options.secrets = testCase.options.secrets;
+      }
+
       if (testCase.options.toleranceSeconds !== undefined) {
         options.toleranceSeconds = testCase.options.toleranceSeconds;
+      }
+
+      if (testCase.options.maxBodyBytes !== undefined) {
+        options.maxBodyBytes = testCase.options.maxBodyBytes;
       }
 
       // Forward the fixture's providerOptions verbatim; omitting the field is

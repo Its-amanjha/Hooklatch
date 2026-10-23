@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { generateKeyPairSync } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -26,6 +27,35 @@ const { SUPPORTED_PROVIDERS } = await import(pathToFileURL(registryPath).href);
 
 assert(Array.isArray(SUPPORTED_PROVIDERS) && SUPPORTED_PROVIDERS.length > 0,
   'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.');
+
+const EXPECTED_PROVIDER_ORDER = [
+  'stripe',
+  'github',
+  'shopify',
+  'standard-webhooks',
+  'clerk',
+  'svix',
+  'razorpay',
+  'paddle',
+  'lemon-squeezy',
+  'dodo-payments',
+  'gitlab',
+  'replicate',
+  'workos',
+  'sentry',
+  'doppler',
+  'sanity',
+  'grafana',
+  'polar',
+  'linear',
+  'vercel',
+  'fal',
+];
+
+const TARGET_PROVIDERS = EXPECTED_PROVIDER_ORDER.length;
+const NEW_PROVIDERS = ['vercel', 'fal'];
+const EXIT_NOT_READY = 3;
+const FAL_PUBLIC_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 /**
  * Explicit header names for the legacy `unsigned-or-null` identity sentinel.
@@ -74,6 +104,162 @@ function isPlainRecord(value) {
 function requireHeaderName(value, label) {
   requireKind(value, 'String', label);
   assert(FIELD_NAME_TOKEN.test(value), `${label} is not an RFC9110 field-name token: ${JSON.stringify(value)}.`);
+}
+
+function isCallable(value) {
+  return jsonKind(value) === 'Function';
+}
+
+function syntheticFalPublicKey() {
+  const jwk = generateKeyPairSync('ed25519').publicKey.export({ format: 'jwk' });
+
+  assert.equal(jwk.kty, 'OKP');
+  assert.equal(jwk.crv, 'Ed25519');
+  requireKind(jwk.x, 'String', 'Synthetic Ed25519 public JWK x');
+
+  const bytes = Buffer.from(jwk.x, 'base64url');
+
+  assert.equal(bytes.length, 32, 'Synthetic Ed25519 public key must be 32 bytes.');
+
+  return new Uint8Array(bytes);
+}
+
+/** Strict fixture-only decoder; the installed API receives raw 32-byte keys. */
+function decodeCanonicalFalKey(value, label) {
+  const encoded = requireKind(value, 'String', label);
+
+  assert(FAL_PUBLIC_KEY_PATTERN.test(encoded), `${label} must be exactly 43 unpadded Base64url characters.`);
+
+  const decoded = Buffer.from(encoded, 'base64url');
+
+  assert.equal(decoded.length, 32, `${label} must encode exactly 32 visible bytes.`);
+  assert.equal(decoded.toString('base64url'), encoded,
+    `${label} is not canonical Base64url (padding, whitespace, or noncanonical unused bits).`);
+
+  return [...decoded];
+}
+
+function requireFalUserId(value, label) {
+  const id = requireKind(value, 'String', label);
+
+  assert(/^[\x21-\x7e]{1,1024}$/.test(id) && !id.includes(','),
+    `${label} must be 1-1024 visible ASCII characters excluding comma.`);
+
+  return id;
+}
+
+function decideRegistryReadiness(providers) {
+  if (providers.length !== TARGET_PROVIDERS) {
+    return {
+      ready: false,
+      reason: `Built registry has ${providers.length} providers; the reviewed Phase 9 target is ${TARGET_PROVIDERS}.`,
+    };
+  }
+
+  for (const [index, expected] of EXPECTED_PROVIDER_ORDER.entries()) {
+    if (providers[index] !== expected) {
+      return {
+        ready: false,
+        reason: `Built registry provider ${index} is ${JSON.stringify(providers[index])}; expected ${JSON.stringify(expected)}.`,
+      };
+    }
+  }
+
+  return { ready: true, reason: '' };
+}
+
+function requireNewFixtures() {
+  const missing = NEW_PROVIDERS.filter((provider) => !existsSync(join(root, 'tests', 'fixtures', `${provider}.json`)));
+
+  return missing.length === 0
+    ? { ready: true, reason: '' }
+    : { ready: false, reason: `Reviewed fixtures are missing: ${missing.map((provider) => `tests/fixtures/${provider}.json`).join(', ')}.` };
+}
+
+async function inspectBuiltApiReadiness() {
+  try {
+    const api = await import(pathToFileURL(join(root, 'dist', 'index.js')).href);
+    const diagnostics = await import(pathToFileURL(join(root, 'dist', 'diagnostics', 'index.js')).href);
+
+    for (const name of ['verify', 'createVerifier', 'verifyRequest']) {
+      if (!isCallable(api[name])) return { ready: false, reason: `Built public API is missing callable ${name}.` };
+    }
+
+    if (!isCallable(diagnostics.diagnose)) {
+      return { ready: false, reason: 'Built diagnostics API is missing callable diagnose.' };
+    }
+
+    const vercelVerifier = api.createVerifier({ provider: 'vercel', secrets: ['synthetic-vercel-secret'] });
+
+    const falVerifier = api.createVerifier({
+      provider: 'fal',
+      publicKeys: [syntheticFalPublicKey()],
+      expectedUserId: 'user_synthetic_package',
+    });
+
+    if (!isCallable(vercelVerifier) || !isCallable(falVerifier)) {
+      return { ready: false, reason: 'Built createVerifier did not return callable verifiers for vercel/fal.' };
+    }
+
+    return { ready: true, reason: '' };
+  } catch (error) {
+    return {
+      ready: false,
+      reason: `Built API rejected the reviewed vercel/fal credential arms: ${error instanceof Error ? error.message : String(error)}.`,
+    };
+  }
+}
+
+function inspectBuiltCliReadiness() {
+  const cli = join(root, 'dist', 'cli', 'index.js');
+
+  if (!existsSync(cli)) return { ready: false, reason: 'Built CLI is missing: dist/cli/index.js.' };
+
+  try {
+    const help = execFileSync(process.execPath, [cli, '--help'], {
+      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const missing = ['--secret-env', '--public-key-env', '--expected-user-env'].filter((flag) => !help.includes(flag));
+
+    return missing.length === 0
+      ? { ready: true, reason: '' }
+      : { ready: false, reason: `Built CLI help is missing credential flag(s): ${missing.join(', ')}.` };
+  } catch (error) {
+    return { ready: false, reason: `Built CLI help failed: ${error instanceof Error ? error.message : String(error)}.` };
+  }
+}
+
+/**
+ * All readiness gates run before pack/install/temp allocation. A 19-provider
+ * base is a prerequisite stop (exit 3), never a passing installed-package run.
+ */
+const registryReadiness = decideRegistryReadiness(SUPPORTED_PROVIDERS);
+
+if (!registryReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${registryReadiness.reason} No pack, install or temp allocation was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
+const fixtureReadiness = requireNewFixtures();
+
+if (!fixtureReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${fixtureReadiness.reason} No pack, install or temp allocation was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
+const apiReadiness = await inspectBuiltApiReadiness();
+
+if (!apiReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${apiReadiness.reason} No pack, install or temp allocation was performed.`);
+  process.exit(EXIT_NOT_READY);
+}
+
+const cliReadiness = inspectBuiltCliReadiness();
+
+if (!cliReadiness.ready) {
+  console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${cliReadiness.reason} No pack, install or temp allocation was performed.`);
+  process.exit(EXIT_NOT_READY);
 }
 
 function validateFixtureProviderOptions(provider, value, label) {
@@ -145,14 +331,29 @@ function validateFixtureCase(provider, fixture, label) {
 
   assert(isPlainRecord(options), `${label}: options must be an object.`);
 
+  const allowedKeys = provider === 'fal'
+    ? ['publicKeysBase64url', 'expectedUserId', 'now', 'toleranceSeconds', 'maxBodyBytes']
+    : ['secrets', 'now', 'toleranceSeconds', 'maxBodyBytes', 'providerOptions'];
+
   for (const key of Object.keys(options)) {
-    assert(['secrets', 'now', 'toleranceSeconds', 'providerOptions'].includes(key),
-      `${label}: unexpected options key ${JSON.stringify(key)}.`);
+    assert(allowedKeys.includes(key), `${label}: unexpected options key ${JSON.stringify(key)}.`);
   }
 
-  assert(Array.isArray(options.secrets) && options.secrets.length > 0, `${label}: options.secrets must be a nonempty array.`);
+  if (provider === 'fal') {
+    assert(Array.isArray(options.publicKeysBase64url) && options.publicKeysBase64url.length >= 1
+      && options.publicKeysBase64url.length <= 16,
+    `${label}: options.publicKeysBase64url must contain 1-16 encoded trusted keys.`);
 
-  for (const secret of options.secrets) requireKind(secret, 'String', `${label}: each secret`);
+    for (const [index, encoded] of options.publicKeysBase64url.entries()) {
+      decodeCanonicalFalKey(encoded, `${label}: options.publicKeysBase64url[${index}]`);
+    }
+
+    requireFalUserId(options.expectedUserId, `${label}: options.expectedUserId`);
+  } else {
+    assert(Array.isArray(options.secrets) && options.secrets.length > 0, `${label}: options.secrets must be a nonempty array.`);
+
+    for (const secret of options.secrets) requireKind(secret, 'String', `${label}: each secret`);
+  }
 
   // Fractional epoch seconds are legitimate existing freshness coverage.
   // Number.isFinite rejects non-number JSON kinds without a typeof branch.
@@ -164,7 +365,12 @@ function validateFixtureCase(provider, fixture, label) {
       `${label}: options.toleranceSeconds must be a nonnegative safe integer.`);
   }
 
-  validateFixtureProviderOptions(provider, options.providerOptions, label);
+  if (options.maxBodyBytes !== undefined) {
+    assert(Number.isSafeInteger(options.maxBodyBytes) && options.maxBodyBytes > 0,
+      `${label}: options.maxBodyBytes must be a positive safe integer.`);
+  }
+
+  if (provider !== 'fal') validateFixtureProviderOptions(provider, options.providerOptions, label);
 
   assert(isPlainRecord(fixture.expected), `${label}: expected must be an object.`);
 
@@ -207,6 +413,30 @@ async function pendingConfiguredFixtureProviders() {
   return pending;
 }
 
+/**
+ * Convert the fixture-only fal encoding into the raw Uint8Array[] shape the
+ * installed API actually accepts. This is the only place the installed-package
+ * harness decodes fal keys; no secret field is carried into the probe.
+ */
+function runtimeFixtureCase(provider, fixture) {
+  if (provider !== 'fal') return fixture;
+
+  const options = {
+    publicKeys: fixture.options.publicKeysBase64url.map((encoded, index) => decodeCanonicalFalKey(
+      encoded,
+      `${provider} fixture ${fixture.id}: options.publicKeysBase64url[${index}]`,
+    )),
+    expectedUserId: fixture.options.expectedUserId,
+    now: fixture.options.now,
+  };
+
+  if (fixture.options.toleranceSeconds !== undefined) options.toleranceSeconds = fixture.options.toleranceSeconds;
+
+  if (fixture.options.maxBodyBytes !== undefined) options.maxBodyBytes = fixture.options.maxBodyBytes;
+
+  return { ...fixture, options };
+}
+
 const providerFixtures = [];
 
 for (const provider of SUPPORTED_PROVIDERS) {
@@ -225,7 +455,7 @@ for (const provider of SUPPORTED_PROVIDERS) {
 
   for (const fixture of cases) validateFixtureCase(provider, fixture, `${provider} fixture ${fixture.id}`);
 
-  providerFixtures.push({ provider, cases });
+  providerFixtures.push({ provider, cases: cases.map((fixture) => runtimeFixtureCase(provider, fixture)) });
 }
 
 const pendingConfigured = await pendingConfiguredFixtureProviders();
@@ -241,16 +471,24 @@ function normalizePackagePath(path) {
 }
 
 function declaredEntrypoints(packageManifest) {
-  const paths = new Set([packageManifest.main, packageManifest.types]);
+  const paths = new Set([
+    requireKind(packageManifest.main, 'String', 'package.main'),
+    requireKind(packageManifest.types, 'String', 'package.types'),
+  ]);
 
-  for (const target of Object.values(packageManifest.exports ?? {})) {
-    paths.add(target.types);
-    paths.add(target.import);
+  assert(isPlainRecord(packageManifest.exports), 'package.exports must be a record of conditional export targets.');
+
+  for (const [name, target] of Object.entries(packageManifest.exports)) {
+    assert(isPlainRecord(target), `package.exports[${JSON.stringify(name)}] must be a conditional target record.`);
+    paths.add(requireKind(target.types, 'String', `package.exports[${JSON.stringify(name)}].types`));
+    paths.add(requireKind(target.import, 'String', `package.exports[${JSON.stringify(name)}].import`));
   }
 
-  for (const target of Object.values(packageManifest.bin ?? {})) paths.add(target);
+  assert(isPlainRecord(packageManifest.bin), 'package.bin must be a record.');
 
-  paths.delete(undefined);
+  for (const [name, target] of Object.entries(packageManifest.bin)) {
+    paths.add(requireKind(target, 'String', `package.bin[${JSON.stringify(name)}]`));
+  }
 
   return [...paths].map(normalizePackagePath).sort();
 }
@@ -364,13 +602,21 @@ try {
     );
 
     // Explicit public options: never spread the fixture record, so a new option
-    // key cannot leak through unnoticed, and providerOptions is forwarded only
-    // when the fixture declares it (an own undefined is invalid publicly).
+    // key cannot leak through unnoticed. fal receives decoded raw keys and its
+    // required account field; no secret field is ever synthesized.
     const buildOptions = (provider, options) => {
-      const built = { provider, secrets: options.secrets, now: () => options.now };
+      const built = provider === 'fal'
+        ? {
+          provider,
+          publicKeys: options.publicKeys.map((bytes) => new Uint8Array(bytes)),
+          expectedUserId: options.expectedUserId,
+          now: () => options.now,
+        }
+        : { provider, secrets: options.secrets, now: () => options.now };
 
       if (options.toleranceSeconds !== undefined) built.toleranceSeconds = options.toleranceSeconds;
-      if (options.providerOptions !== undefined) built.providerOptions = options.providerOptions;
+      if (options.maxBodyBytes !== undefined) built.maxBodyBytes = options.maxBodyBytes;
+      if (provider !== 'fal' && options.providerOptions !== undefined) built.providerOptions = options.providerOptions;
 
       return built;
     };
@@ -439,6 +685,15 @@ try {
         }), options), true);
 
         if (fixture.expected.ok) {
+          const backing = new Uint8Array(rawBody.length + 2);
+
+          backing.set(rawBody, 2);
+
+          const offsetBody = backing.subarray(2, 2 + rawBody.length);
+          const offsetResult = await verify({ rawBody: offsetBody, headers }, options);
+
+          assertResult(offsetResult, false);
+
           const changed = new Uint8Array(rawBody.length + 1);
           changed.set(rawBody);
           changed[rawBody.length] = 33;
@@ -486,6 +741,31 @@ try {
       }
     }
 
+    const falKey = new Uint8Array(${JSON.stringify([...syntheticFalPublicKey()])});
+    const falBase = { provider: 'fal', publicKeys: [falKey], expectedUserId: 'user_synthetic_setup' };
+
+    const rejectInvalidSetup = async (label, options) => {
+      await assert.rejects(
+        async () => verify({ rawBody: new Uint8Array(0), headers: {} }, options),
+        { code: 'invalid-options' },
+        'Installed API accepted invalid setup: ' + label + '.',
+      );
+    };
+
+    await rejectInvalidSetup('fal secrets', { ...falBase, secrets: ['synthetic'] });
+    await rejectInvalidSetup('fal missing expectedUserId', { provider: 'fal', publicKeys: [falKey] });
+    await rejectInvalidSetup('fal empty publicKeys', { provider: 'fal', publicKeys: [], expectedUserId: 'user_synthetic_setup' });
+    await rejectInvalidSetup('fal 17 publicKeys', {
+      provider: 'fal', publicKeys: Array.from({ length: 17 }, () => falKey), expectedUserId: 'user_synthetic_setup',
+    });
+    await rejectInvalidSetup('fal 31-byte key', { provider: 'fal', publicKeys: [new Uint8Array(31)], expectedUserId: 'user_synthetic_setup' });
+    await rejectInvalidSetup('fal string key', { provider: 'fal', publicKeys: ['not-bytes'], expectedUserId: 'user_synthetic_setup' });
+    await rejectInvalidSetup('vercel publicKeys', { provider: 'vercel', secrets: ['synthetic'], publicKeys: [falKey] });
+    await rejectInvalidSetup('vercel expectedUserId', { provider: 'vercel', secrets: ['synthetic'], expectedUserId: 'user_synthetic_setup' });
+    await rejectInvalidSetup('vercel providerOptions', {
+      provider: 'vercel', secrets: ['synthetic'], providerOptions: { mode: 'body' },
+    });
+
     for (const name of ['express', 'hono']) {
       await assert.rejects(import(name), { code: 'ERR_MODULE_NOT_FOUND' });
     }
@@ -506,7 +786,23 @@ try {
   const installedBin = join(tempRoot, 'node_modules', '.bin', process.platform === 'win32' ? 'hooklatch.cmd' : 'hooklatch');
   assert(existsSync(installedBin), 'Installed CLI bin shim is missing.');
   const invoke = (args) => execFileSync(process.execPath, [cli, ...args], { cwd: tempRoot, encoding: 'utf8' });
-  assert(invoke(['--help']).includes('Usage: hooklatch'));
+
+  const invokeResult = (args) => {
+    try {
+      return { status: 0, stdout: invoke(args), stderr: '' };
+    } catch (error) {
+      return {
+        status: error.status,
+        stdout: String(error.stdout ?? ''),
+        stderr: String(error.stderr ?? ''),
+      };
+    }
+  };
+
+  const help = invoke(['--help']);
+  assert(help.includes('Usage: hooklatch'));
+  assert(help.includes('--public-key-env'));
+  assert(help.includes('--expected-user-env'));
   assert(invoke(['init', 'webhook', '--help']).includes('--dry-run'));
   const preview = invoke(['init', 'webhook', '--provider', 'standard-webhooks', '--framework', 'express', '--out', 'preview', '--dry-run']);
   assert(preview.includes('standard_webhooksExpressWebhook'));
@@ -523,6 +819,7 @@ try {
     ['sentry', 'SENTRY_WEBHOOK_SECRET'],
     ['doppler', 'DOPPLER_WEBHOOK_SECRET'],
     ['sanity', 'SANITY_WEBHOOK_SECRET'],
+    ['vercel', 'VERCEL_WEBHOOK_SECRET'],
   ]) {
     const output = `preview-${provider}`;
     const content = invoke(['init', 'webhook', '--provider', provider, '--framework', 'express', '--out', output, '--dry-run']);
@@ -531,7 +828,99 @@ try {
     assert.equal(existsSync(join(tempRoot, output)), false);
   }
 
-  console.log('PASS: installed diagnostics and CLI help/dry-run work without optional frameworks.');
+  const falOutput = 'preview-fal';
+  const falPreview = invoke(['init', 'webhook', '--provider', 'fal', '--framework', 'express', '--out', falOutput, '--dry-run']);
+  assert(falPreview.includes("provider: 'fal'"));
+  assert(/\bpublicKeys\b/.test(falPreview));
+  assert(/\bexpectedUserId\b/.test(falPreview));
+  assert(falPreview.includes('process.env.FAL_WEBHOOK_PUBLIC_KEYS'));
+  assert(falPreview.includes('process.env.FAL_WEBHOOK_USER_ID'));
+  assert(!/\b(?:process\.env|env)\.FAL_WEBHOOK_SECRET\b/.test(falPreview));
+  assert(!/\bsecrets?\s*:/.test(falPreview));
+  assert.equal(existsSync(join(tempRoot, falOutput)), false);
+
+  const falCustomOutput = 'preview-fal-custom';
+
+  const falCustom = invoke([
+    'init', 'webhook', '--provider', 'fal', '--framework', 'express', '--out', falCustomOutput,
+    '--public-key-env', 'CUSTOM_FAL_PUBLIC_KEYS', '--expected-user-env', 'CUSTOM_FAL_USER_ID', '--dry-run',
+  ]);
+
+  assert(falCustom.includes('process.env.CUSTOM_FAL_PUBLIC_KEYS'));
+  assert(falCustom.includes('process.env.CUSTOM_FAL_USER_ID'));
+  assert(!falCustom.includes('FAL_WEBHOOK_PUBLIC_KEYS'));
+  assert(!falCustom.includes('FAL_WEBHOOK_USER_ID'));
+  assert.equal(existsSync(join(tempRoot, falCustomOutput)), false);
+
+  const forbiddenSecret = invokeResult([
+    'init', 'webhook', '--provider', 'fal', '--framework', 'express', '--out', 'preview-fal-forbidden',
+    '--secret-env', 'FAL_WEBHOOK_SECRET', '--dry-run',
+  ]);
+
+  assert.equal(forbiddenSecret.status, 2, 'fal --secret-env must be rejected with exit 2.');
+  assert.equal(existsSync(join(tempRoot, 'preview-fal-forbidden')), false);
+
+  const wrongArm = invokeResult([
+    'init', 'webhook', '--provider', 'vercel', '--framework', 'express', '--out', 'preview-vercel-wrong-arm',
+    '--public-key-env', 'CUSTOM_FAL_PUBLIC_KEYS', '--dry-run',
+  ]);
+
+  assert.equal(wrongArm.status, 2, 'HMAC provider --public-key-env must be rejected with exit 2.');
+  assert.equal(existsSync(join(tempRoot, 'preview-vercel-wrong-arm')), false);
+
+  // The packed declarations must expose the exact 21-provider union and reject
+  // mixing the HMAC and asymmetric credential arms. This compiles against the
+  // installed node_modules tree, not the workspace sources.
+  const tsc = join(root, 'node_modules', 'typescript', 'bin', 'tsc');
+  assert(existsSync(tsc), 'TypeScript compiler is missing; run npm install in the workspace.');
+  const typeProbe = join(tempRoot, 'installed-types-probe.ts');
+  await writeFile(typeProbe, `
+import {
+  createVerifier,
+  verify,
+  verifyRequest,
+  HooklatchError,
+  type Provider,
+  type VerifyOptions,
+} from 'hooklatch';
+import { diagnose } from 'hooklatch/diagnostics';
+
+const providers: readonly Provider[] = [
+  'stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix',
+  'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab',
+  'replicate', 'workos', 'sentry', 'doppler', 'sanity', 'grafana',
+  'polar', 'linear', 'vercel', 'fal',
+];
+
+const hmac: VerifyOptions = { provider: 'vercel', secrets: ['synthetic-vercel-secret'] };
+const asymmetric: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)], expectedUserId: 'user_synthetic' };
+
+// @ts-expect-error fal must not carry shared HMAC secrets
+const badFalSecrets: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)], expectedUserId: 'user_synthetic', secrets: ['synthetic'] };
+// @ts-expect-error fal requires expectedUserId
+const badFalMissingUser: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)] };
+// @ts-expect-error vercel must not carry public keys
+const badVercelKeys: VerifyOptions = { provider: 'vercel', secrets: ['synthetic'], publicKeys: [new Uint8Array(32)] };
+
+void providers;
+void hmac;
+void asymmetric;
+void badFalSecrets;
+void badFalMissingUser;
+void badVercelKeys;
+void createVerifier(hmac);
+void createVerifier(asymmetric);
+void verify;
+void verifyRequest;
+void HooklatchError;
+void diagnose;
+`);
+  execFileSync(process.execPath, [
+    tsc, '--noEmit', '--strict', '--target', 'ES2022', '--module', 'ESNext',
+    '--moduleResolution', 'Bundler', '--lib', 'ES2022,DOM', '--skipLibCheck', typeProbe,
+  ], { cwd: tempRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
+  console.log('PASS: installed diagnostics, CLI credential arms and packed public types work without optional frameworks.');
 } finally {
   const checked = resolve(tempRoot);
   assert(checked.startsWith(resolve(tmpdir()) + sep) && checked !== resolve(tmpdir()));

@@ -1,6 +1,6 @@
 /**
- * Phase 7 configured generated-handler qualification, extended for the Phase 8
- * Stage A 19-provider target.
+ * Phase 7 configured generated-handler qualification, extended for the Phase 9
+ * Stage B 21-provider target.
  *
  *   node scripts/phase7-cli-config-smoke.mjs            # normal run
  *   node scripts/phase7-cli-config-smoke.mjs --self-test # harness controls only
@@ -9,25 +9,27 @@
  * Run AFTER `npm run build`.
  *
  * WHAT THIS PROVES
- *   When the coordinator has integrated the 19-provider registry, Linear accepts
+ *   When the coordinator has integrated the 21-provider registry, Vercel uses the
+ *   scoped HMAC arm, fal uses raw public keys plus expectedUserId, Linear accepts
  *   no providerOptions, and the existing configuration CLI flags still work, this
  *   script packs the local tarball, installs it offline into a checked OS-temp
  *   consumer, and drives the INSTALLED bin to generate every primary
- *   provider/framework combination plus the configured Grafana and Polar variants.
- *   Each generated file is checked structurally (comment-stripped providerOptions,
- *   never bare value substrings) for its exact location, byte determinism across
- *   two runs, forwarded provider options, secret-env placeholders and body limit,
- *   and is then compiled by an independent strict NodeNext program against the
- *   installed exports and the pinned peer trees. The tracked checkout bytes are
- *   snapshotted before and after to prove the run did not mutate the repository.
+ *   provider/framework combination (84) plus the configured Grafana and Polar
+ *   variants (12). Each generated file is checked structurally
+ *   (comment-stripped providerOptions, never bare value substrings) for its exact
+ *   location, byte determinism across two runs, forwarded provider options,
+ *   credential-arm placeholders and body limit, and is then compiled by an
+ *   independent strict NodeNext program against the installed exports and the
+ *   pinned peer trees. The tracked checkout bytes are snapshotted before and
+ *   after to prove the run did not mutate the repository.
  *
  * WHAT THIS DOES NOT PROVE
- *   At the accepted 18-provider base the readiness gate exits 3 (BLOCKED) BEFORE
+ *   At the accepted 19-provider base the readiness gate exits 3 (BLOCKED) BEFORE
  *   any temp allocation, install, generation, or self-test control work. The
  *   `--self-test` controls prove only that this harness can detect its own failure
  *   modes and that the shared helpers work against real generated artifacts. They
- *   are NOT evidence of SDK support for Linear, Grafana or Polar. Nothing here
- *   claims provider, runtime or platform support.
+ *   are NOT evidence of SDK support for Vercel, fal, Linear, Grafana or Polar.
+ *   Nothing here claims provider, runtime or platform support.
  *
  * Exit codes:
  *   0  All selected real checks and cleanup passed.
@@ -73,9 +75,9 @@ const EXIT_USAGE = 2;
 const EXIT_NOT_READY = 3;
 
 const FRAMEWORKS = ['express', 'nextjs', 'hono', 'cloudflare'];
-const EXISTING_PROVIDER_COUNT = 18;
-const TARGET_PROVIDERS = 19;
-const NEW_PROVIDERS = ['linear'];
+const EXISTING_PROVIDER_COUNT = 19;
+const TARGET_PROVIDERS = 21;
+const NEW_PROVIDERS = ['vercel', 'fal'];
 
 const BODY_LIMIT = 4242;
 const TEMP_PREFIX = 'hooklatch-phase7-cli-config-';
@@ -83,8 +85,9 @@ const TARGET_PREFIX = 'hooklatch-phase7-target-';
 const MAX_CAPTURE_BYTES = 20000;
 
 /**
- * Exact expected 19-provider order: the accepted 18-provider prefix (registry
- * order at this base) followed by linear, per notes/phase-8/contract.md.
+ * Exact expected 21-provider order: the accepted nineteen-provider prefix
+ * (registry order at this base) followed by vercel and fal, per the frozen
+ * Stage B contract.
  */
 const EXPECTED_PROVIDER_ORDER = [
   'stripe',
@@ -106,12 +109,14 @@ const EXPECTED_PROVIDER_ORDER = [
   'grafana',
   'polar',
   'linear',
+  'vercel',
+  'fal',
 ];
 
 /**
- * Exhaustive, independent secret-env expectation for all 19 providers. The 18
- * existing values mirror src/cli/args.ts DEFAULT_SECRET_ENV; linear is the
- * Phase 8 name from notes/phase-8/contract.md. This table is intentionally
+ * Exhaustive, independent secret-env expectation for all HMAC providers. fal
+ * deliberately has no secret-env entry; its distinct credential arm uses
+ * public-key/expected-user env names below. This table is intentionally
  * duplicated here so the harness never trusts the production map it is checking.
  */
 const EXPECTED_SECRET_ENV = {
@@ -134,10 +139,25 @@ const EXPECTED_SECRET_ENV = {
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
   linear: 'LINEAR_WEBHOOK_SECRET',
+  vercel: 'VERCEL_WEBHOOK_SECRET',
 };
 
-/** Phase 7 Stage B flags; Linear adds no configuration flag. */
-const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp-header', '--polar-secret-mode'];
+const FAL_CREDENTIAL = {
+  kind: 'fal',
+  publicKeyEnv: 'FAL_WEBHOOK_PUBLIC_KEYS',
+  expectedUserEnv: 'FAL_WEBHOOK_USER_ID',
+};
+
+/** Stage B credential flags plus the preserved configuration flags. */
+const REQUIRED_CLI_FLAGS = [
+  '--secret-env',
+  '--public-key-env',
+  '--expected-user-env',
+  '--grafana-mode',
+  '--signature-header',
+  '--timestamp-header',
+  '--polar-secret-mode',
+];
 
 /**
  * An RFC 9110 field-name token that is legal as a config value but contains
@@ -146,10 +166,20 @@ const REQUIRED_CLI_FLAGS = ['--grafana-mode', '--signature-header', '--timestamp
  */
 const HOSTILE_VALID_HEADER = "x-weird'`+inj";
 
+function credentialFor(provider) {
+  if (provider === 'fal') return FAL_CREDENTIAL;
+
+  const secretEnv = EXPECTED_SECRET_ENV[provider];
+
+  if (secretEnv === undefined) fail(`No HMAC secret-env expectation for ${provider}.`);
+
+  return { kind: 'hmac', secretEnv };
+}
+
 /**
- * Primary matrix: every registered provider × four frameworks (19 × 4 = 76).
+ * Primary matrix: every registered provider × four frameworks (21 × 4 = 84).
  * Grafana needs an explicit body mode and its providerOptions must carry it;
- * Linear and the accepted existing providers remain config-free.
+ * Vercel, fal, Linear and the accepted existing providers remain config-free.
  */
 function primaryCases(providers) {
   const cases = [];
@@ -562,20 +592,26 @@ function decideExpectationCoverage({ order = EXPECTED_PROVIDER_ORDER, secretEnv 
 
   const envKeys = Object.keys(secretEnv);
 
-  if (envKeys.length !== TARGET_PROVIDERS) {
-    return { ready: false, reason: `Secret-env expectation map has ${envKeys.length} entries; expected ${TARGET_PROVIDERS}.` };
+  if (envKeys.length !== TARGET_PROVIDERS - 1) {
+    return { ready: false, reason: `Secret-env expectation map has ${envKeys.length} entries; expected ${TARGET_PROVIDERS - 1} HMAC providers (fal excluded).` };
   }
 
-  if (envKeys.length !== order.length || envKeys.some((provider, index) => provider !== order[index])) {
-    return { ready: false, reason: 'Secret-env expectation keys do not exactly match the expected provider order.' };
+  const hmacOrder = order.filter((provider) => provider !== 'fal');
+
+  if (envKeys.length !== hmacOrder.length || envKeys.some((provider, index) => provider !== hmacOrder[index])) {
+    return { ready: false, reason: 'Secret-env expectation keys do not exactly match the expected HMAC provider order.' };
   }
 
-  if (order[order.length - 1] !== 'linear') {
-    return { ready: false, reason: 'Linear must be appended after the accepted 18-provider prefix.' };
+  if (order[TARGET_PROVIDERS - 2] !== 'vercel' || order[TARGET_PROVIDERS - 1] !== 'fal') {
+    return { ready: false, reason: 'The expected order must append vercel then fal after the accepted 19-provider prefix.' };
   }
 
-  if (secretEnv.linear !== 'LINEAR_WEBHOOK_SECRET') {
-    return { ready: false, reason: 'The Linear secret-env expectation must be LINEAR_WEBHOOK_SECRET.' };
+  if (Object.hasOwn(secretEnv, 'fal')) {
+    return { ready: false, reason: 'fal must never have a secret-env expectation.' };
+  }
+
+  if (secretEnv.vercel !== 'VERCEL_WEBHOOK_SECRET') {
+    return { ready: false, reason: 'The Vercel secret-env expectation must be VERCEL_WEBHOOK_SECRET.' };
   }
 
   return { ready: true };
@@ -715,6 +751,44 @@ function findProperty(objectLiteral, name, T) {
   }
 
   return null;
+}
+
+/** Find a property assignment or shorthand member on an options object. */
+function findObjectMember(objectLiteral, name, T) {
+  for (const property of objectLiteral.properties) {
+    if (T.isPropertyAssignment(property) && propertyKeyName(property.name, T) === name) {
+      return { property, shorthand: false };
+    }
+
+    if (T.isShorthandPropertyAssignment(property) && property.name.text === name) {
+      return { property, shorthand: true };
+    }
+  }
+
+  return null;
+}
+
+/** Top-level initializer text for a shorthand-bound identifier, or ''. */
+function shorthandInitializerText(sourceFile, name, T) {
+  for (const statement of sourceFile.statements) {
+    if (!T.isVariableStatement(statement)) continue;
+
+    for (const declaration of statement.declarationList.declarations) {
+      if (T.isIdentifier(declaration.name) && declaration.name.text === name && declaration.initializer !== undefined) {
+        return declaration.initializer.getText(sourceFile);
+      }
+    }
+  }
+
+  return '';
+}
+
+function memberExpressionText(member, sourceFile, T) {
+  if (member === null) return '';
+
+  return member.shorthand
+    ? shorthandInitializerText(sourceFile, member.property.name.text, T)
+    : member.property.initializer.getText(sourceFile);
 }
 
 function unwrapExpression(node, T) {
@@ -1069,7 +1143,7 @@ function unescapeChar(char) {
  * Content assertions
  * ------------------------------------------------------------------ */
 
-function expectContent(caseSpec, secretEnv, content) {
+function expectContent(caseSpec, content) {
   const T = requireTypeScript();
   const label = caseSpec.id;
   const { sourceFile, bound } = inspectBoundHandler(caseSpec, content);
@@ -1087,8 +1161,63 @@ function expectContent(caseSpec, secretEnv, content) {
     fail(`Generated handler ${label} does not bind maxBodyBytes ${BODY_LIMIT} on its adapter options.`);
   }
 
+  const credential = credentialFor(caseSpec.provider);
+
+  if (credential.kind === 'fal') {
+    for (const forbidden of ['secrets', 'secret']) {
+      if (findProperty(bound, forbidden, T) !== null) {
+        fail(`Generated fal handler ${label} must not bind a ${forbidden} field.`);
+      }
+    }
+
+    const publicKeys = findObjectMember(bound, 'publicKeys', T);
+    const expectedUserId = findObjectMember(bound, 'expectedUserId', T);
+
+    if (publicKeys === null) fail(`Generated fal handler ${label} is missing publicKeys.`);
+
+    if (expectedUserId === null) fail(`Generated fal handler ${label} is missing expectedUserId.`);
+
+    const publicKeysText = memberExpressionText(publicKeys, sourceFile, T);
+    const expectedUserText = memberExpressionText(expectedUserId, sourceFile, T);
+
+    const publicEnv = caseSpec.framework === 'cloudflare'
+      ? `env.${credential.publicKeyEnv}` : `process.env.${credential.publicKeyEnv}`;
+
+    const userEnv = caseSpec.framework === 'cloudflare'
+      ? `env.${credential.expectedUserEnv}` : `process.env.${credential.expectedUserEnv}`;
+
+    if (!publicKeysText.includes(publicEnv) && !content.includes(publicEnv)) {
+      fail(`Generated fal handler ${label} does not read ${publicEnv}.`);
+    }
+
+    if (!expectedUserText.includes(userEnv) && !content.includes(userEnv)) {
+      fail(`Generated fal handler ${label} does not read ${userEnv}.`);
+    }
+
+    if (/\b(?:process\.env|env)\.FAL_WEBHOOK_SECRET\b/.test(content)) {
+      fail(`Generated fal handler ${label} must not read a secret placeholder.`);
+    }
+
+    if (!content.includes('atob(')) fail(`Generated fal handler ${label} is missing its portable atob decoder.`);
+
+    if (/\bBuffer\s*\./.test(content)) fail(`Generated fal handler ${label} must not use Buffer.`);
+
+    if (/\brequire\s*\(/.test(content)) fail(`Generated fal handler ${label} must not use require().`);
+
+    assertProviderOptions(caseSpec, content);
+
+    return;
+  }
+
+  if (findObjectMember(bound, 'publicKeys', T) !== null || findObjectMember(bound, 'expectedUserId', T) !== null) {
+    fail(`Generated HMAC handler ${label} must not bind fal credential fields.`);
+  }
+
   const secrets = findProperty(bound, 'secrets', T);
-  const expectedSecrets = caseSpec.framework === 'cloudflare' ? `[env.${secretEnv}]` : `[process.env.${secretEnv}!]`;
+
+  const expectedSecrets = caseSpec.framework === 'cloudflare'
+    ? `[env.${credential.secretEnv}]` : `[process.env.${credential.secretEnv}!]`;
+
   const actualSecrets = secrets === null ? '' : secrets.initializer.getText(sourceFile).replaceAll(/\s+/g, '');
 
   if (actualSecrets !== expectedSecrets) {
@@ -1307,24 +1436,24 @@ function controlNoSecret() {
 }
 
 /**
- * Control: readiness gates reject independently; the exact 19-provider order is
- * required; an 18-provider registry is BLOCKED without allocating any temp
- * directory; and the expectation tables must cover Linear explicitly.
+ * Control: readiness gates reject independently; the exact 21-provider order is
+ * required; a 19-provider registry is BLOCKED without allocating any temp
+ * directory; and the expectation tables must cover Vercel/fal explicitly.
  */
 function controlReadiness() {
   const ready = [...EXPECTED_PROVIDER_ORDER];
 
-  assert.equal(decideRegistryReadiness(ready).ready, true, 'Readiness control: the exact 19-provider shape was rejected.');
+  assert.equal(decideRegistryReadiness(ready).ready, true, 'Readiness control: the exact 21-provider shape was rejected.');
   assert.equal(decideRegistryReadiness(EXPECTED_PROVIDER_ORDER.slice(0, EXISTING_PROVIDER_COUNT)).ready, false,
-    'Readiness control: an 18-provider registry was accepted.');
+    'Readiness control: a 19-provider registry was accepted.');
   assert.equal(decideRegistryReadiness(EXPECTED_PROVIDER_ORDER.slice(0, 16)).ready, false,
     'Readiness control: a 16-provider registry was accepted.');
-  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 16), 'polar', 'grafana', 'linear']).ready, false,
-    'Readiness control: a wrong-order 19-provider tail was accepted.');
-  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, 18), 'polar']).ready, false,
-    'Readiness control: a duplicate ID 19-provider registry was accepted.');
+  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, -2), 'fal', 'vercel']).ready, false,
+    'Readiness control: a reversed vercel/fal tail was accepted.');
+  assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER.slice(0, -1), 'polar']).ready, false,
+    'Readiness control: a duplicate ID 21-provider registry was accepted.');
   assert.equal(decideRegistryReadiness([...EXPECTED_PROVIDER_ORDER, 'extra']).ready, false,
-    'Readiness control: a 20-provider registry was accepted.');
+    'Readiness control: a 22-provider registry was accepted.');
   assert.equal(decideRegistryReadiness([]).ready, false, 'Readiness control: an empty registry was accepted.');
   assert.equal(decideRegistryReadiness(undefined).ready, false, 'Readiness control: a missing registry was accepted.');
 
@@ -1342,39 +1471,50 @@ function controlReadiness() {
 
   assert.equal(decideFlagsReadiness('').ready, false, 'Readiness control: empty help was accepted.');
 
-  // The expectation tables must cover exactly the 19 providers, uniquely, with
-  // Linear appended and its env name exact.
+  // The expectation tables must cover exactly 21 providers, uniquely, with the
+  // reviewed vercel/fal tail and fal's distinct asymmetric credential arm.
   const coverage = decideExpectationCoverage();
 
   assert.equal(coverage.ready, true, `Readiness control: expectation coverage is invalid: ${coverage.reason}`);
-  assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS, 'Readiness control: expected order is not 19 long.');
+  assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS, 'Readiness control: expected order is not 21 long.');
   assert.equal(new Set(EXPECTED_PROVIDER_ORDER).size, TARGET_PROVIDERS, 'Readiness control: expected order has duplicates.');
-  assert.equal(Object.keys(EXPECTED_SECRET_ENV).length, TARGET_PROVIDERS, 'Readiness control: secret-env map is not 19 long.');
-  assert.equal(EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 1], 'linear',
-    'Readiness control: linear is not appended after the accepted 18-provider prefix.');
-  assert.equal(EXPECTED_SECRET_ENV.linear, 'LINEAR_WEBHOOK_SECRET',
-    'Readiness control: the Linear secret-env expectation is wrong.');
+  assert.equal(Object.keys(EXPECTED_SECRET_ENV).length, TARGET_PROVIDERS - 1, 'Readiness control: secret-env map is not 20 long.');
+  assert.deepEqual(EXPECTED_PROVIDER_ORDER.slice(-2), ['vercel', 'fal'],
+    'Readiness control: the tail is not vercel then fal.');
+  assert.equal(EXPECTED_SECRET_ENV.vercel, 'VERCEL_WEBHOOK_SECRET',
+    'Readiness control: the Vercel secret-env expectation is wrong.');
+  assert.equal(Object.hasOwn(EXPECTED_SECRET_ENV, 'fal'), false,
+    'Readiness control: fal must not have a secret-env expectation.');
 
-  for (const provider of EXPECTED_PROVIDER_ORDER) {
+  for (const provider of EXPECTED_PROVIDER_ORDER.filter((entry) => entry !== 'fal')) {
     assert(Object.hasOwn(EXPECTED_SECRET_ENV, provider), `Readiness control: no secret-env expectation for ${provider}.`);
   }
 
-  // Negative coverage fixtures: an 18-entry order, a missing Linear env entry,
-  // a wrong Linear env name, and a duplicate order entry must all be rejected.
+  // Negative coverage fixtures: a missing fal order entry, a missing Vercel env
+  // entry, a wrong Vercel env name, a duplicate order entry, and a reversed tail
+  // must all be rejected.
   assert.equal(decideExpectationCoverage({ order: EXPECTED_PROVIDER_ORDER.slice(0, -1), secretEnv: EXPECTED_SECRET_ENV }).ready,
-    false, 'Readiness control: an order without Linear was accepted.');
+    false, 'Readiness control: an order without fal was accepted.');
   assert.equal(decideExpectationCoverage({
     order: EXPECTED_PROVIDER_ORDER,
-    secretEnv: Object.fromEntries(Object.entries(EXPECTED_SECRET_ENV).filter(([provider]) => provider !== 'linear')),
-  }).ready, false, 'Readiness control: a secret-env map without Linear was accepted.');
+    secretEnv: Object.fromEntries(Object.entries(EXPECTED_SECRET_ENV).filter(([provider]) => provider !== 'vercel')),
+  }).ready, false, 'Readiness control: a secret-env map without Vercel was accepted.');
   assert.equal(decideExpectationCoverage({
     order: EXPECTED_PROVIDER_ORDER,
-    secretEnv: { ...EXPECTED_SECRET_ENV, linear: 'WRONG_LINEAR_SECRET' },
-  }).ready, false, 'Readiness control: a wrong Linear secret-env name was accepted.');
+    secretEnv: { ...EXPECTED_SECRET_ENV, vercel: 'WRONG_VERCEL_SECRET' },
+  }).ready, false, 'Readiness control: a wrong Vercel secret-env name was accepted.');
   assert.equal(decideExpectationCoverage({
     order: [...EXPECTED_PROVIDER_ORDER.slice(0, -1), EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 2]],
     secretEnv: EXPECTED_SECRET_ENV,
   }).ready, false, 'Readiness control: a duplicate order entry was accepted.');
+  assert.equal(decideExpectationCoverage({
+    order: [...EXPECTED_PROVIDER_ORDER.slice(0, -2), 'fal', 'vercel'],
+    secretEnv: EXPECTED_SECRET_ENV,
+  }).ready, false, 'Readiness control: a reversed tail was accepted.');
+  assert.equal(decideExpectationCoverage({
+    order: EXPECTED_PROVIDER_ORDER,
+    secretEnv: { ...EXPECTED_SECRET_ENV, fal: 'FAL_WEBHOOK_SECRET' },
+  }).ready, false, 'Readiness control: a fal secret-env entry was accepted.');
 
   // Authored negative help fixture: missing every required Stage B flag.
   const negativeHelp = 'Usage: hooklatch init webhook --provider <id> --framework <id> --out <dir>';
@@ -1383,10 +1523,10 @@ function controlReadiness() {
   assert.equal(negativeDecision.ready, false, 'Readiness control: authored flag-less help was accepted.');
   assert(negativeDecision.reason.includes('--grafana-mode'), 'Readiness control: the negative reason does not name a missing flag.');
 
-  // Authored positive help fixture: complete help with a 19-provider registry is ready.
+  // Authored positive help fixture: complete help with a 21-provider registry is ready.
   const authoredComplete = evaluateReadiness({ providers: ready, helpText: REQUIRED_CLI_FLAGS.join('\n') });
 
-  assert.equal(authoredComplete.ready, true, 'Readiness control: complete authored help with 19 providers was rejected.');
+  assert.equal(authoredComplete.ready, true, 'Readiness control: complete authored help with 21 providers was rejected.');
 
   // The REAL built help is accepted at whichever stage the base is at; never
   // assert that real readiness is false (Stage B makes the flags present).
@@ -1399,11 +1539,11 @@ function controlReadiness() {
     'Readiness control: combined readiness disagreed with the flags decision for real built help.');
   assert.equal(after, before, 'Readiness control: readiness evaluation allocated a temp directory.');
 
-  // Matrix shape: 76 primary + 12 configured, with explicit Grafana body mode.
+  // Matrix shape: 84 primary + 12 configured, with explicit Grafana body mode.
   const primary = primaryCases(ready);
   const configured = configuredCases();
 
-  assert.equal(primary.length, TARGET_PROVIDERS * FRAMEWORKS.length, 'Matrix control: primary count is not 76.');
+  assert.equal(primary.length, TARGET_PROVIDERS * FRAMEWORKS.length, 'Matrix control: primary count is not 84.');
 
   for (const caseSpec of primary.filter((entry) => entry.provider === 'grafana')) {
     assert(caseSpec.args.includes('--grafana-mode') && caseSpec.args.includes('body'),
@@ -1436,6 +1576,24 @@ function controlReadiness() {
       `Matrix control: ${caseSpec.id} must not carry a configured-provider flag.`);
   }
 
+  const newPrimary = primary.filter((entry) => NEW_PROVIDERS.includes(entry.provider));
+
+  assert.equal(newPrimary.length, NEW_PROVIDERS.length * FRAMEWORKS.length,
+    'Matrix control: vercel/fal primary coverage is reduced.');
+
+  for (const caseSpec of newPrimary) {
+    assert.equal(caseSpec.expect.providerOptions, null,
+      `Matrix control: ${caseSpec.id} must remain config-free.`);
+    assert(!caseSpec.args.includes('--grafana-mode') && !caseSpec.args.includes('--polar-secret-mode'),
+      `Matrix control: ${caseSpec.id} must not carry a configured-provider flag.`);
+  }
+
+  assert.equal(credentialFor('vercel').kind, 'hmac', 'Credential control: Vercel must use the HMAC arm.');
+  assert.equal(credentialFor('vercel').secretEnv, 'VERCEL_WEBHOOK_SECRET',
+    'Credential control: Vercel secret env is wrong.');
+  assert.deepEqual(credentialFor('fal'), FAL_CREDENTIAL,
+    'Credential control: fal must use its distinct public-key/expected-user arm.');
+
   assert.equal(configured.length, FRAMEWORKS.length * 3, 'Matrix control: configured variant count is wrong.');
   assert.deepEqual([...new Set(configured.map((entry) => entry.provider))].sort(), ['grafana', 'polar'],
     'Matrix control: configured variants must cover exactly Grafana and Polar.');
@@ -1451,6 +1609,10 @@ function controlReadiness() {
   assert.equal(expectedFileName('polar', 'express'), 'polar.express.ts', 'File-name control: express target is wrong.');
   assert.equal(expectedFileName('linear', 'express'), 'linear.express.ts', 'File-name control: linear express target is wrong.');
   assert.equal(expectedFileName('linear', 'cloudflare'), 'linear.cloudflare.ts', 'File-name control: linear cloudflare target is wrong.');
+  assert.equal(expectedFileName('vercel', 'express'), 'vercel.express.ts', 'File-name control: vercel express target is wrong.');
+  assert.equal(expectedFileName('vercel', 'nextjs'), 'route.ts', 'File-name control: vercel nextjs target is wrong.');
+  assert.equal(expectedFileName('fal', 'hono'), 'fal.hono.ts', 'File-name control: fal hono target is wrong.');
+  assert.equal(expectedFileName('fal', 'cloudflare'), 'fal.cloudflare.ts', 'File-name control: fal cloudflare target is wrong.');
 }
 
 function countTempWorkspaces() {
@@ -1471,6 +1633,22 @@ function controlNoWriteProbe(root) {
   const probes = [
     { id: 'unknown-provider', args: ['--provider', 'does-not-exist', '--framework', 'express'] },
     { id: 'grafana-missing-mode', args: ['--provider', 'grafana', '--framework', 'express'] },
+    {
+      id: 'vercel-public-key-env',
+      args: ['--provider', 'vercel', '--framework', 'express', '--public-key-env', 'CUSTOM_FAL_PUBLIC_KEYS'],
+    },
+    {
+      id: 'fal-secret-env',
+      args: ['--provider', 'fal', '--framework', 'express', '--secret-env', 'FAL_WEBHOOK_SECRET'],
+    },
+    {
+      id: 'fal-invalid-public-key-env',
+      args: ['--provider', 'fal', '--framework', 'express', '--public-key-env', 'BAD-NAME'],
+    },
+    {
+      id: 'fal-missing-expected-user-env',
+      args: ['--provider', 'fal', '--framework', 'express', '--expected-user-env'],
+    },
   ];
 
   const parent = path.join(root, 'control-no-write');
@@ -1579,6 +1757,63 @@ function controlStructuralOptions() {
   try { assertProviderOptions(existing, unexported); } catch { unexportedDetected = true; }
 
   assert(unexportedDetected, 'Binding control failed: an unexported adapter call was accepted.');
+}
+
+/** Credential-arm inspection: fal must bind publicKeys/expectedUserId, never a secret. */
+function controlFalInspection() {
+  const falCase = {
+    id: 'control/fal-express', provider: 'fal', framework: 'express', args: [], expect: { providerOptions: null },
+  };
+
+  const valid = [
+    "import { createWebhookMiddleware } from 'hooklatch/express';",
+    "const decoded = atob('AA==');",
+    "const publicKeys = decodeFalPublicKeys(process.env.FAL_WEBHOOK_PUBLIC_KEYS!);",
+    "const expectedUserId = process.env.FAL_WEBHOOK_USER_ID!;",
+    "const options = { provider: 'fal', publicKeys, expectedUserId, maxBodyBytes: 4242 };",
+    "export const falExpressWebhook = createWebhookMiddleware(options);",
+    '',
+  ].join('\n');
+
+  expectContent(falCase, valid);
+
+  const withSecrets = valid.replace("const options = { provider: 'fal',", "const options = { provider: 'fal', secrets: [process.env.FAL_WEBHOOK_SECRET!],");
+  assert.throws(() => expectContent(falCase, withSecrets), /secrets/, 'fal control: a secrets field was accepted.');
+
+  const withSingularSecret = valid.replace("const options = { provider: 'fal',", "const options = { provider: 'fal', secret: process.env.FAL_WEBHOOK_SECRET!,");
+  assert.throws(() => expectContent(falCase, withSingularSecret), /secret/, 'fal control: a singular secret field was accepted.');
+
+  const missingPublicKeys = valid.replace('provider: \'fal\', publicKeys,', 'provider: \'fal\',');
+  assert.throws(() => expectContent(falCase, missingPublicKeys), /publicKeys/, 'fal control: missing publicKeys was accepted.');
+
+  const missingUser = valid.replace(', expectedUserId,', ',');
+  assert.throws(() => expectContent(falCase, missingUser), /expectedUserId/, 'fal control: missing expectedUserId was accepted.');
+
+  const wrongPublicEnv = valid.replace('FAL_WEBHOOK_PUBLIC_KEYS', 'OTHER_PUBLIC_KEYS');
+  assert.throws(() => expectContent(falCase, wrongPublicEnv), /publicKeys|PUBLIC_KEYS/, 'fal control: a wrong public-key env was accepted.');
+
+  const wrongUserEnv = valid.replace('FAL_WEBHOOK_USER_ID', 'OTHER_USER_ID');
+  assert.throws(() => expectContent(falCase, wrongUserEnv), /expectedUserId|USER_ID/, 'fal control: a wrong expected-user env was accepted.');
+
+  const noAtob = valid.replace("const decoded = atob('AA==');", '');
+  assert.throws(() => expectContent(falCase, noAtob), /atob/, 'fal control: a missing portable decoder was accepted.');
+
+  const withBuffer = valid.replace("const decoded = atob('AA==');", "const decoded = atob('AA=='); const b = Buffer.from('AA==', 'base64');");
+  assert.throws(() => expectContent(falCase, withBuffer), /Buffer/, 'fal control: a Buffer decoder was accepted.');
+
+  const hmacSource = [
+    "import { createWebhookMiddleware } from 'hooklatch/express';",
+    "const options = { provider: 'stripe', secrets: [process.env.STRIPE_WEBHOOK_SECRET!], maxBodyBytes: 4242, publicKeys: [], expectedUserId: 'user_synthetic' };",
+    'export const stripeExpressWebhook = createWebhookMiddleware(options);',
+    '',
+  ].join('\n');
+
+  const hmacCase = {
+    id: 'control/stripe-fal-fields', provider: 'stripe', framework: 'express', args: [], expect: { providerOptions: null },
+  };
+
+  assert.throws(() => expectContent(hmacCase, hmacSource), /fal credential fields/,
+    'HMAC control: fal credential fields were accepted.');
 }
 
 /** A nested declaration with the same name must not replace the live binding. */
@@ -1803,7 +2038,7 @@ function controlLiveGenerator(workspace) {
 
     const first = generateInto(workspace.root, cli, caseSpec, fileName, firstDir);
 
-    expectContent(caseSpec, EXPECTED_SECRET_ENV.stripe, readFileSync(first, 'utf8'));
+    expectContent(caseSpec, readFileSync(first, 'utf8'));
 
     const second = generateInto(workspace.root, cli, caseSpec, fileName, secondDir);
 
@@ -1811,7 +2046,7 @@ function controlLiveGenerator(workspace) {
 
     let detected = false;
 
-    try { expectContent({ ...caseSpec, id: `stripe/${framework}-wrong-limit` }, EXPECTED_SECRET_ENV.stripe, readFileSync(first, 'utf8').replaceAll(String(BODY_LIMIT), '9999')); } catch { detected = true; }
+    try { expectContent({ ...caseSpec, id: `stripe/${framework}-wrong-limit` }, readFileSync(first, 'utf8').replaceAll(String(BODY_LIMIT), '9999')); } catch { detected = true; }
 
     assert(detected, `Live-generator control failed: a wrong body limit was accepted for ${framework}.`);
 
@@ -1855,6 +2090,7 @@ function runSelfTests() {
     controlReadiness();
     controlNoWriteProbe(workspace.root);
     controlStructuralOptions();
+    controlFalInspection();
     controlScopedOptions();
     controlSpreadOverrides();
     controlExportedDecoys();
@@ -1876,6 +2112,7 @@ function runSelfTests() {
     'readiness accepts authored complete help and never asserts real help is flag-less',
     'rejected provider/configuration input exits 2 and writes nothing',
     'providerOptions is bound to the exported adapter call; dead decoys and unexported calls fail',
+    'fal binds publicKeys/expectedUserId with a portable decoder and rejects secret/Buffer/alias mutations',
     'nested declarations cannot replace the live top-level options binding',
     'later spreads cannot override the inspected options unnoticed',
     'multiple exported adapter calls cannot hide behind an exported decoy',
@@ -1891,7 +2128,7 @@ function runSelfTests() {
  * ------------------------------------------------------------------ */
 
 function printHelp() {
-  process.stdout.write(`Hooklatch configured CLI qualification (Phase 8 Stage A 19-provider target)
+  process.stdout.write(`Hooklatch configured CLI qualification (Phase 9 Stage B 21-provider target)
 
 Usage: node scripts/phase7-cli-config-smoke.mjs [options]
 
@@ -1904,14 +2141,14 @@ Behaviour:
   A normal run first checks — BEFORE allocating any temp directory — that the
   built registry is exactly the ordered ${TARGET_PROVIDERS} providers
   (${NEW_PROVIDERS.join(', ')} appended after the accepted ${EXISTING_PROVIDER_COUNT}) and that the BUILT CLI
-  advertises the Phase 7 Stage B configuration flags (Linear adds no new flag).
-  If either is missing it exits ${EXIT_NOT_READY} (BLOCKED) with no temp allocation.
+  advertises the Phase 9 credential flags plus the preserved Phase 7 configuration
+  flags. If either is missing it exits ${EXIT_NOT_READY} (BLOCKED) with no temp allocation.
   When ready it rechecks the INSTALLED CLI, then packs and installs the local
   tarball offline into a checked OS-temp consumer and drives the INSTALLED bin to
   generate all ${TARGET_PROVIDERS * FRAMEWORKS.length} primary provider/framework combinations plus Grafana
   timestamped-header (incl. a hostile-but-valid token) and Polar legacy variants
-  for all ${FRAMEWORKS.length} frameworks, binds each handler's providerOptions to its exported
-  adapter call, typechecks it, and checks the full consumer tree (including
+  for all ${FRAMEWORKS.length} frameworks, binds each handler's options and credential arm to its
+  exported adapter call, typechecks it, and checks the full consumer tree (including
   installed node_modules) around probes. Tracked and built bytes are snapshotted
   before and after; PASS is printed only after cleanup and integrity succeed.
 
@@ -1982,10 +2219,16 @@ function linkPinnedDependency(workspace, localName, root) {
 }
 
 function generationArgv(cli, caseSpec, relativeOut) {
+  const credential = credentialFor(caseSpec.provider);
+
+  const credentialFlags = credential.kind === 'fal'
+    ? ['--public-key-env', credential.publicKeyEnv, '--expected-user-env', credential.expectedUserEnv]
+    : ['--secret-env', credential.secretEnv];
+
   return [
     cli, 'init', 'webhook', ...caseSpec.args,
     '--out', relativeOut,
-    '--secret-env', EXPECTED_SECRET_ENV[caseSpec.provider],
+    ...credentialFlags,
     '--body-limit', String(BODY_LIMIT),
   ];
 }
@@ -2001,12 +2244,24 @@ function runErrorProbes(cli, consumerRoot) {
     { id: 'polar-mode-on-grafana', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'body', '--polar-secret-mode', 'legacy'] },
     { id: 'grafana-flag-on-polar', args: ['--provider', 'polar', '--framework', 'express', '--grafana-mode', 'body'] },
     { id: 'grafana-flag-on-linear', args: ['--provider', 'linear', '--framework', 'express', '--grafana-mode', 'body'] },
+    { id: 'grafana-flag-on-vercel', args: ['--provider', 'vercel', '--framework', 'express', '--grafana-mode', 'body'] },
+    { id: 'grafana-flag-on-fal', args: ['--provider', 'fal', '--framework', 'express', '--grafana-mode', 'body'] },
     { id: 'duplicate-grafana-mode', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'body', '--grafana-mode', 'timestamped'] },
     { id: 'invalid-polar-mode', args: ['--provider', 'polar', '--framework', 'express', '--polar-secret-mode', 'bogus'] },
     { id: 'unsafe-header-space', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'timestamped', '--timestamp-header', 'bad name'] },
     { id: 'unsafe-header-colon', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'timestamped', '--timestamp-header', 'bad:name'] },
     { id: 'reserved-header', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'body', '--signature-header', 'authorization'] },
     { id: 'colliding-headers', args: ['--provider', 'grafana', '--framework', 'express', '--grafana-mode', 'timestamped', '--signature-header', 'x-same', '--timestamp-header', 'x-same'] },
+    { id: 'fal-secret-env', args: ['--provider', 'fal', '--framework', 'express', '--secret-env', 'FAL_WEBHOOK_SECRET'] },
+    { id: 'fal-vercel-public-key-env', args: ['--provider', 'vercel', '--framework', 'express', '--public-key-env', 'CUSTOM_FAL_PUBLIC_KEYS'] },
+    { id: 'vercel-expected-user-env', args: ['--provider', 'vercel', '--framework', 'express', '--expected-user-env', 'CUSTOM_FAL_USER_ID'] },
+    { id: 'stripe-public-key-env', args: ['--provider', 'stripe', '--framework', 'express', '--public-key-env', 'CUSTOM_FAL_PUBLIC_KEYS'] },
+    { id: 'fal-duplicate-public-key-env', args: ['--provider', 'fal', '--framework', 'express', '--public-key-env', 'A_PUBLIC_KEYS', '--public-key-env', 'B_PUBLIC_KEYS'] },
+    { id: 'fal-duplicate-expected-user-env', args: ['--provider', 'fal', '--framework', 'express', '--expected-user-env', 'A_USER_ID', '--expected-user-env', 'B_USER_ID'] },
+    { id: 'fal-invalid-public-key-env-name', args: ['--provider', 'fal', '--framework', 'express', '--public-key-env', 'BAD-NAME'] },
+    { id: 'fal-invalid-expected-user-env-name', args: ['--provider', 'fal', '--framework', 'express', '--expected-user-env', 'BAD NAME'] },
+    { id: 'fal-missing-public-key-env-value', args: ['--provider', 'fal', '--framework', 'express', '--public-key-env'] },
+    { id: 'fal-missing-expected-user-env-value', args: ['--provider', 'fal', '--framework', 'express', '--expected-user-env'] },
   ];
 
   const skip = new Set();
@@ -2093,7 +2348,7 @@ async function runQualification(providers, npmCli) {
 
       const first = generateInto(consumerRoot, cli, caseSpec, fileName, firstDir);
 
-      expectContent(caseSpec, EXPECTED_SECRET_ENV[caseSpec.provider], readFileSync(first, 'utf8'));
+      expectContent(caseSpec, readFileSync(first, 'utf8'));
 
       const second = generateInto(consumerRoot, cli, caseSpec, fileName, secondDir);
 
@@ -2233,7 +2488,7 @@ async function main() {
 
     for (const control of controls) process.stdout.write(`  - ${control}\n`);
 
-    process.stdout.write('SELF-TEST NOTE: harness controls do not establish Linear, Grafana or Polar support.\n');
+    process.stdout.write('SELF-TEST NOTE: harness controls do not establish Vercel, fal, Linear, Grafana or Polar support.\n');
 
     return EXIT_PASS;
   }

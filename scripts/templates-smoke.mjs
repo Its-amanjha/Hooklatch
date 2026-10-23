@@ -7,18 +7,21 @@
  *
  * The generation set is derived from the built registry
  * (`dist/providers/index.js` `SUPPORTED_PROVIDERS`), so registering a provider
- * extends the matrix automatically. The Phase 8 Stage A target is 19 providers;
- * at the accepted 18-provider base readiness exits 3 (BLOCKED) before any temp
- * allocation, packing or generation. Only a registry that really contains
- * Linear reports 19 x 4 = 76 primary handlers. The expected secret-env table is
- * exhaustive for the 19-provider target (the accepted 18 plus
- * LINEAR_WEBHOOK_SECRET); names whose provider the CLI does not register never
- * reach generation.
+ * extends the matrix automatically. The Phase 9 target is 21 providers; at the
+ * accepted 19-provider base readiness exits 3 (BLOCKED) before any temp
+ * allocation, packing or generation. Only a registry that really contains the
+ * reviewed vercel/fal tail reports 21 x 4 = 84 primary handlers.
+ *
+ * The expected credential table is exhaustive for the 21-provider target:
+ * twenty HMAC secret-env names (the accepted 19 plus Vercel) and fal's distinct
+ * public-key/expected-user arm. fal never receives a secret placeholder, and
+ * the generated decoder is exercised with valid and malformed runtime env
+ * values. Names whose provider the CLI does not register never reach generation.
  *
  * Grafana's primary row is generated with an explicit body-mode configuration and
  * must carry it into the emitted options; the optional configured-variant block
- * adds timestamped custom headers and Polar legacy mode. Linear, like the
- * existing providers, stays config-free.
+ * adds timestamped custom headers and Polar legacy mode. Vercel and fal, like the
+ * existing providers, stay config-free.
  *
  * The script is standalone (no npm_execpath requirement). npm pack/install use
  * offline mode on the local tarball. Repository src and examples are never
@@ -27,19 +30,20 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { build } from 'esbuild';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Expected default secret env per provider, exhaustive for the 19-provider
- * target (the accepted 18-provider contract plus Linear). `generate` is driven by
- * the built registry, so names for providers the CLI does not register never
- * reach generation here.
+ * Expected default secret env per HMAC provider, exhaustive for the 21-provider
+ * target minus fal. `generate` is driven by the built registry, so names for
+ * providers the CLI does not register never reach generation here.
  */
 const EXPECTED_SECRET_ENV = {
   stripe: 'STRIPE_WEBHOOK_SECRET',
@@ -61,12 +65,19 @@ const EXPECTED_SECRET_ENV = {
   grafana: 'GRAFANA_WEBHOOK_SECRET',
   polar: 'POLAR_WEBHOOK_SECRET',
   linear: 'LINEAR_WEBHOOK_SECRET',
+  vercel: 'VERCEL_WEBHOOK_SECRET',
+};
+
+const FAL_CREDENTIAL = {
+  kind: 'fal',
+  publicKeyEnv: 'FAL_WEBHOOK_PUBLIC_KEYS',
+  expectedUserEnv: 'FAL_WEBHOOK_USER_ID',
 };
 
 /**
- * Exact 19-provider target order: the accepted 18-provider prefix in contract
- * order followed by Linear. Kept explicit so an accidental insertion in the
- * middle cannot pass as an extension.
+ * Exact 21-provider target order: the accepted nineteen-provider prefix in
+ * contract order followed by vercel and fal. Kept explicit so an accidental
+ * insertion in the middle cannot pass as an extension.
  */
 const EXPECTED_PROVIDER_ORDER = [
   'stripe',
@@ -88,12 +99,16 @@ const EXPECTED_PROVIDER_ORDER = [
   'grafana',
   'polar',
   'linear',
+  'vercel',
+  'fal',
 ];
 
 const EXIT_PASS = 0;
 const EXIT_NOT_READY = 3;
-const TARGET_PROVIDERS = 19;
-const EXISTING_PROVIDER_COUNT = 18;
+const TARGET_PROVIDERS = 21;
+const EXISTING_PROVIDER_COUNT = 19;
+const NEW_PROVIDERS = ['vercel', 'fal'];
+const FAL_PUBLIC_KEY_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 /** Providers whose CLI configuration is required/forwarded by this contract. */
 const CONFIGURED_PROVIDERS = ['grafana', 'polar'];
@@ -191,28 +206,41 @@ function requireBuildArtifacts() {
 
 /**
  * This harness's own expectation tables must be exhaustive before a registry
- * decision can be trusted. A missing Linear env/order entry is a harness defect,
- * not acceptable success and not an upstream BLOCKED state.
+ * decision can be trusted. A missing vercel/fal env/order entry is a harness
+ * defect, not acceptable success and not an upstream BLOCKED state.
  */
 function assertExpectationCoverage() {
   assert.deepEqual(FRAMEWORKS, ['express', 'nextjs', 'hono', 'cloudflare'],
     'Template qualification must cover exactly the four supported frameworks.');
-  assert.equal(EXPECTED_PROVIDER_ORDER.length, EXISTING_PROVIDER_COUNT + 1,
-    `The expected provider order must append exactly one provider to the accepted ${EXISTING_PROVIDER_COUNT}.`);
   assert.equal(EXPECTED_PROVIDER_ORDER.length, TARGET_PROVIDERS,
     `The expected provider order must contain exactly ${TARGET_PROVIDERS} providers.`);
   assert.equal(new Set(EXPECTED_PROVIDER_ORDER).size, TARGET_PROVIDERS,
     'The expected provider order must not contain duplicate IDs.');
-  assert.deepEqual(Object.keys(EXPECTED_SECRET_ENV), EXPECTED_PROVIDER_ORDER,
-    'The secret-env expectation keys must exactly match the expected provider order.');
-  assert.equal(EXPECTED_PROVIDER_ORDER[EXPECTED_PROVIDER_ORDER.length - 1], 'linear',
-    'Linear must be appended after the accepted 18-provider prefix.');
-  assert.equal(EXPECTED_SECRET_ENV.linear, 'LINEAR_WEBHOOK_SECRET',
-    'The Linear secret-env expectation must be LINEAR_WEBHOOK_SECRET.');
-  assert.equal(Object.hasOwn(PRIMARY_CONFIGURATION, 'linear'), false,
-    'Linear must remain config-free; remove any primary configuration recipe.');
-  assert.equal(Object.hasOwn(CONFIGURED_VARIANTS, 'linear'), false,
-    'Linear must not define a configured variant.');
+  assert.deepEqual(EXPECTED_PROVIDER_ORDER.slice(0, EXISTING_PROVIDER_COUNT), [
+    'stripe', 'github', 'shopify', 'standard-webhooks', 'clerk', 'svix',
+    'razorpay', 'paddle', 'lemon-squeezy', 'dodo-payments', 'gitlab',
+    'replicate', 'workos', 'sentry', 'doppler', 'sanity', 'grafana', 'polar', 'linear',
+  ], 'The accepted nineteen-provider prefix must remain unchanged and in order.');
+  assert.deepEqual(EXPECTED_PROVIDER_ORDER.slice(EXISTING_PROVIDER_COUNT), NEW_PROVIDERS,
+    'The Phase 9 tail must be exactly vercel then fal.');
+  assert.deepEqual(Object.keys(EXPECTED_SECRET_ENV), EXPECTED_PROVIDER_ORDER.filter((provider) => provider !== 'fal'),
+    'The secret-env expectation keys must exactly match the 21-provider order minus fal.');
+  assert.equal(Object.hasOwn(EXPECTED_SECRET_ENV, 'fal'), false,
+    'fal must never have a secret-env expectation.');
+  assert.equal(EXPECTED_SECRET_ENV.vercel, 'VERCEL_WEBHOOK_SECRET',
+    'The Vercel secret-env expectation must be VERCEL_WEBHOOK_SECRET.');
+  assert.deepEqual(FAL_CREDENTIAL, {
+    kind: 'fal',
+    publicKeyEnv: 'FAL_WEBHOOK_PUBLIC_KEYS',
+    expectedUserEnv: 'FAL_WEBHOOK_USER_ID',
+  }, 'The fal credential env defaults must match the frozen contract.');
+
+  for (const provider of [...NEW_PROVIDERS, 'linear']) {
+    assert.equal(Object.hasOwn(PRIMARY_CONFIGURATION, provider), false,
+      `${provider} must remain config-free; remove any primary configuration recipe.`);
+    assert.equal(Object.hasOwn(CONFIGURED_VARIANTS, provider), false,
+      `${provider} must not define a configured variant.`);
+  }
 
   for (const provider of CONFIGURED_PROVIDERS) {
     assert.equal(Object.hasOwn(EXPECTED_SECRET_ENV, provider), true,
@@ -224,7 +252,7 @@ function assertExpectationCoverage() {
   }
 }
 
-/** Pure readiness decision for the built registry (the 18-provider base blocks). */
+/** Pure readiness decision for the built registry (the 19-provider base blocks). */
 function decideReadiness(providers) {
   if (!Array.isArray(providers) || providers.length === 0) {
     return { ready: false, reason: 'The built registry did not expose a nonempty SUPPORTED_PROVIDERS array.' };
@@ -233,7 +261,7 @@ function decideReadiness(providers) {
   if (providers.length !== TARGET_PROVIDERS) {
     return {
       ready: false,
-      reason: `Registry has ${providers.length} providers; the 19-provider template matrix requires exactly ${TARGET_PROVIDERS} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus linear).`,
+      reason: `Registry has ${providers.length} providers; the 21-provider template matrix requires exactly ${TARGET_PROVIDERS} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus vercel/fal).`,
     };
   }
 
@@ -245,12 +273,33 @@ function decideReadiness(providers) {
     if (providers[index] !== EXPECTED_PROVIDER_ORDER[index]) {
       return {
         ready: false,
-        reason: `Registry provider #${index} is ${JSON.stringify(providers[index])}; expected ${JSON.stringify(EXPECTED_PROVIDER_ORDER[index])} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus linear).`,
+        reason: `Registry provider #${index} is ${JSON.stringify(providers[index])}; expected ${JSON.stringify(EXPECTED_PROVIDER_ORDER[index])} (accepted ${EXISTING_PROVIDER_COUNT}-provider prefix plus vercel/fal).`,
       };
     }
   }
 
-  return { ready: true };
+  return { ready: true, reason: '' };
+}
+
+/**
+ * Built-CLI prerequisite. The fal flags must be advertised before a temp
+ * consumer is allocated; a 19-provider registry already blocks before this.
+ */
+function decideCliReadiness() {
+  const cli = join(root, 'dist', 'cli', 'index.js');
+
+  if (!existsSync(cli)) return { ready: false, reason: 'Built CLI is missing: dist/cli/index.js.' };
+
+  try {
+    const help = invoke([cli, '--help'], root, 'built CLI help');
+    const missing = ['--secret-env', '--public-key-env', '--expected-user-env'].filter((flag) => !help.includes(flag));
+
+    return missing.length === 0
+      ? { ready: true, reason: '' }
+      : { ready: false, reason: `Built CLI help is missing credential flag(s): ${missing.join(', ')}.` };
+  } catch (error) {
+    return { ready: false, reason: error.message };
+  }
 }
 
 function locateNpmCli() {
@@ -342,7 +391,17 @@ function expectProviderConfiguration(provider, framework, content) {
   for (const pattern of recipe.forbidden) forbidPattern(content, pattern, label);
 }
 
-function expectContentMarkers(provider, framework, secretEnv, content) {
+function credentialFor(provider) {
+  if (provider === 'fal') return FAL_CREDENTIAL;
+
+  const secretEnv = EXPECTED_SECRET_ENV[provider];
+
+  if (secretEnv === undefined) fail(`No HMAC secret-env expectation for ${provider}.`);
+
+  return { kind: 'hmac', secretEnv };
+}
+
+function expectContentMarkers(provider, framework, credential, content) {
   for (const marker of [`provider: '${provider}'`, `maxBodyBytes: ${BODY_LIMIT}`]) {
     if (!content.includes(marker)) {
       fail(`Generated ${framework} handler for ${provider} is missing: ${marker}`);
@@ -351,8 +410,56 @@ function expectContentMarkers(provider, framework, secretEnv, content) {
 
   expectProviderConfiguration(provider, framework, content);
 
+  if (credential.kind === 'fal') {
+    for (const marker of ['publicKeys', 'expectedUserId', 'atob(']) {
+      if (!content.includes(marker)) {
+        fail(`Generated ${framework} fal handler is missing: ${marker}`);
+      }
+    }
+
+    forbidPattern(content, /\bsecrets?\s*:/, `Generated ${framework} fal handler`);
+    forbidPattern(content, /\b(?:process\.env|env)\.FAL_WEBHOOK_SECRET\b/, `Generated ${framework} fal handler`);
+    forbidPattern(content, /\bBuffer\s*\./, `Generated ${framework} fal handler`);
+    forbidPattern(content, /\brequire\s*\(/, `Generated ${framework} fal handler`);
+
+    if (framework === 'cloudflare') {
+      for (const marker of [
+        `from 'hooklatch/cloudflare'`,
+        `${credential.publicKeyEnv}: string`,
+        `${credential.expectedUserEnv}: string`,
+        `env.${credential.publicKeyEnv}`,
+        `env.${credential.expectedUserEnv}`,
+      ]) {
+        if (!content.includes(marker)) {
+          fail(`Generated cloudflare fal handler is missing: ${marker}`);
+        }
+      }
+
+      return;
+    }
+
+    const sharedMarkers = [
+      `from 'hooklatch/${framework}'`,
+      `process.env.${credential.publicKeyEnv}`,
+      `process.env.${credential.expectedUserEnv}`,
+    ];
+
+    if (framework === 'hono') sharedMarkers.push(`from 'hono'`);
+
+    for (const marker of sharedMarkers) {
+      if (!content.includes(marker)) {
+        fail(`Generated ${framework} fal handler is missing: ${marker}`);
+      }
+    }
+
+    return;
+  }
+
+  forbidPattern(content, /\bpublicKeys\s*:/, `Generated ${framework} ${provider} handler`);
+  forbidPattern(content, /\bexpectedUserId\s*:/, `Generated ${framework} ${provider} handler`);
+
   if (framework === 'cloudflare') {
-    for (const marker of [`from 'hooklatch/cloudflare'`, `${secretEnv}: string`, `env.${secretEnv}`]) {
+    for (const marker of [`from 'hooklatch/cloudflare'`, `${credential.secretEnv}: string`, `env.${credential.secretEnv}`]) {
       if (!content.includes(marker)) {
         fail(`Generated cloudflare handler for ${provider} is missing: ${marker}`);
       }
@@ -361,7 +468,7 @@ function expectContentMarkers(provider, framework, secretEnv, content) {
     return;
   }
 
-  const sharedMarkers = [`from 'hooklatch/${framework}'`, `process.env.${secretEnv}!`];
+  const sharedMarkers = [`from 'hooklatch/${framework}'`, `process.env.${credential.secretEnv}!`];
 
   if (framework === 'hono') sharedMarkers.push(`from 'hono'`);
 
@@ -381,14 +488,18 @@ function assertCompletedDir(directory, fileName, label) {
   }
 }
 
-function generationArgv(cli, provider, framework, secretEnv, relativeOut, extraFlags = []) {
+function generationArgv(cli, provider, framework, credential, relativeOut, extraFlags = []) {
+  const credentialFlags = credential.kind === 'fal'
+    ? ['--public-key-env', credential.publicKeyEnv, '--expected-user-env', credential.expectedUserEnv]
+    : ['--secret-env', credential.secretEnv];
+
   return [
     cli,
     'init', 'webhook',
     '--provider', provider,
     '--framework', framework,
     '--out', relativeOut,
-    '--secret-env', secretEnv,
+    ...credentialFlags,
     '--body-limit', String(BODY_LIMIT),
     ...extraFlags,
   ];
@@ -416,6 +527,153 @@ function typecheckGeneratedFile(file, consumerRoot, label) {
   invoke(argv, consumerRoot, `semantic typecheck of ${label}`);
 }
 
+function noncanonicalFalKey(key) {
+  const last = key[key.length - 1];
+  const index = FAL_PUBLIC_KEY_ALPHABET.indexOf(last);
+
+  assert(index >= 0, 'Synthetic fal key ended with a character outside the Base64url alphabet.');
+
+  const variant = `${key.slice(0, -1)}${FAL_PUBLIC_KEY_ALPHABET[index ^ 1]}`;
+
+  assert.deepEqual([...Buffer.from(variant, 'base64url')], [...Buffer.from(key, 'base64url')],
+    'The noncanonical control must decode to the same 32 bytes.');
+  assert.notEqual(variant, key, 'The noncanonical control must differ from the canonical string.');
+
+  return variant;
+}
+
+/**
+ * Semantic check of the generated runtime decoder, not a substring check. It
+ * bundles the generated Next.js fal handler, imports it with a synthetic valid
+ * Ed25519 key, drives a real signed Request, then proves padded/whitespace/
+ * wrong-length/noncanonical/17-key/blank/missing-account env values fail
+ * closed without echoing the supplied environment value.
+ */
+async function assertFalDecoderSemantics(consumerRoot, sourcePath) {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const jwk = publicKey.export({ format: 'jwk' });
+
+  assert.equal(jwk.kty, 'OKP', 'Synthetic Ed25519 key must export as an OKP JWK.');
+  assert.equal(jwk.crv, 'Ed25519', 'Synthetic Ed25519 key must export curve Ed25519.');
+
+  if (Object.prototype.toString.call(jwk.x) !== '[object String]' || !/^[A-Za-z0-9_-]{43}$/.test(jwk.x)) {
+    fail('Synthetic Ed25519 public key did not export as a 43-character Base64url string.');
+  }
+
+  const publicKeyText = jwk.x;
+  const userId = 'user_templates_synthetic_fal';
+  const requestId = 'req_templates_synthetic_fal';
+  const timestamp = Math.floor(Date.now() / 1000);
+  const body = Buffer.from('{"synthetic":"templates-fal-decoder"}');
+  const digest = createHash('sha256').update(body).digest('hex');
+  const signedContent = Buffer.from(`${requestId}\n${userId}\n${timestamp}\n${digest}`, 'utf8');
+  const signature = sign(null, signedContent, privateKey).toString('hex');
+
+  const requestHeaders = {
+    'x-fal-webhook-signature': signature,
+    'x-fal-webhook-request-id': requestId,
+    'x-fal-webhook-user-id': userId,
+    'x-fal-webhook-timestamp': String(timestamp),
+  };
+
+  const bundle = await build({
+    entryPoints: [sourcePath],
+    absWorkingDir: consumerRoot,
+    bundle: true,
+    write: false,
+    platform: 'node',
+    format: 'esm',
+    target: 'node22',
+    logLevel: 'silent',
+  });
+
+  assert.equal(bundle.outputFiles.length, 1, 'Generated fal handler bundling did not produce one module.');
+
+  const runtimeFile = join(consumerRoot, 'fal-runtime-decoder.mjs');
+
+  writeFileSync(runtimeFile, bundle.outputFiles[0].text);
+
+  const runtimeUrl = pathToFileURL(runtimeFile).href;
+  const savedPublicKeys = process.env.FAL_WEBHOOK_PUBLIC_KEYS;
+  const savedUserId = process.env.FAL_WEBHOOK_USER_ID;
+
+  const setEnv = (nextPublicKeys, nextUserId) => {
+    if (nextPublicKeys === undefined) delete process.env.FAL_WEBHOOK_PUBLIC_KEYS;
+    else process.env.FAL_WEBHOOK_PUBLIC_KEYS = nextPublicKeys;
+
+    if (nextUserId === undefined) delete process.env.FAL_WEBHOOK_USER_ID;
+    else process.env.FAL_WEBHOOK_USER_ID = nextUserId;
+  };
+
+  const requestFor = () => new Request('https://example.test/webhook', {
+    method: 'POST',
+    headers: requestHeaders,
+    body: new Uint8Array(body),
+  });
+
+  const attempt = async (label) => {
+    try {
+      const module = await import(`${runtimeUrl}?case=${encodeURIComponent(label)}`);
+      const postKind = Object.prototype.toString.call(module.POST);
+
+      if (postKind !== '[object Function]' && postKind !== '[object AsyncFunction]') {
+        return { failure: new Error('Generated fal handler did not export POST.'), status: null, body: '' };
+      }
+
+      const response = await module.POST(requestFor());
+
+      return { failure: null, status: response.status, body: await response.text() };
+    } catch (error) {
+      return { failure: error, status: null, body: '' };
+    }
+  };
+
+  try {
+    setEnv(publicKeyText, userId);
+
+    const valid = await attempt('valid');
+
+    assert.equal(valid.failure, null, `Valid fal runtime env failed to load: ${valid.failure?.message ?? ''}`);
+    assert.equal(valid.status, 200, `Valid signed fal Request returned HTTP ${valid.status}.`);
+
+    const invalidCases = [
+      { label: 'padded', publicKeys: `${publicKeyText}=`, userId },
+      { label: 'noncanonical', publicKeys: noncanonicalFalKey(publicKeyText), userId },
+      { label: '31-byte', publicKeys: Buffer.alloc(31, 1).toString('base64url'), userId },
+      { label: '33-byte', publicKeys: Buffer.alloc(33, 1).toString('base64url'), userId },
+      { label: '17-keys', publicKeys: Array.from({ length: 17 }, () => publicKeyText).join(','), userId },
+      { label: 'empty-entry', publicKeys: `,${publicKeyText}`, userId },
+      { label: 'blank', publicKeys: '', userId },
+      { label: 'missing-public', publicKeys: undefined, userId },
+      { label: 'whitespace', publicKeys: `${publicKeyText} `, userId },
+      { label: 'missing-user', publicKeys: publicKeyText, userId: undefined },
+      { label: 'blank-user', publicKeys: publicKeyText, userId: '' },
+      { label: 'comma-user', publicKeys: publicKeyText, userId: 'bad,user' },
+      { label: 'space-user', publicKeys: publicKeyText, userId: 'bad user' },
+    ];
+
+    for (const invalid of invalidCases) {
+      setEnv(invalid.publicKeys, invalid.userId);
+
+      const outcome = await attempt(`invalid-${invalid.label}`);
+
+      const failed = outcome.failure !== null
+        || (outcome.status !== null && outcome.status >= 400 && outcome.status < 600);
+
+      assert(failed, `Generated fal decoder accepted invalid ${invalid.label} runtime env (HTTP ${outcome.status}).`);
+
+      const detail = `${outcome.failure?.message ?? ''} ${outcome.body}`;
+
+      for (const value of [invalid.publicKeys, invalid.userId]) {
+        if (value === undefined || value.length === 0) continue;
+        assert(!detail.includes(value), `Generated fal decoder echoed the invalid ${invalid.label} env value.`);
+      }
+    }
+  } finally {
+    setEnv(savedPublicKeys, savedUserId);
+  }
+}
+
 async function main() {
   assertExpectationCoverage();
   requireBuildArtifacts();
@@ -425,6 +683,15 @@ async function main() {
 
   if (!readiness.ready) {
     console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${readiness.reason}`);
+    console.error('No temp root was allocated and no package was installed or generated.');
+
+    return EXIT_NOT_READY;
+  }
+
+  const cliReadiness = decideCliReadiness();
+
+  if (!cliReadiness.ready) {
+    console.error(`BLOCKED (exit ${EXIT_NOT_READY}): ${cliReadiness.reason}`);
     console.error('No temp root was allocated and no package was installed or generated.');
 
     return EXIT_NOT_READY;
@@ -466,7 +733,7 @@ async function main() {
     let primaryCount = 0;
 
     for (const provider of providers) {
-      const secretEnv = EXPECTED_SECRET_ENV[provider];
+      const credential = credentialFor(provider);
       const primaryFlags = PRIMARY_CONFIGURATION[provider]?.flags ?? [];
 
       for (const framework of FRAMEWORKS) {
@@ -478,16 +745,16 @@ async function main() {
 
         const generationLabel = `hooklatch init webhook (${label})`;
 
-        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOut, primaryFlags), consumerRoot, generationLabel);
+        invoke(generationArgv(cli, provider, framework, credential, relativeOut, primaryFlags), consumerRoot, generationLabel);
 
         assertCompletedDir(firstDir, expectedFileName(provider, framework), `Generation (${label})`);
 
         const firstPath = join(firstDir, expectedFileName(provider, framework));
         const content = readFileSync(firstPath, 'utf8');
 
-        expectContentMarkers(provider, framework, secretEnv, content);
+        expectContentMarkers(provider, framework, credential, content);
 
-        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOutCopy, primaryFlags), consumerRoot, `deterministic regeneration (${label})`);
+        invoke(generationArgv(cli, provider, framework, credential, relativeOutCopy, primaryFlags), consumerRoot, `deterministic regeneration (${label})`);
 
         assertCompletedDir(secondDir, expectedFileName(provider, framework), `Regeneration (${label})`);
 
@@ -505,6 +772,12 @@ async function main() {
       fail(`Primary matrix is reduced: ${primaryCount} handlers instead of ${TARGET_PROVIDERS * FRAMEWORKS.length}.`);
     }
 
+    const falNextPath = join(consumerRoot, 'gen', 'fal', 'nextjs', 'route.ts');
+
+    if (!existsSync(falNextPath)) fail('The fal Next.js primary handler is missing; decoder semantics cannot be checked.');
+
+    await assertFalDecoderSemantics(consumerRoot, falNextPath);
+
     // Configured variants exercise explicit non-default forwarding. Readiness
     // requires both configured providers, so a missing variant recipe is a real
     // matrix failure rather than an acceptable partial run.
@@ -517,7 +790,7 @@ async function main() {
     let variantCount = 0;
 
     for (const provider of configuredRegistered) {
-      const secretEnv = EXPECTED_SECRET_ENV[provider];
+      const credential = credentialFor(provider);
       const variant = CONFIGURED_VARIANTS[provider];
 
       for (const framework of FRAMEWORKS) {
@@ -526,7 +799,7 @@ async function main() {
         const outDir = join(consumerRoot, relativeOut);
         const contentLabel = `Configured ${framework} handler for ${provider}`;
 
-        invoke(generationArgv(cli, provider, framework, secretEnv, relativeOut, variant.flags), consumerRoot,
+        invoke(generationArgv(cli, provider, framework, credential, relativeOut, variant.flags), consumerRoot,
           `hooklatch init webhook configured (${label})`);
         assertCompletedDir(outDir, expectedFileName(provider, framework), `Configured generation (${label})`);
 
@@ -561,7 +834,7 @@ async function main() {
 
     if (existsSync(join(consumerRoot, 'gen-invalid'))) fail('Installed CLI wrote output for a rejected provider.');
 
-    console.log(`PASS: ${primaryCount} primary generated handlers across ${providers.length} registered providers are complete, deterministic and semantically typechecked; ${variantCount} configured variants independently typechecked.`);
+    console.log(`PASS: ${primaryCount} primary generated handlers across ${providers.length} registered providers are complete, deterministic and semantically typechecked; ${variantCount} configured variants independently typechecked; fal runtime decoder accepted a signed Request and rejected malformed env values without echo.`);
 
     return EXIT_PASS;
   } finally {
