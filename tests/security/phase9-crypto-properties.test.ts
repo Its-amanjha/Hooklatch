@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { createVerifier, verify, verifyRequest } from '../../src/index.js';
 import { HooklatchError } from '../../src/errors.js';
-import type { HeaderInput, VerifyOptions, VerificationResult } from '../../src/types.js';
+import type { VerificationResult } from '../../src/types.js';
 
 /**
  * Phase 9 Stage B — Heavy Adversarial & Cryptographic Properties Security Suite
@@ -11,56 +11,45 @@ import type { HeaderInput, VerifyOptions, VerificationResult } from '../../src/t
  *   - Fal: Pure Ed25519 (64-byte / 128-hex), raw 32-byte public keys (1..16),
  *     mandatory expectedUserId account binding, strict LF framing, lowercase SHA-256 hex.
  *
- * Invariant: Honest contract-first testing. Base 19 SDK reports genuine RED seams
- * on unregistered new providers until coordinator registers them.
+ * Invariant: Honest contract-first testing. Real public APIs are called directly with
+ * literal 'fal' and 'vercel' provider IDs. Missing union arms at base 19 are expected
+ * compiler RED seams until coordinator integrates them.
  */
 
-interface VercelContractOptions {
-  readonly provider: 'vercel';
-  readonly secrets: readonly string[];
-  readonly toleranceSeconds?: number;
-  readonly now?: () => number;
-  readonly maxBodyBytes?: number;
+function expectErrorCodeSync(run: () => void, expectedCode: string): void {
+  let thrown: unknown;
+
+  try {
+    run();
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown).toBeInstanceOf(HooklatchError);
+
+  if (thrown instanceof HooklatchError) {
+    expect(thrown.code).toBe(expectedCode);
+  }
 }
 
-interface FalContractOptions {
-  readonly provider: 'fal';
-  readonly publicKeys: readonly Uint8Array[];
-  readonly expectedUserId: string;
-  readonly toleranceSeconds?: number;
-  readonly now?: () => number;
-  readonly maxBodyBytes?: number;
+async function expectErrorCodeAsync(
+  run: () => Promise<VerificationResult | void>,
+  expectedCode: string,
+): Promise<void> {
+  let thrown: unknown;
+
+  try {
+    await run();
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown).toBeInstanceOf(HooklatchError);
+
+  if (thrown instanceof HooklatchError) {
+    expect(thrown.code).toBe(expectedCode);
+  }
 }
-
-interface InvalidOptionsSpec {
-  readonly provider: string;
-  readonly secrets?: readonly string[];
-  readonly publicKeys?: readonly Uint8Array[];
-  readonly expectedUserId?: string;
-}
-
-type PublicVerifyFn = (
-  request: { readonly rawBody: Uint8Array; readonly headers: HeaderInput },
-  options: VerifyOptions | FalContractOptions | VercelContractOptions,
-) => Promise<VerificationResult>;
-
-type PublicCreateVerifierFn = (
-  options: VerifyOptions | FalContractOptions | VercelContractOptions | InvalidOptionsSpec,
-) => (request: { readonly rawBody: Uint8Array; readonly headers: HeaderInput }) => Promise<VerificationResult>;
-
-type PublicVerifyRequestFn = (
-  request: Request,
-  options: VerifyOptions | FalContractOptions | VercelContractOptions,
-) => Promise<VerificationResult>;
-
-// SAFETY: Broadening function signature once to accept Phase 9 contract-first options
-const callVerify: PublicVerifyFn = verify as PublicVerifyFn;
-
-// SAFETY: Broadening function signature once to accept Phase 9 contract-first options
-const callCreateVerifier: PublicCreateVerifierFn = createVerifier as PublicCreateVerifierFn;
-
-// SAFETY: Broadening function signature once to accept Phase 9 contract-first options
-const callVerifyRequest: PublicVerifyRequestFn = verifyRequest as PublicVerifyRequestFn;
 
 // Fixed synthetic Ed25519 keys for deterministic security testing (RFC 8410 DER seeds)
 const FAL_SEED_PRIMARY = Buffer.from('1010101010101010101010101010101010101010101010101010101010101010', 'hex');
@@ -83,7 +72,7 @@ const falKeyAttacker = deriveSyntheticFalKey(FAL_SEED_ATTACKER);
 const VERCEL_SECRET = 'vercel-canary-secret-phase9-adversarial';
 const FAL_USER_ALICE = 'user_fal_subscriber_alice_42';
 const FAL_USER_EVE = 'user_fal_attacker_eve_99';
-const FIXED_NOW = 1729684800; // 2026-10-23T12:00:00Z
+const FIXED_NOW = 1729684800; // 2024-10-23T12:00:00Z (deterministic reference timestamp)
 
 function signFal(
   requestId: string,
@@ -111,7 +100,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
       expect(validSig).toHaveLength(40);
 
-      const vercelOptions: VercelContractOptions = {
+      const vercelOptions = {
         provider: 'vercel',
         secrets: [VERCEL_SECRET],
         now: () => FIXED_NOW,
@@ -122,7 +111,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
       expect(sha256Sig).toHaveLength(64);
 
-      const resSha256 = await callVerify(
+      // SAFETY: Literal 'vercel' options tested directly against public verify API
+      const resSha256 = await verify(
         { rawBody: body, headers: { 'x-vercel-signature': sha256Sig } },
         vercelOptions,
       );
@@ -136,7 +126,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       // 64-byte Ed25519 signature (128 hex characters) supplied to Vercel
       const ed25519Sig = 'a'.repeat(128);
 
-      const resEd25519 = await callVerify(
+      // SAFETY: Literal 'vercel' options tested directly against public verify API
+      const resEd25519 = await verify(
         { rawBody: body, headers: { 'x-vercel-signature': ed25519Sig } },
         vercelOptions,
       );
@@ -148,7 +139,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       }
 
       // Truncated (38 hex) signature
-      const resTruncated = await callVerify(
+      // SAFETY: Literal 'vercel' options tested directly against public verify API
+      const resTruncated = await verify(
         { rawBody: body, headers: { 'x-vercel-signature': validSig.slice(0, 38) } },
         vercelOptions,
       );
@@ -168,7 +160,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
       expect(validSig).toHaveLength(128);
 
-      const falOptions: FalContractOptions = {
+      const falOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
@@ -183,7 +175,11 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         'x-fal-webhook-signature': '0123456789abcdef0123456789abcdef01234567',
       };
 
-      const resSha1 = await callVerify({ rawBody: body, headers: headersSha1 }, falOptions);
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resSha1 = await verify(
+        { rawBody: body, headers: headersSha1 },
+        falOptions,
+      );
 
       expect(resSha1.ok).toBe(false);
 
@@ -199,7 +195,11 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         'x-fal-webhook-signature': '0'.repeat(64),
       };
 
-      const resSha256 = await callVerify({ rawBody: body, headers: headersSha256 }, falOptions);
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resSha256 = await verify(
+        { rawBody: body, headers: headersSha256 },
+        falOptions,
+      );
 
       expect(resSha256.ok).toBe(false);
 
@@ -211,42 +211,24 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
     test('Options credential confusion: Vercel rejects publicKeys/expectedUserId and Fal rejects secrets', () => {
       // Vercel with own publicKeys or expectedUserId must throw HooklatchError invalid-options
       const invalidVercelOpts = {
-        provider: 'vercel',
+        provider: 'vercel' as const,
         secrets: [VERCEL_SECRET],
         publicKeys: [falKeyPrimary.rawPub],
       };
 
-      try {
-        callCreateVerifier(invalidVercelOpts);
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately invalid runtime options testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier(invalidVercelOpts as never), 'invalid-options');
 
       // Fal with own secrets or singular secret must throw HooklatchError invalid-options
       const invalidFalOpts = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         secrets: ['dummy-secret'],
       };
 
-      try {
-        callCreateVerifier(invalidFalOpts);
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately invalid runtime options testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier(invalidFalOpts as never), 'invalid-options');
     });
   });
 
@@ -260,26 +242,29 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       // Fal signs it with Alice's platform key, but with Eve's userId in header.
       const validSigUnderEve = signFal(reqId, FAL_USER_EVE, ts, body, falKeyPrimary.privKey);
 
-      const aliceOptions: FalContractOptions = {
+      const aliceOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
-        expectedUserId: FAL_USER_ALICE, // Alice expects her own ID
+        expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
       };
 
       const headers = {
         'x-fal-webhook-request-id': reqId,
-        'x-fal-webhook-user-id': FAL_USER_EVE, // Incoming header has Eve's ID
+        'x-fal-webhook-user-id': FAL_USER_EVE,
         'x-fal-webhook-timestamp': ts,
         'x-fal-webhook-signature': validSigUnderEve,
       };
 
-      const result = await callVerify({ rawBody: body, headers }, aliceOptions);
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const result = await verify(
+        { rawBody: body, headers },
+        aliceOptions,
+      );
 
       expect(result.ok).toBe(false);
 
       if (!result.ok) {
-        // Must fail with invalid-signature (no recipient-mismatch code, no recipient echo)
         expect(result.reason).toBe('invalid-signature');
         expect(result.message).not.toContain(FAL_USER_EVE);
       }
@@ -287,39 +272,21 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
 
     test('expectedUserId is mandatory: missing, empty, or non-visible ASCII throws invalid-options', () => {
       const missingExpectedUserId = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
       };
 
-      try {
-        callCreateVerifier(missingExpectedUserId);
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately missing expectedUserId testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier(missingExpectedUserId as never), 'invalid-options');
 
       const emptyExpectedUserId = {
-        provider: 'fal',
+        provider: 'fal' as const,
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: '',
       };
 
-      try {
-        callCreateVerifier(emptyExpectedUserId);
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately empty expectedUserId testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier(emptyExpectedUserId as never), 'invalid-options');
     });
   });
 
@@ -327,10 +294,10 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
     test('Authentication takes precedence over freshness: forged signature + stale timestamp -> invalid-signature', async () => {
       const body = Buffer.from('{"test":"auth-before-freshness"}', 'utf-8');
       const reqId = 'req_order_01';
-      const staleTs = String(FIXED_NOW - 1000); // 1000s old
+      const staleTs = String(FIXED_NOW - 1000);
       const forgedSig = 'f'.repeat(128);
 
-      const falOptions: FalContractOptions = {
+      const falOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
@@ -345,12 +312,15 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         'x-fal-webhook-signature': forgedSig,
       };
 
-      const result = await callVerify({ rawBody: body, headers }, falOptions);
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const result = await verify(
+        { rawBody: body, headers },
+        falOptions,
+      );
 
       expect(result.ok).toBe(false);
 
       if (!result.ok) {
-        // MUST be invalid-signature, NOT timestamp-expired!
         expect(result.reason).toBe('invalid-signature');
       }
     });
@@ -358,7 +328,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
     test('Header presence and grammar checks precede cryptographic evaluation', async () => {
       const body = Buffer.from('{"test":"order"}', 'utf-8');
 
-      const falOptions: FalContractOptions = {
+      const falOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
@@ -366,7 +336,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       };
 
       // Step 1: Missing signature header -> missing-signature
-      const resNoSig = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resNoSig = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': 'req_1',
@@ -382,7 +353,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       }
 
       // Step 2: Signature not 128 hex chars -> malformed-signature
-      const resBadHex = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resBadHex = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': 'req_1',
@@ -399,7 +371,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       }
 
       // Step 3: Missing request ID -> missing-identity
-      const resNoReqId = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resNoReqId = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-user-id': FAL_USER_ALICE,
@@ -415,7 +388,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       }
 
       // Step 4: Request ID with embedded newline/control chars -> malformed-signature
-      const resNewlineId = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resNewlineId = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': 'req\ninjected',
@@ -432,7 +406,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       }
 
       // Step 5: Missing timestamp -> missing-timestamp
-      const resNoTs = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resNoTs = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': 'req_1',
@@ -452,7 +427,7 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const body = Buffer.from('{"test":"freshness"}', 'utf-8');
       const reqId = 'req_boundary_check';
 
-      const falOptions: FalContractOptions = {
+      const falOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
@@ -464,7 +439,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const tsMinus300 = String(FIXED_NOW - 300);
       const sigMinus300 = signFal(reqId, FAL_USER_ALICE, tsMinus300, body, falKeyPrimary.privKey);
 
-      const resMinus300 = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resMinus300 = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': reqId,
@@ -480,7 +456,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
       const tsMinus301 = String(FIXED_NOW - 301);
       const sigMinus301 = signFal(reqId, FAL_USER_ALICE, tsMinus301, body, falKeyPrimary.privKey);
 
-      const resMinus301 = await callVerify({
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const resMinus301 = await verify({
         rawBody: body,
         headers: {
           'x-fal-webhook-request-id': reqId,
@@ -501,78 +478,42 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
   describe('4. Key Mutation, Typed Views & Snapshot Containment', () => {
     test('publicKeys array bounds: 1..16 entries enforced at setup', () => {
       // Empty array throws invalid-options
-      try {
-        callCreateVerifier({
-          provider: 'fal',
-          publicKeys: [],
-          expectedUserId: FAL_USER_ALICE,
-        });
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately empty publicKeys testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier({
+        provider: 'fal' as const,
+        publicKeys: [],
+        expectedUserId: FAL_USER_ALICE,
+      } as never), 'invalid-options');
 
       // 17 keys throws invalid-options
       const seventeenKeys = Array.from({ length: 17 }, () => falKeyPrimary.rawPub);
 
-      try {
-        callCreateVerifier({
-          provider: 'fal',
-          publicKeys: seventeenKeys,
-          expectedUserId: FAL_USER_ALICE,
-        });
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately excessive publicKeys count testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier({
+        provider: 'fal' as const,
+        publicKeys: seventeenKeys,
+        expectedUserId: FAL_USER_ALICE,
+      } as never), 'invalid-options');
     });
 
     test('Key byte lengths: exactly 32 visible bytes enforced at setup', () => {
       // 31 bytes throws invalid-options
-      try {
-        callCreateVerifier({
-          provider: 'fal',
-          publicKeys: [falKeyPrimary.rawPub.subarray(0, 31)],
-          expectedUserId: FAL_USER_ALICE,
-        });
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately truncated 31-byte key testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier({
+        provider: 'fal' as const,
+        publicKeys: [falKeyPrimary.rawPub.subarray(0, 31)],
+        expectedUserId: FAL_USER_ALICE,
+      } as never), 'invalid-options');
 
       // 33 bytes throws invalid-options
       const overgrownKey = new Uint8Array(33);
 
-      try {
-        callCreateVerifier({
-          provider: 'fal',
-          publicKeys: [overgrownKey],
-          expectedUserId: FAL_USER_ALICE,
-        });
-        throw new Error('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HooklatchError);
-
-        // SAFETY: Discriminated error code property access
-        const error = err as HooklatchError;
-
-        expect(error.code).toBe('invalid-options');
-      }
+      // SAFETY: Deliberately overgrown 33-byte key testing HooklatchError(invalid-options)
+      expectErrorCodeSync(() => createVerifier({
+        provider: 'fal' as const,
+        publicKeys: [overgrownKey],
+        expectedUserId: FAL_USER_ALICE,
+      } as never), 'invalid-options');
     });
 
     test('Key view offsets & buffer snapshotting: mutating key array or bytes does not alter verification', async () => {
@@ -587,7 +528,8 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         now: () => FIXED_NOW,
       };
 
-      const verifier = callCreateVerifier(falOptions);
+      // SAFETY: Literal 'fal' options tested directly against public createVerifier API
+      const verifier = createVerifier(falOptions);
 
       // Mutate the original array and the underlying bytes after passing to setup
       keyList.push(falKeyAttacker.rawPub);
@@ -634,14 +576,15 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
         duplex: 'half',
       });
 
-      const falOptions: FalContractOptions = {
+      const falOptions = {
         provider: 'fal',
         publicKeys: [falKeyPrimary.rawPub],
         expectedUserId: FAL_USER_ALICE,
         now: () => FIXED_NOW,
       };
 
-      const res = await callVerifyRequest(request, falOptions);
+      // SAFETY: Literal 'fal' options tested directly against public verifyRequest API
+      const res = await verifyRequest(request, falOptions);
 
       expect(res.ok).toBe(true);
     });
@@ -650,16 +593,17 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
   describe('5. Crypto Fault Isolation & Safe Restoration', () => {
     test('WebCrypto NotSupportedError produces crypto-unavailable, never invalid-signature', async () => {
       const originalSubtleVerify = globalThis.crypto.subtle.verify;
+      let injectedCalled = false;
 
       try {
-        // Narrowly inject WebCrypto fault
         globalThis.crypto.subtle.verify = async () => {
+          injectedCalled = true;
           throw new DOMException('Ed25519 not supported in this environment', 'NotSupportedError');
         };
 
         const body = Buffer.from('{"test":"crypto-fault"}', 'utf-8');
 
-        const falOptions: FalContractOptions = {
+        const falOptions = {
           provider: 'fal',
           publicKeys: [falKeyPrimary.rawPub],
           expectedUserId: FAL_USER_ALICE,
@@ -673,32 +617,89 @@ describe('Phase 9 Stage B: Cryptographic Properties & Adversarial Invariants', (
           'x-fal-webhook-signature': 'a'.repeat(128),
         };
 
-        try {
-          const res = await callVerify({ rawBody: body, headers }, falOptions);
+        // SAFETY: Literal 'fal' options tested with injected fault
+        await expectErrorCodeAsync(
+          () => verify({ rawBody: body, headers }, falOptions),
+          'crypto-unavailable',
+        );
 
-          // If error returned as failure details
-          expect(res.ok).toBe(false);
-
-          if (!res.ok) {
-            expect(res.reason).not.toBe('invalid-signature');
-          }
-        } catch (err) {
-          // If thrown as HooklatchError
-          expect(err).toBeInstanceOf(HooklatchError);
-
-          // SAFETY: Discriminated error code property access
-          const error = err as HooklatchError;
-
-          expect(error.code).toBe('crypto-unavailable');
-        }
+        expect(injectedCalled).toBe(true);
       } finally {
-        // Safe restoration
         globalThis.crypto.subtle.verify = originalSubtleVerify;
+      }
+    });
+
+    test('Unexpected WebCrypto OperationError produces internal, never invalid-signature', async () => {
+      const originalSubtleVerify = globalThis.crypto.subtle.verify;
+      let injectedCalled = false;
+
+      try {
+        globalThis.crypto.subtle.verify = async () => {
+          injectedCalled = true;
+          throw new DOMException('Unspecified device failure', 'OperationError');
+        };
+
+        const body = Buffer.from('{"test":"operation-error"}', 'utf-8');
+
+        const falOptions = {
+          provider: 'fal',
+          publicKeys: [falKeyPrimary.rawPub],
+          expectedUserId: FAL_USER_ALICE,
+          now: () => FIXED_NOW,
+        };
+
+        const headers = {
+          'x-fal-webhook-request-id': 'req_op_fault',
+          'x-fal-webhook-user-id': FAL_USER_ALICE,
+          'x-fal-webhook-timestamp': String(FIXED_NOW),
+          'x-fal-webhook-signature': 'a'.repeat(128),
+        };
+
+        // SAFETY: Literal 'fal' options tested with injected fault
+        await expectErrorCodeAsync(
+          () => verify({ rawBody: body, headers }, falOptions),
+          'internal',
+        );
+
+        expect(injectedCalled).toBe(true);
+      } finally {
+        globalThis.crypto.subtle.verify = originalSubtleVerify;
+      }
+    });
+
+    test('Cryptographic MAC mismatch produces result invalid-signature, not a thrown error', async () => {
+      const body = Buffer.from('{"test":"wrong-mac"}', 'utf-8');
+
+      const falOptions = {
+        provider: 'fal',
+        publicKeys: [falKeyPrimary.rawPub],
+        expectedUserId: FAL_USER_ALICE,
+        now: () => FIXED_NOW,
+      };
+
+      const headers = {
+        'x-fal-webhook-request-id': 'req_wrong_mac',
+        'x-fal-webhook-user-id': FAL_USER_ALICE,
+        'x-fal-webhook-timestamp': String(FIXED_NOW),
+        'x-fal-webhook-signature': 'b'.repeat(128),
+      };
+
+      // SAFETY: Literal 'fal' options tested directly against public verify API
+      const res = await verify(
+        { rawBody: body, headers },
+        falOptions,
+      );
+
+      expect(res.ok).toBe(false);
+
+      if (!res.ok) {
+        expect(res.reason).toBe('invalid-signature');
       }
     });
   });
 
-  describe('6. Baseline 19 Providers Regression Protection', () => {
+  describe('6. Baseline Reference Regressions (Stripe & GitHub)', () => {
+    // Note: Exercises Stripe and GitHub as baseline reference checks; does not claim all 19 providers.
     test('Stripe HMAC-SHA256 baseline verification is unaffected by new provider contracts', async () => {
       const stripeSecret = 'whsec_test_stripe_secret_baseline';
       const body = Buffer.from('{"id":"evt_123","object":"event"}', 'utf-8');
