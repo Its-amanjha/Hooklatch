@@ -575,6 +575,11 @@ export function resolveReportDestination(requested) {
   const resolved = path.resolve(REPO_ROOT, raw);
   const relative = toPosix(path.relative(REPO_ROOT, resolved));
 
+  if (relative !== 'notes/phase-10/coordinator-cjs-prototype-results.json'
+    && relative !== 'notes/phase-10/coordinator-cjs-consumer-results.json') {
+    throw new Error('--out must name an assigned coordinator CJS results file; claims and prior evidence are immutable.');
+  }
+
   if (path.isAbsolute(raw) && !resolved.startsWith(`${REPO_ROOT}${path.sep}`)) {
     throw new Error(`--out must stay inside ${REPORT_DIRECTORY}/; refused an absolute external path: ${raw}`);
   }
@@ -1276,7 +1281,7 @@ async function controls(workspace, candidate, esmDist) {
  *   A. a child that closes on its own is removed normally;
  *   B. a child that must be killed on timeout is preserved and FAILS disposal
  *      while termination is unconfirmed, then may be removed only after
- *      confirmTermination() observes a closed child and no live pid.
+ *      confirmTermination() observes a closed child; pid liveness is advisory.
  *
  * If the killed child cannot be confirmed closed, the control fails with the
  * scratch left in place instead of deleting it.
