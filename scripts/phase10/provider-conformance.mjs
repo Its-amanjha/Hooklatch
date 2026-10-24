@@ -14,10 +14,10 @@ const RECEIPT_PATH = join(CACHE_DIR, 'receipt.json');
 const FROZEN_LOCK_PATH = join(CACHE_DIR, 'package-lock.json');
 const NPM_CACHE_DIR = join(CACHE_DIR, 'npm-cache');
 const CORPUS_PATH = join(REPO_ROOT, 'tests', 'conformance', 'phase10-provider-cases.json');
-const RESULTS_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-2-results.json');
-const REPORT_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-2-review.md');
+const RESULTS_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-results.json');
+const REPORT_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-review.md');
 const DIST_INDEX = join(REPO_ROOT, 'dist', 'index.js');
-const REPAIR_CLAIM_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-2-session.json');
+const REPAIR_CLAIM_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-session.json');
 
 const PINNED_PACKAGES = [
   {
@@ -73,6 +73,17 @@ const DOCS_PROBES = [
 
 const REQUIRED_PROVIDERS = ['standard-webhooks', 'paddle', 'sanity', 'linear', 'vercel', 'fal'];
 
+const REQUIRED_CATEGORIES = [
+  'accept-reject',
+  'secret-rotation',
+  'freshness-window',
+  'corrupt-signature',
+  'divergence-ordering',
+  'policy-divergence',
+  'byte-preservation',
+  'docs-probe',
+];
+
 const ALLOWED_CASE_PROPERTIES = new Set([
   'id',
   'provider',
@@ -92,6 +103,9 @@ const ALLOWED_CASE_PROPERTIES = new Set([
   'divergenceReason',
   'evidenceReference',
   'isBinaryView',
+  'clockMode',
+  'binaryPayloadBase64',
+  'unsupportedVendorInterface',
 ]);
 
 const ALLOWED_HOOKLATCH_REASONS = new Set([
@@ -117,6 +131,106 @@ const ALLOWED_HOOKLATCH_ERROR_CODES = new Set([
   'crypto-unavailable',
   'internal',
 ]);
+
+const FROZEN_DIVERGENCES = new Map([
+  [
+    'std-divergence-auth-before-freshness',
+    {
+      provider: 'standard-webhooks',
+      expectedError: 'WebhookVerificationError',
+      expectedMessage: 'Message timestamp too old',
+      divergenceReason: 'Hooklatch evaluates cryptographic authentication prior to timestamp freshness, failing with invalid-signature. Standard Webhooks SDK evaluates timestamp freshness first, throwing WebhookVerificationError (Message timestamp too old).',
+      evidenceReference: 'Hooklatch verification pipeline in src/internal/verification.ts vs standardwebhooks Webhook.verify in dist/index.js:15',
+    },
+  ],
+  [
+    'std-divergence-weak-key',
+    {
+      provider: 'standard-webhooks',
+      expectedHooklatchCode: 'invalid-secret',
+      expectedSdkOk: true,
+      divergenceReason: 'Hooklatch enforces strict MIN_KEY_BYTES = 24 bound on Standard Webhooks secrets to protect against weak symmetric keys, failing at option validation with invalid-secret. The vendor SDK permits arbitrary key lengths.',
+      evidenceReference: 'Hooklatch MIN_KEY_BYTES bound in src/providers/standard-webhooks.ts vs standardwebhooks Webhook constructor in dist/index.js',
+    },
+  ],
+  [
+    'paddle-divergence-whitespace-segment',
+    {
+      provider: 'paddle',
+      expectedHooklatchOk: true,
+      expectedError: 'PaddleVerificationError',
+      divergenceReason: 'Hooklatch trims segment whitespace around semicolons per standard header robustness, successfully recognizing "h1"; @paddle/paddle-node-sdk splits on ";" without trimming, yielding key " h1" which fails parameter matching and throws Invalid webhook signature.',
+      evidenceReference: 'Hooklatch segment.trim() in src/providers/paddle.ts vs @paddle/paddle-node-sdk WebhooksValidator.extractHeader',
+    },
+  ],
+  [
+    'paddle-divergence-rotation-first-valid',
+    {
+      provider: 'paddle',
+      expectedHooklatchOk: true,
+      expectedSdkOk: false,
+      divergenceReason: 'Hooklatch evaluates repeated h1 fields as a secret rotation accept-set; Paddle Node SDK loops and overwrites "h1", checking only the final h1 value.',
+      evidenceReference: 'Hooklatch rotation accept-set in src/providers/paddle.ts vs @paddle/paddle-node-sdk WebhooksValidator.extractHeader',
+    },
+  ],
+  [
+    'paddle-divergence-auth-before-freshness',
+    {
+      provider: 'paddle',
+      expectedHooklatchReason: 'invalid-signature',
+      expectedSdkOk: false,
+      divergenceReason: 'Hooklatch evaluates cryptographic authentication prior to timestamp freshness, failing with invalid-signature. Paddle Node SDK evaluates timestamp freshness first (new Date() > ...), returning false.',
+      evidenceReference: 'Hooklatch core verification pipeline in src/internal/verification.ts vs @paddle/paddle-node-sdk WebhooksValidator.isValidSignature',
+    },
+  ],
+  [
+    'sanity-reject-default-tolerance-stale',
+    {
+      provider: 'sanity',
+      expectedHooklatchReason: 'timestamp-expired',
+      expectedSdkOk: true,
+      divergenceReason: 'Hooklatch core enforces standard timestamp freshness (300s default); @sanity/webhook assertValidSignature does not expire timestamps and only checks MINIMUM_TIMESTAMP bound.',
+      evidenceReference: 'Hooklatch verification pipeline in src/internal/verification.ts vs @sanity/webhook in dist/index.mjs',
+    },
+  ],
+  [
+    'sanity-divergence-empty-body',
+    {
+      provider: 'sanity',
+      expectedHooklatchOk: true,
+      expectedError: 'WebhookSignatureFormatError',
+      divergenceReason: 'Hooklatch authenticates exact request bytes including empty string payloads; @sanity/webhook assertValidSignature explicitly throws WebhookSignatureFormatError disallowing empty body verification.',
+      evidenceReference: 'Hooklatch raw body preservation in src/providers/sanity.ts vs @sanity/webhook assertValidSignature in dist/index.mjs:22',
+    },
+  ],
+  [
+    'linear-divergence-stale-body-timestamp',
+    {
+      provider: 'linear',
+      expectedHooklatchOk: true,
+      expectedError: 'LinearVerificationError',
+      expectedMessage: 'Invalid webhook timestamp',
+      divergenceReason: 'Hooklatch core verifies exact visible request bytes without parsing JSON or extracting payload schema timestamps; @linear/sdk parses JSON and requires webhookTimestamp to be within 60 seconds of Date.now().',
+      evidenceReference: 'Hooklatch body-only verification in src/providers/linear.ts vs @linear/sdk LinearWebhookClient.verify in dist/webhooks/webhooks-BtY8wrj8.mjs:62',
+    },
+  ],
+]);
+
+function isPlainObject(value) {
+  return value !== null && Object.prototype.toString.call(value) === '[object Object]';
+}
+
+function isString(value) {
+  return Object.prototype.toString.call(value) === '[object String]';
+}
+
+function isNonEmptyString(value) {
+  return isString(value) && value.trim().length > 0;
+}
+
+function isNumber(value) {
+  return Object.prototype.toString.call(value) === '[object Number]' && !Number.isNaN(value);
+}
 
 function computeSha256(filePath) {
   const bytes = readFileSync(filePath);
@@ -194,7 +308,7 @@ function verifyCacheIntegrity() {
 }
 
 function validateCorpus(corpus) {
-  if (!corpus || typeof corpus !== 'object') {
+  if (!isPlainObject(corpus)) {
     throw new Error('Corpus validation failed: corpus must be an object');
   }
 
@@ -212,23 +326,24 @@ function validateCorpus(corpus) {
     }
   }
 
-  if (!Array.isArray(corpus.cases) || corpus.cases.length === 0) {
-    throw new Error('Corpus validation failed: cases must be a non-empty array');
+  if (!Array.isArray(corpus.cases) || corpus.cases.length < 50) {
+    throw new Error(`Corpus validation failed: cases must contain at least 50 cases, got ${corpus.cases?.length}`);
   }
 
   if (corpus.casesCount !== corpus.cases.length) {
     throw new Error(`Corpus validation failed: casesCount (${corpus.casesCount}) does not match cases.length (${corpus.cases.length})`);
   }
 
-  if (!corpus.falKeys || typeof corpus.falKeys !== 'object' || !corpus.falKeys.rawPublicKeyHex || !corpus.falKeys.privateKeyDerBase64) {
+  if (!corpus.falKeys || !isPlainObject(corpus.falKeys) || !corpus.falKeys.rawPublicKeyHex || !corpus.falKeys.privateKeyDerBase64) {
     throw new Error('Corpus validation failed: falKeys must contain rawPublicKeyHex and privateKeyDerBase64');
   }
 
   const seenIds = new Set();
   const providerCaseCounts = new Map(REQUIRED_PROVIDERS.map((p) => [p, 0]));
+  const seenCategories = new Set();
 
   for (const tc of corpus.cases) {
-    if (!tc.id || typeof tc.id !== 'string') {
+    if (!isNonEmptyString(tc.id)) {
       throw new Error('Corpus validation failed: test case missing valid id');
     }
 
@@ -250,15 +365,25 @@ function validateCorpus(corpus) {
 
     providerCaseCounts.set(tc.provider, (providerCaseCounts.get(tc.provider) || 0) + 1);
 
-    if (typeof tc.payload !== 'string') {
+    if (!isNonEmptyString(tc.category)) {
+      throw new Error(`Corpus validation failed: test case "${tc.id}" missing category`);
+    }
+
+    seenCategories.add(tc.category);
+
+    if (!isString(tc.payload)) {
       throw new Error(`Corpus validation failed: test case "${tc.id}" payload must be a string`);
     }
 
-    if (!tc.expectedHooklatch || typeof tc.expectedHooklatch !== 'object') {
+    if (!isPlainObject(tc.headers)) {
+      throw new Error(`Corpus validation failed: test case "${tc.id}" headers must be an object`);
+    }
+
+    if (!isPlainObject(tc.expectedHooklatch)) {
       throw new Error(`Corpus validation failed: test case "${tc.id}" missing expectedHooklatch`);
     }
 
-    if (!tc.expectedSdk || typeof tc.expectedSdk !== 'object') {
+    if (!isPlainObject(tc.expectedSdk)) {
       throw new Error(`Corpus validation failed: test case "${tc.id}" missing expectedSdk`);
     }
 
@@ -286,17 +411,27 @@ function validateCorpus(corpus) {
     }
 
     if (classification === 'expected-documented-receiver-policy-divergence') {
-      if (!tc.divergenceReason || typeof tc.divergenceReason !== 'string' || tc.divergenceReason.trim() === '') {
+      if (!isNonEmptyString(tc.divergenceReason)) {
         throw new Error(`Corpus validation failed: divergence "${tc.id}" missing valid divergenceReason`);
       }
 
-      if (!tc.evidenceReference || typeof tc.evidenceReference !== 'string' || tc.evidenceReference.trim() === '') {
+      if (!isNonEmptyString(tc.evidenceReference)) {
         throw new Error(`Corpus validation failed: divergence "${tc.id}" missing valid evidenceReference`);
+      }
+
+      if (!FROZEN_DIVERGENCES.has(tc.id)) {
+        throw new Error(`Corpus validation failed: divergence "${tc.id}" is not in the frozen supported divergence inventory`);
       }
     }
 
     if (classification === 'docs-only-probe' && tc.provider !== 'vercel' && tc.provider !== 'fal') {
       throw new Error(`Corpus validation failed: docs-only-probe is only permitted for vercel and fal, got "${tc.provider}" in "${tc.id}"`);
+    }
+  }
+
+  for (const reqCat of REQUIRED_CATEGORIES) {
+    if (!seenCategories.has(reqCat)) {
+      throw new Error(`Corpus validation failed: missing required category "${reqCat}" in corpus cases`);
     }
   }
 
@@ -378,30 +513,72 @@ function classifyCaseOutcome(testCase, hooklatchOutcome, sdkOutcome) {
   }
 
   if (classification === 'expected-documented-receiver-policy-divergence') {
-    if (!testCase.divergenceReason || !testCase.evidenceReference) {
+    const pinned = FROZEN_DIVERGENCES.get(testCase.id);
+
+    if (!pinned) {
       return {
         passed: false,
-        reason: 'Documented divergence missing divergenceReason or evidenceReference',
+        reason: `Disallowed unpinned divergence ID "${testCase.id}"`,
       };
     }
 
-    if (dRes.ok !== sdkOutcome.ok) {
-      return { passed: true, category: 'expected-documented-receiver-policy-divergence' };
+    if (testCase.provider !== pinned.provider) {
+      return {
+        passed: false,
+        reason: `Divergence provider mismatch: expected ${pinned.provider}, got ${testCase.provider}`,
+      };
     }
 
-    if (!dRes.ok && !sdkOutcome.ok) {
-      const isAuthFirst = dRes.reason === 'invalid-signature';
-      const isSdkTimestamp = sdkOutcome.error === 'WebhookVerificationError' || sdkOutcome.error === 'PaddleVerificationError' || (testCase.provider === 'paddle' && !sdkOutcome.error);
-
-      if (isAuthFirst && isSdkTimestamp) {
-        return { passed: true, category: 'expected-documented-receiver-policy-divergence' };
-      }
+    if (testCase.divergenceReason !== pinned.divergenceReason) {
+      return {
+        passed: false,
+        reason: 'Divergence reason mismatch against frozen definition',
+      };
     }
 
-    return {
-      passed: false,
-      reason: 'Disallowed divergence: outcomes agree without qualified ordering or policy divergence basis',
-    };
+    if (testCase.evidenceReference !== pinned.evidenceReference) {
+      return {
+        passed: false,
+        reason: 'Divergence evidenceReference mismatch against frozen definition',
+      };
+    }
+
+    if (pinned.expectedMessage && sdkOutcome.message !== pinned.expectedMessage) {
+      return {
+        passed: false,
+        reason: `SDK rejection message mismatch: expected "${pinned.expectedMessage}", got "${sdkOutcome.message}"`,
+      };
+    }
+
+    if (pinned.expectedError && sdkOutcome.error !== pinned.expectedError) {
+      return {
+        passed: false,
+        reason: `SDK rejection error mismatch: expected "${pinned.expectedError}", got "${sdkOutcome.error}"`,
+      };
+    }
+
+    if (pinned.expectedHooklatchReason && dRes.reason !== pinned.expectedHooklatchReason) {
+      return {
+        passed: false,
+        reason: `Hooklatch rejection reason mismatch: expected "${pinned.expectedHooklatchReason}", got "${dRes.reason}"`,
+      };
+    }
+
+    if (pinned.expectedHooklatchCode && dRes.error !== pinned.expectedHooklatchCode) {
+      return {
+        passed: false,
+        reason: `Hooklatch error code mismatch: expected "${pinned.expectedHooklatchCode}", got "${dRes.error}"`,
+      };
+    }
+
+    if (pinned.expectedSdkOk !== undefined && sdkOutcome.ok !== pinned.expectedSdkOk) {
+      return {
+        passed: false,
+        reason: `SDK ok mismatch: expected ${pinned.expectedSdkOk}, got ${sdkOutcome.ok}`,
+      };
+    }
+
+    return { passed: true, category: 'expected-documented-receiver-policy-divergence' };
   }
 
   if (classification === 'docs-only-probe') {
@@ -434,9 +611,7 @@ function takeIntegritySnapshot(root) {
     }
   }
 
-  const distDir = join(root, 'dist');
-
-  if (existsSync(distDir)) {
+  if (existsSync(join(root, 'dist'))) {
     function walkDist(dir) {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name);
@@ -444,14 +619,14 @@ function takeIntegritySnapshot(root) {
         if (entry.isDirectory()) {
           walkDist(full);
         } else if (entry.isFile()) {
-          const rel = join('dist', full.slice(distDir.length + 1)).replace(/\\/g, '/');
+          const rel = full.slice(root.length + 1).replace(/\\/g, '/');
 
           snapshot.set(rel, computeSha256(full));
         }
       }
     }
 
-    walkDist(distDir);
+    walkDist(join(root, 'dist'));
   }
 
   return snapshot;
@@ -464,14 +639,13 @@ function verifyIntegritySnapshot(root, expectedSnapshot) {
     const full = join(root, rel);
 
     if (!existsSync(full)) {
-      violations.push({ file: rel, reason: 'File deleted' });
-      continue;
-    }
+      violations.push({ file: rel, reason: 'missing', expectedHash, currentHash: null });
+    } else {
+      const currentHash = computeSha256(full);
 
-    const currentHash = computeSha256(full);
-
-    if (currentHash !== expectedHash) {
-      violations.push({ file: rel, expectedHash, currentHash, reason: 'Content altered' });
+      if (currentHash !== expectedHash) {
+        violations.push({ file: rel, reason: 'modified', expectedHash, currentHash });
+      }
     }
   }
 
@@ -480,16 +654,23 @@ function verifyIntegritySnapshot(root, expectedSnapshot) {
 
 function resolveNpmCli() {
   const nodeDir = dirname(process.execPath);
-  const candidate1 = join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js');
 
-  if (existsSync(candidate1)) {
-    return candidate1;
+  const candidates = [
+    join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(nodeDir, '..', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ];
+
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
   }
 
-  const candidate2 = join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  try {
+    const npmPath = execFileSync('where', ['npm.cmd'], { encoding: 'utf8', timeout: 10000 }).trim().split('\r\n')[0];
 
-  if (existsSync(candidate2)) {
-    return candidate2;
+    if (npmPath && existsSync(npmPath)) return npmPath;
+  } catch {
+    // fall through
   }
 
   return 'npm';
@@ -501,6 +682,7 @@ function createSafeTempConsumer() {
   const consumerDir = join(baseTmp, dirName);
 
   mkdirSync(consumerDir, { recursive: true });
+
   assert(consumerDir.startsWith(baseTmp), 'Temp consumer directory outside tmpdir boundary');
 
   return consumerDir;
@@ -514,6 +696,10 @@ function cleanupSafeTempConsumer(consumerDir) {
   const baseTmp = resolve(tmpdir());
 
   assert(consumerDir.startsWith(baseTmp), 'Refusing to clean up directory outside tmpdir');
+
+  if (process.env.FAULT_INJECT_CLEANUP === '1') {
+    throw new Error('Simulated production cleanup failure in disposal path');
+  }
 
   rmSync(consumerDir, { recursive: true, force: true });
 
@@ -567,11 +753,39 @@ function runPrepareOnline() {
       };
     }
 
+    const consumerPkgJson = {
+      name: 'hooklatch-conformance-consumer',
+      version: '1.0.0',
+      type: 'module',
+      dependencies: {
+        'standardwebhooks': '1.1.1',
+        '@paddle/paddle-node-sdk': '3.10.0',
+        '@sanity/webhook': '4.0.4',
+        '@linear/sdk': '99.0.0',
+      },
+    };
+
+    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson, null, 2) + '\n', 'utf8');
+
+    console.log('  Installing pinned packages in temp consumer to freeze lockfile...');
+    execFileSync(
+      process.execPath,
+      [npmCli, 'install', '--ignore-scripts', '--cache', tempNpmCache],
+      { cwd: tempConsumer, timeout: 300000, stdio: 'inherit' },
+    );
+
+    const generatedLockPath = join(tempConsumer, 'package-lock.json');
+
+    if (existsSync(generatedLockPath)) {
+      copyFileSync(generatedLockPath, FROZEN_LOCK_PATH);
+    }
+
     const receipt = {
       schemaVersion: 1,
       acquiredAt: new Date().toISOString(),
       acquiredBy: 'gemini',
       baseSha: computeSha256(CORPUS_PATH),
+      lockfileSha256: existsSync(FROZEN_LOCK_PATH) ? computeSha256(FROZEN_LOCK_PATH) : null,
       packages: packageReceipts,
       docsOnlyProbes: DOCS_PROBES,
     };
@@ -681,13 +895,13 @@ import { createHmac, createHash, createPrivateKey, sign, createPublicKey, verify
 import * as hooklatchModule from 'hooklatch';
 import { Webhook, WebhookVerificationError } from 'standardwebhooks';
 import { Paddle, Environment } from '@paddle/paddle-node-sdk';
-import { isValidSignature } from '@sanity/webhook';
+import { isValidSignature, assertValidSignature } from '@sanity/webhook';
 import { LinearWebhookClient } from '@linear/sdk/webhooks';
 
 const sdkModules = {
   standardwebhooks: { Webhook, WebhookVerificationError },
   paddle: { Paddle, Environment },
-  sanity: { isValidSignature },
+  sanity: { isValidSignature, assertValidSignature },
   linear: { LinearWebhookClient },
 };
 
@@ -815,235 +1029,262 @@ async function executeCaseAgainstSdk(resolvedCase, testCase) {
   }
 
   if (process.env.FAULT_INJECT === 'sdk-hang') {
+    if (process.env.HANG_READY_FILE) {
+      const fsMod = await import('node:fs');
+      fsMod.writeFileSync(process.env.HANG_READY_FILE, 'ready', 'utf8');
+    }
+
+    const timer = setInterval(() => {}, 1000);
     await new Promise(() => {});
+    clearInterval(timer);
   }
 
-  if (provider === 'standard-webhooks') {
-    const { Webhook, WebhookVerificationError } = sdkModules.standardwebhooks;
-    try {
-      const wh = new Webhook(secret);
-      const verified = wh.verify(payload, headers, { jsonParse: false });
-      return { ok: true, value: verified, target: 'standardwebhooks', sdkVersion: '1.1.1', exportName: 'Webhook.prototype.verify', sourceLocation: 'dist/index.js' };
-    } catch (err) {
-      const isKnownWhError = (err instanceof WebhookVerificationError) || (err.name === 'WebhookVerificationError');
-      const knownMessages = [
-        'Missing required headers',
-        'Invalid Signature Headers',
-        'Message timestamp too old',
-        'Message timestamp too new',
-        'Invalid signature',
-      ];
-      const isKnownMsg = typeof err.message === 'string' && (
-        knownMessages.includes(err.message) || err.message.startsWith('No matching signature')
-      );
+  let restoreDateNow = null;
+  if (testCase.clockMode === 'deterministic') {
+    const fixedNow = resolvedCase.clock * 1000;
+    const origNow = Date.now;
+    const OrigDate = Date;
+    class MockDate extends OrigDate {
+      constructor(...args) {
+        if (args.length === 0) {
+          super(fixedNow);
+        } else {
+          super(...args);
+        }
+      }
+      static now() {
+        return fixedNow;
+      }
+    }
+    Date = MockDate;
+    globalThis.Date = MockDate;
+    restoreDateNow = () => {
+      Date = OrigDate;
+      globalThis.Date = OrigDate;
+    };
+  }
 
-      if (isKnownWhError && isKnownMsg) {
+  try {
+    if (provider === 'standard-webhooks') {
+      const { Webhook, WebhookVerificationError } = sdkModules.standardwebhooks;
+      try {
+        const wh = new Webhook(secret);
+        const verified = wh.verify(payload, headers, { jsonParse: false });
+        return { ok: true, value: verified, target: 'standardwebhooks', sdkVersion: '1.1.1', exportName: 'Webhook.prototype.verify', sourceLocation: 'dist/index.js' };
+      } catch (err) {
+        const isKnownWhError = (err instanceof WebhookVerificationError) || (err.name === 'WebhookVerificationError');
+        const knownMessages = [
+          'Missing required headers',
+          'Invalid Signature Headers',
+          'Message timestamp too old',
+          'Message timestamp too new',
+          'Invalid signature',
+        ];
+        const isKnownMsg = typeof err.message === 'string' && (
+          knownMessages.includes(err.message) || err.message.startsWith('No matching signature')
+        );
+
+        if (isKnownWhError && isKnownMsg) {
+          return {
+            ok: false,
+            error: 'WebhookVerificationError',
+            message: err.message,
+            target: 'standardwebhooks',
+            sdkVersion: '1.1.1',
+            exportName: 'Webhook.prototype.verify',
+            sourceLocation: 'dist/index.js',
+          };
+        }
+
         return {
           ok: false,
-          error: 'WebhookVerificationError',
+          infrastructureFailure: true,
+          error: err.name || 'UnexpectedError',
           message: err.message,
           target: 'standardwebhooks',
           sdkVersion: '1.1.1',
-          exportName: 'Webhook.prototype.verify',
-          sourceLocation: 'dist/index.js',
         };
       }
-
-      return {
-        ok: false,
-        infrastructureFailure: true,
-        error: err.name || 'UnexpectedError',
-        message: err.message,
-        target: 'standardwebhooks',
-        sdkVersion: '1.1.1',
-      };
     }
-  }
 
-  if (provider === 'paddle') {
-    const { Paddle, Environment } = sdkModules.paddle;
-    try {
-      const paddle = new Paddle('dummy_api_key_synthetic', { environment: Environment.sandbox });
-      const sigHeader = headers['paddle-signature'] || headers['Paddle-Signature'] || '';
-      const isValid = await paddle.webhooks.isSignatureValid(payload, secret, sigHeader);
+    if (provider === 'paddle') {
+      const { Paddle, Environment } = sdkModules.paddle;
+      try {
+        const paddle = new Paddle('dummy_api_key_synthetic', { environment: Environment.sandbox });
+        const sigHeader = headers['paddle-signature'] || headers['Paddle-Signature'] || '';
+        const isValid = await paddle.webhooks.isSignatureValid(payload, secret, sigHeader);
 
-      if (typeof isValid !== 'boolean') {
+        if (typeof isValid !== 'boolean') {
+          return {
+            ok: false,
+            infrastructureFailure: true,
+            error: 'UnexpectedReturnValue',
+            message: 'Expected boolean from Paddle isSignatureValid',
+            target: '@paddle/paddle-node-sdk',
+            sdkVersion: '3.10.0',
+          };
+        }
+
+        return { ok: isValid, target: '@paddle/paddle-node-sdk', sdkVersion: '3.10.0', exportName: 'Paddle.prototype.webhooks.isSignatureValid', sourceLocation: 'dist/esm/index.esm.node.js' };
+      } catch (err) {
+        if (err.message === '[Paddle] Invalid webhook signature') {
+          return {
+            ok: false,
+            error: 'PaddleVerificationError',
+            message: err.message,
+            target: '@paddle/paddle-node-sdk',
+            sdkVersion: '3.10.0',
+            exportName: 'Paddle.prototype.webhooks.isSignatureValid',
+            sourceLocation: 'dist/esm/index.esm.node.js',
+          };
+        }
+
         return {
           ok: false,
           infrastructureFailure: true,
-          error: 'UnexpectedReturnValue',
-          message: 'Expected boolean from Paddle isSignatureValid',
-          target: '@paddle/paddle-node-sdk',
-          sdkVersion: '3.10.0',
-        };
-      }
-
-      return { ok: isValid, target: '@paddle/paddle-node-sdk', sdkVersion: '3.10.0', exportName: 'Paddle.prototype.webhooks.isSignatureValid', sourceLocation: 'dist/esm/index.esm.node.js' };
-    } catch (err) {
-      if (err.message === '[Paddle] Invalid webhook signature') {
-        return {
-          ok: false,
-          error: 'PaddleVerificationError',
+          error: err.name || 'UnexpectedError',
           message: err.message,
           target: '@paddle/paddle-node-sdk',
           sdkVersion: '3.10.0',
-          exportName: 'Paddle.prototype.webhooks.isSignatureValid',
-          sourceLocation: 'dist/esm/index.esm.node.js',
         };
       }
-
-      return {
-        ok: false,
-        infrastructureFailure: true,
-        error: err.name || 'UnexpectedError',
-        message: err.message,
-        target: '@paddle/paddle-node-sdk',
-        sdkVersion: '3.10.0',
-      };
-    }
-  }
-
-  if (provider === 'sanity') {
-    const { isValidSignature } = sdkModules.sanity;
-    const sigHeader = headers['sanity-webhook-signature'] || headers['Sanity-Webhook-Signature'];
-
-    if (!sigHeader) {
-      return { ok: false, error: 'missing-signature', target: '@sanity/webhook', sdkVersion: '4.0.4', exportName: 'isValidSignature', sourceLocation: 'dist/index.mjs' };
     }
 
-    try {
-      const result = await isValidSignature(payload, sigHeader, secret);
+    if (provider === 'sanity') {
+      const { assertValidSignature } = sdkModules.sanity;
+      const sigHeader = headers['sanity-webhook-signature'] || headers['Sanity-Webhook-Signature'];
 
-      if (typeof result !== 'boolean') {
+      if (!sigHeader) {
+        return { ok: false, error: 'missing-signature', target: '@sanity/webhook', sdkVersion: '4.0.4', exportName: 'assertValidSignature', sourceLocation: 'dist/index.mjs' };
+      }
+
+      try {
+        await assertValidSignature(payload, sigHeader, secret);
+
+        return { ok: true, target: '@sanity/webhook', sdkVersion: '4.0.4', exportName: 'assertValidSignature', sourceLocation: 'dist/index.mjs' };
+      } catch (err) {
+        const errType = err.type || err.constructor?.name || err.name;
+
+        if (errType === 'WebhookSignatureValueError' || errType === 'WebhookSignatureFormatError') {
+          return {
+            ok: false,
+            error: errType,
+            message: err.message,
+            target: '@sanity/webhook',
+            sdkVersion: '4.0.4',
+            exportName: 'assertValidSignature',
+            sourceLocation: 'dist/index.mjs',
+          };
+        }
+
         return {
           ok: false,
           infrastructureFailure: true,
-          error: 'UnexpectedReturnValue',
-          message: 'Expected boolean from Sanity isValidSignature',
+          error: err.name || 'UnexpectedError',
+          message: err.message,
           target: '@sanity/webhook',
           sdkVersion: '4.0.4',
         };
       }
-
-      return { ok: result, target: '@sanity/webhook', sdkVersion: '4.0.4', exportName: 'isValidSignature', sourceLocation: 'dist/index.mjs' };
-    } catch (err) {
-      const isKnownType = err.type === 'WebhookSignatureValueError' || err.type === 'WebhookSignatureFormatError';
-      const isKnownName = err.name === 'WebhookSignatureValueError' || err.name === 'WebhookSignatureFormatError';
-
-      if (isKnownType || isKnownName) {
-        return {
-          ok: false,
-          error: err.type || err.name,
-          message: err.message,
-          target: '@sanity/webhook',
-          sdkVersion: '4.0.4',
-          exportName: 'isValidSignature',
-          sourceLocation: 'dist/index.mjs',
-        };
-      }
-
-      return {
-        ok: false,
-        infrastructureFailure: true,
-        error: err.name || 'UnexpectedError',
-        message: err.message,
-        target: '@sanity/webhook',
-        sdkVersion: '4.0.4',
-      };
     }
-  }
 
-  if (provider === 'linear') {
-    const { LinearWebhookClient } = sdkModules.linear;
-    try {
-      const client = new LinearWebhookClient(secret);
-      const sig = headers['linear-signature'] || headers['Linear-Signature'] || '';
+    if (provider === 'linear') {
+      const { LinearWebhookClient } = sdkModules.linear;
+      try {
+        const client = new LinearWebhookClient(secret);
+        const sig = headers['linear-signature'] || headers['Linear-Signature'] || '';
 
-      if (!sig) {
-        return { ok: false, error: 'missing-signature', target: '@linear/sdk', sdkVersion: '99.0.0', exportName: 'LinearWebhookClient.prototype.verify', sourceLocation: 'dist/webhooks/index.mjs' };
-      }
+        if (!sig) {
+          return { ok: false, error: 'missing-signature', target: '@linear/sdk', sdkVersion: '99.0.0', exportName: 'LinearWebhookClient.prototype.verify', sourceLocation: 'dist/webhooks/index.mjs' };
+        }
 
-      const bodyBuffer = Buffer.from(payload);
-      const isValid = client.verify(bodyBuffer, sig);
+        const bodyBuffer = Buffer.from(payload);
+        const isValid = client.verify(bodyBuffer, sig);
 
-      if (typeof isValid !== 'boolean') {
+        if (typeof isValid !== 'boolean') {
+          return {
+            ok: false,
+            infrastructureFailure: true,
+            error: 'UnexpectedReturnValue',
+            message: 'Expected boolean from Linear verify',
+            target: '@linear/sdk',
+            sdkVersion: '99.0.0',
+          };
+        }
+
+        return { ok: isValid, target: '@linear/sdk', sdkVersion: '99.0.0', exportName: 'LinearWebhookClient.prototype.verify', sourceLocation: 'dist/webhooks/index.mjs' };
+      } catch (err) {
+        const exactKnownErrors = [
+          'Invalid webhook signature',
+          'Missing webhook timestamp',
+          'Invalid webhook timestamp',
+        ];
+
+        if (exactKnownErrors.includes(err.message)) {
+          return {
+            ok: false,
+            error: 'LinearVerificationError',
+            message: err.message,
+            target: '@linear/sdk',
+            sdkVersion: '99.0.0',
+            exportName: 'LinearWebhookClient.prototype.verify',
+            sourceLocation: 'dist/webhooks/index.mjs',
+          };
+        }
+
         return {
           ok: false,
           infrastructureFailure: true,
-          error: 'UnexpectedReturnValue',
-          message: 'Expected boolean from Linear verify',
-          target: '@linear/sdk',
-          sdkVersion: '99.0.0',
-        };
-      }
-
-      return { ok: isValid, target: '@linear/sdk', sdkVersion: '99.0.0', exportName: 'LinearWebhookClient.prototype.verify', sourceLocation: 'dist/webhooks/index.mjs' };
-    } catch (err) {
-      const exactKnownErrors = [
-        'Invalid webhook signature',
-        'Missing webhook timestamp',
-        'Invalid webhook timestamp',
-      ];
-
-      if (exactKnownErrors.includes(err.message)) {
-        return {
-          ok: false,
-          error: 'LinearVerificationError',
+          error: err.name || 'UnexpectedError',
           message: err.message,
           target: '@linear/sdk',
           sdkVersion: '99.0.0',
-          exportName: 'LinearWebhookClient.prototype.verify',
-          sourceLocation: 'dist/webhooks/index.mjs',
         };
       }
+    }
 
-      return {
-        ok: false,
-        infrastructureFailure: true,
-        error: err.name || 'UnexpectedError',
-        message: err.message,
-        target: '@linear/sdk',
-        sdkVersion: '99.0.0',
-      };
+    if (provider === 'vercel') {
+      const sigHeader = headers['x-vercel-signature'] || headers['X-Vercel-Signature'];
+      if (!sigHeader) return { ok: false, error: 'missing-signature', target: 'vercel-docs-probe', sdkVersion: 'docs' };
+      const expectedSig = createHmac('sha1', secret).update(payload).digest('hex');
+      const ok = sigHeader.toLowerCase() === expectedSig.toLowerCase();
+      return { ok, error: ok ? null : 'invalid-signature', target: 'vercel-docs-probe', sdkVersion: 'docs' };
+    }
+
+    if (provider === 'fal') {
+      const sig = headers['x-fal-webhook-signature'] || headers['X-Fal-Webhook-Signature'];
+      const reqId = headers['x-fal-webhook-request-id'] || headers['X-Fal-Webhook-Request-Id'];
+      const userId = headers['x-fal-webhook-user-id'] || headers['X-Fal-Webhook-User-Id'];
+      const ts = headers['x-fal-webhook-timestamp'] || headers['X-Fal-Webhook-Timestamp'];
+
+      if (!sig || !reqId || !userId || !ts) return { ok: false, error: 'missing-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
+      if (userId !== secret.expectedUserId) return { ok: false, error: 'missing-identity', target: 'fal-docs-probe', sdkVersion: 'docs' };
+
+      const tsNum = parseInt(ts, 10);
+      if (Number.isNaN(tsNum)) return { ok: false, error: 'malformed-timestamp', target: 'fal-docs-probe', sdkVersion: 'docs' };
+
+      const nowSec = resolvedCase.clock;
+      if (Math.abs(nowSec - tsNum) > 300) return { ok: false, error: 'timestamp-expired', target: 'fal-docs-probe', sdkVersion: 'docs' };
+
+      const bodyHash = createHash('sha256').update(payload).digest('hex');
+      const message = [reqId, userId, ts, bodyHash].join(String.fromCharCode(10));
+      const keyDer = Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(secret.rawPublicKeyHex, 'hex')]);
+
+      try {
+        const pubKey = createPublicKey({ key: keyDer, format: 'der', type: 'spki' });
+        const ok = cryptoVerify(null, Buffer.from(message), pubKey, Buffer.from(sig, 'hex'));
+        return { ok, error: ok ? null : 'invalid-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
+      } catch {
+        return { ok: false, error: 'invalid-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
+      }
+    }
+
+    return { ok: false, error: 'unsupported-provider' };
+  } finally {
+    if (restoreDateNow) {
+      restoreDateNow();
     }
   }
-
-  if (provider === 'vercel') {
-    const sigHeader = headers['x-vercel-signature'] || headers['X-Vercel-Signature'];
-    if (!sigHeader) return { ok: false, error: 'missing-signature', target: 'vercel-docs-probe', sdkVersion: 'docs' };
-    const expectedSig = createHmac('sha1', secret).update(payload).digest('hex');
-    const ok = sigHeader.toLowerCase() === expectedSig.toLowerCase();
-    return { ok, error: ok ? null : 'invalid-signature', target: 'vercel-docs-probe', sdkVersion: 'docs' };
-  }
-
-  if (provider === 'fal') {
-    const sig = headers['x-fal-webhook-signature'] || headers['X-Fal-Webhook-Signature'];
-    const reqId = headers['x-fal-webhook-request-id'] || headers['X-Fal-Webhook-Request-Id'];
-    const userId = headers['x-fal-webhook-user-id'] || headers['X-Fal-Webhook-User-Id'];
-    const ts = headers['x-fal-webhook-timestamp'] || headers['X-Fal-Webhook-Timestamp'];
-
-    if (!sig || !reqId || !userId || !ts) return { ok: false, error: 'missing-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
-    if (userId !== testCase.secret.expectedUserId) return { ok: false, error: 'missing-identity', target: 'fal-docs-probe', sdkVersion: 'docs' };
-
-    const tsNum = parseInt(ts, 10);
-    if (Number.isNaN(tsNum)) return { ok: false, error: 'malformed-timestamp', target: 'fal-docs-probe', sdkVersion: 'docs' };
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (Math.abs(nowSec - tsNum) > 300) return { ok: false, error: 'timestamp-expired', target: 'fal-docs-probe', sdkVersion: 'docs' };
-
-    const bodyHash = createHash('sha256').update(payload).digest('hex');
-    const message = reqId + '\\n' + userId + '\\n' + ts + '\\n' + bodyHash;
-    const keyDer = Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(testCase.secret.rawPublicKeyHex, 'hex')]);
-
-    try {
-      const pubKey = createPublicKey({ key: keyDer, format: 'der', type: 'spki' });
-      const ok = cryptoVerify(null, Buffer.from(message), pubKey, Buffer.from(sig, 'hex'));
-      return { ok, error: ok ? null : 'invalid-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
-    } catch {
-      return { ok: false, error: 'invalid-signature', target: 'fal-docs-probe', sdkVersion: 'docs' };
-    }
-  }
-
-  return { ok: false, error: 'unknown-provider', target: 'none' };
 }
 
 async function main() {
@@ -1104,10 +1345,15 @@ main().catch((err) => {
 
   writeFileSync(scriptPath, evaluatorCode, 'utf8');
 
+  // Point 1: Embedded evaluator code syntax verification
+  const checkProc = spawnSync(process.execPath, ['--check', scriptPath], { timeout: 10000 });
+
+  assert(checkProc.status === 0, 'Embedded evaluator syntax check failed: ' + (checkProc.stderr || checkProc.stdout));
+
   return scriptPath;
 }
 
-async function runControls(hooklatchModule, root, tempConsumer) {
+function runControls(tempConsumer) {
   console.log('[provider-conformance] Running negative control suites (--controls)...');
 
   const controlOutcomes = [];
@@ -1129,17 +1375,21 @@ async function runControls(hooklatchModule, root, tempConsumer) {
   assert(c1Proc.status !== 0, 'Control 1 failed: child process crash was not detected as failure');
   controlOutcomes.push({ name: 'control-sdk-crash', passed: true });
 
-  // Control 2: Production SDK hang/timeout fault injection
+  // Control 2: Production SDK hang/timeout fault injection with readiness marker
+  const c2ReadyFile = join(tempConsumer, 'c2-hang-ready.txt');
   const c2Start = Date.now();
+
   const c2Proc = spawnSync(process.execPath, [join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
     cwd: tempConsumer,
-    env: { ...process.env, FAULT_INJECT: 'sdk-hang' },
-    timeout: 300,
+    env: { ...process.env, FAULT_INJECT: 'sdk-hang', HANG_READY_FILE: c2ReadyFile },
+    timeout: 1000,
   });
+
   const c2Duration = Date.now() - c2Start;
 
+  assert(existsSync(c2ReadyFile), 'Control 2 failed: child process did not enter SDK call before timing out');
   assert(c2Proc.error && c2Proc.error.code === 'ETIMEDOUT', 'Control 2 failed: hanging SDK call was not timed out');
-  assert(c2Duration < 2000, 'Control 2 failed: timeout duration exceeded reasonable threshold');
+  assert(c2Duration >= 900, 'Control 2 failed: timeout duration was too short');
   controlOutcomes.push({ name: 'control-sdk-hang', passed: true });
 
   // Control 3: Production SDK unexpected exception (TypeError)
@@ -1158,49 +1408,90 @@ async function runControls(hooklatchModule, root, tempConsumer) {
   assert(!c3Classify.passed && c3Classify.reason.includes('Infrastructure failure'), 'Control 3 failed: unexpected TypeError passed qualification');
   controlOutcomes.push({ name: 'control-unexpected-sdk-exception', passed: true });
 
-  // Control 4: Cleanup failure propagation
+  // Control 4: Production cleanup failure propagation on actual disposal path
+  const c4Consumer = createSafeTempConsumer();
+
+  writeFileSync(join(c4Consumer, 'test.txt'), 'cleanup-test-payload');
+
+  let c4Threw = false;
+  const origEnv = process.env.FAULT_INJECT_CLEANUP;
+
+  try {
+    process.env.FAULT_INJECT_CLEANUP = '1';
+
+    try {
+      cleanupSafeTempConsumer(c4Consumer);
+    } finally {
+      process.env.FAULT_INJECT_CLEANUP = origEnv;
+    }
+  } catch (err) {
+    if (err.message.includes('Simulated production cleanup failure in disposal path')) {
+      c4Threw = true;
+    }
+  }
+
+  assert(c4Threw, 'Control 4 failed: cleanup error was not thrown on actual disposal path');
+
+  // Safely dispose c4Consumer after fault injection test
+  cleanupSafeTempConsumer(c4Consumer);
+  assert(!existsSync(c4Consumer), 'Control 4 consumer must be cleanly removed after test');
+
+  // Verify refusal outside tmpdir
   assert.throws(() => {
     cleanupSafeTempConsumer(REPO_ROOT);
   }, /Refusing to clean up directory outside tmpdir/);
-
-  // Verify cleanup failure is not swallowed and prevents PASS
-  const c4Proc = spawnSync(process.execPath, ['-e', `
-    const { existsSync, mkdirSync, rmSync } = require('node:fs');
-    const { resolve } = require('node:path');
-    const { tmpdir } = require('node:os');
-    const assert = require('node:assert/strict');
-    function cleanupSafeTempConsumer(consumerDir) {
-      if (!consumerDir || !existsSync(consumerDir)) return;
-      const baseTmp = resolve(tmpdir());
-      assert(consumerDir.startsWith(baseTmp), 'Refusing to clean up directory outside tmpdir');
-      throw new Error('Simulated cleanup failure: resource busy');
-    }
-    const testDir = resolve(tmpdir(), 'test-consumer-fail-' + Date.now());
-    mkdirSync(testDir, { recursive: true });
-    try {
-      cleanupSafeTempConsumer(testDir);
-    } finally {
-      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
-    }
-  `], { timeout: 5000 });
-
-  assert(c4Proc.status !== 0, 'Control 4 failed: cleanup error did not cause failing exit code');
-  assert(c4Proc.stderr.toString().includes('Simulated cleanup failure: resource busy'),
-    'Control 4 failed: simulated cleanup failure was not propagated to stderr');
   controlOutcomes.push({ name: 'control-cleanup-failure', passed: true });
 
-  // Control 5: Altered dist bytes detection
-  const dummySnapshot = new Map([
-    ['dist/index.js', '0000000000000000000000000000000000000000000000000000000000000000'],
-  ]);
-  const c5Check = verifyIntegritySnapshot(root, dummySnapshot);
+  // Control 5: Altered bytes detection on protected scratch tree
+  const c5Scratch = join(resolve(tmpdir()), 'hooklatch-integrity-test-' + randomUUID());
 
-  assert(!c5Check.ok && c5Check.violations.length > 0, 'Control 5 failed: snapshot verification did not detect altered file hash');
-  controlOutcomes.push({ name: 'control-altered-dist-bytes', passed: true });
+  mkdirSync(join(c5Scratch, 'dist'), { recursive: true });
+
+  const c5File = join(c5Scratch, 'dist', 'index.js');
+
+  writeFileSync(c5File, 'original-content-pristine', 'utf8');
+
+  try {
+    const pristineSnapshot = new Map([
+      ['dist/index.js', computeSha256(c5File)],
+    ]);
+
+    const pristineCheck = verifyIntegritySnapshot(c5Scratch, pristineSnapshot);
+
+    assert(pristineCheck.ok, 'Pristine scratch tree must pass integrity verification');
+
+    // Mutate file byte
+    writeFileSync(c5File, 'tampered-content-mutated', 'utf8');
+
+    const mutatedCheck = verifyIntegritySnapshot(c5Scratch, pristineSnapshot);
+
+    assert(!mutatedCheck.ok && mutatedCheck.violations.length === 1,
+      'Control 5 failed: altered file bytes were not detected by verifyIntegritySnapshot');
+    assert.strictEqual(mutatedCheck.violations[0].file, 'dist/index.js');
+
+    // Restore pristine byte
+    writeFileSync(c5File, 'original-content-pristine', 'utf8');
+
+    const restoredCheck = verifyIntegritySnapshot(c5Scratch, pristineSnapshot);
+
+    assert(restoredCheck.ok, 'Restored scratch tree must pass integrity verification');
+
+    controlOutcomes.push({ name: 'control-altered-dist-bytes', passed: true });
+  } finally {
+    rmSync(c5Scratch, { recursive: true, force: true });
+  }
 
   // Control 6: Removed corpus provider coverage detection
   const c6Corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
+
   c6Corpus.cases = c6Corpus.cases.filter((c) => c.provider !== 'linear');
+
+  while (c6Corpus.cases.length < 50) {
+    const clone = { ...c6Corpus.cases[0], id: `pad-case-${c6Corpus.cases.length}` };
+
+    c6Corpus.cases.push(clone);
+  }
+
   c6Corpus.casesCount = c6Corpus.cases.length;
 
   assert.throws(() => {
@@ -1217,6 +1508,23 @@ async function runControls(hooklatchModule, root, tempConsumer) {
 
   assert(!c7Classify.passed && c7Classify.reason.includes('Protocol agreement violation'),
     'Control 7 failed: canonical classifier did not catch misclassified divergence');
+
+  // Verify unpinned divergence is rejected
+  const c7UnpinnedCase = {
+    ...c1Corpus.cases[0],
+    id: 'unpinned-divergence-test',
+    expectedHooklatch: { ok: true },
+    expectedSdk: { ok: false },
+    classification: 'expected-documented-receiver-policy-divergence',
+    divergenceReason: 'arbitrary',
+    evidenceReference: 'unreviewed',
+  };
+
+  const c7UnpinnedClassify = classifyCaseOutcome(c7UnpinnedCase, c7FakeHookResult, c7FakeSdkResult);
+
+  assert(!c7UnpinnedClassify.passed && c7UnpinnedClassify.reason.includes('Disallowed unpinned divergence'),
+    'Control 7 failed: canonical classifier did not reject unpinned divergence ID');
+
   controlOutcomes.push({ name: 'control-misclassified-divergence', passed: true });
 
   console.log('[provider-conformance] All ' + controlOutcomes.length + ' controls passed.');
@@ -1298,23 +1606,47 @@ async function verifyHeaderNormalizations(hooklatchModule, testCases, falPrivate
     assert(res4.ok, `Header Model 4 (Tuples) failed for ${provider} (${tc.id})`);
   }
 
-  // WHATWG Negative 1: Comma-combined duplicate header (must fail with malformed-signature)
-  const cNeg1Headers = new Headers();
-  cNeg1Headers.append('webhook-id', 'msg_dup_1');
-  cNeg1Headers.append('webhook-id', 'msg_dup_2');
-  cNeg1Headers.set('webhook-timestamp', String(nowSec));
-  cNeg1Headers.set('webhook-signature', 'v1,dG90YWxseU90aGVyU2lnbmF0dXJlMDIwMjAyMDIwMjAyMDI=');
+  // Point 8: Duplicate negative starting with authentic 32-byte HMAC
+  const dupSecret = 'whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=';
+  const dupKey = Buffer.from(dupSecret.slice(6), 'base64');
+  const dupPayload = '{"test":"dup"}';
+  const validId = 'msg_pristine_001';
+  const validSig = createHmac('sha256', dupKey).update(`${validId}.${nowSec}.${dupPayload}`).digest('base64');
 
-  const neg1Res = await verify({
-    rawBody: Buffer.from('{"test":"dup"}'),
-    headers: cNeg1Headers,
+  // Verify that with single id it PASSES
+  const pristineHeaders = new Headers();
+
+  pristineHeaders.set('webhook-id', validId);
+  pristineHeaders.set('webhook-timestamp', String(nowSec));
+  pristineHeaders.set('webhook-signature', 'v1,' + validSig);
+
+  const pristineRes = await verify({
+    rawBody: Buffer.from(dupPayload),
+    headers: pristineHeaders,
   }, {
     provider: 'standard-webhooks',
-    secrets: ['whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s='],
+    secrets: [dupSecret],
     now: () => nowSec,
   });
 
-  assert(!neg1Res.ok && neg1Res.reason === 'malformed-signature', 'WHATWG negative 1 (comma-duplicate id) did not fail with malformed-signature');
+  assert(pristineRes.ok, 'Pristine base request must pass before duplicate header introduction');
+
+  // Now introduce duplicate webhook-id header
+  const dupHeaders = new Headers(pristineHeaders);
+
+  dupHeaders.append('webhook-id', 'msg_second_dup');
+
+  const dupRes = await verify({
+    rawBody: Buffer.from(dupPayload),
+    headers: dupHeaders,
+  }, {
+    provider: 'standard-webhooks',
+    secrets: [dupSecret],
+    now: () => nowSec,
+  });
+
+  assert(!dupRes.ok && dupRes.reason === 'malformed-signature',
+    'WHATWG duplicate header introduction must cause malformed-signature failure due to comma-separated ID');
 
   // Non-zero offset Uint8Array view test (binary view preservation)
   const fullBuf = Buffer.from('PADDING_{"event":"view_test"}');
@@ -1335,119 +1667,68 @@ async function verifyHeaderNormalizations(hooklatchModule, testCases, falPrivate
     now: () => nowSec,
   });
 
-  assert(viewRes.ok, 'Uint8Array non-zero offset view verification failed in Hooklatch');
-
+  assert(viewRes.ok, 'Uint8Array non-zero view verification failed');
   console.log('[provider-conformance] Header normalization models and negative edge checks verified.');
 }
 
-function generateMarkdownReport(results, receipt) {
+function generateAuditReport(summary, details, controls) {
   const lines = [];
 
-  lines.push('# Provider SDK Conformance Audit & Differential Report (Round 2 Repairs)');
+  lines.push('# Hooklatch Provider Conformance Audit Report (Round 3)');
   lines.push('');
-  lines.push('Generated: ' + results.timestamp);
-  lines.push('Base Commit: ' + receipt.baseSha);
-  lines.push('Author / Partner: Gemini 3.8 (Owner: `gemini`)');
+  lines.push('- **Generated At**: ' + new Date().toISOString());
+  lines.push('- **Platform**: ' + process.platform + ' (' + process.arch + ')');
+  lines.push('- **Node.js**: ' + process.version);
+  lines.push('- **Harness**: Isolated Child Process Evaluator with Frozen Transitive Lockfile');
   lines.push('');
-  lines.push('## 1. Executive Summary');
+  lines.push('## Executive Summary');
   lines.push('');
-  lines.push('This report provides an independent, offline-verified differential analysis comparing Hooklatch');
-  lines.push('against official provider SDKs and documented webhook verification specifications.');
+  lines.push('| Metric | Count |');
+  lines.push('| --- | --- |');
+  lines.push('| Total Cases Executed | ' + summary.totalCases + ' |');
+  lines.push('| Protocol Agreements | ' + summary.agreements + ' |');
+  lines.push('| Expected Documented Policy Divergences | ' + summary.divergences + ' |');
+  lines.push('| Docs-Only Probes | ' + summary.docsProbes + ' |');
+  lines.push('| Unexpected Mismatches | ' + summary.unexpectedMismatches + ' |');
+  lines.push('| Controls Passed | ' + (controls ? controls.filter((c) => c.passed).length + ' / ' + controls.length : 'N/A') + ' |');
   lines.push('');
-  lines.push('- **Total Conformance Cases**: ' + results.totalCases);
-  lines.push('- **Agreements Confirmed**: ' + results.agreementCount);
-  lines.push('- **Documented Policy Divergences**: ' + results.divergenceCount);
-  lines.push('- **Docs-Only Probes**: ' + results.docsProbeCount);
-  lines.push('- **Unexpected Mismatches**: ' + results.unexpectedMismatchCount);
-  lines.push('- **Controls Executed**: ' + results.controls.length + ' / ' + results.controls.length + ' PASS');
-  lines.push('');
-  lines.push('## 2. Pinned SDK Inventory and Integrity Receipts');
-  lines.push('');
-  lines.push('| Provider / Package | Version | Tarball SHA-256 | Evidence Classification |');
-  lines.push('| --- | --- | --- | --- |');
-
-  for (const pkg of PINNED_PACKAGES) {
-    const r = receipt.packages?.[pkg.name] || {};
-
-    lines.push('| `' + pkg.name + '` | `' + pkg.version + '` | `' + (r.sha256 || 'pending') + '` | ' + pkg.evidenceClass + ' |');
-  }
-
-  for (const probe of DOCS_PROBES) {
-    lines.push('| `' + probe.provider + '` (Docs recipe) | N/A | N/A | ' + probe.evidenceClass + ' |');
-  }
-
-  lines.push('');
-  lines.push('## 3. Policy Divergence Classification & Justification');
-  lines.push('');
-  lines.push('Every divergence between Hooklatch and official vendor SDKs is grounded in frozen Hooklatch architecture and primary implementation evidence:');
+  lines.push('## Documented Receiver Policy Divergences (Detailed Analysis)');
   lines.push('');
   lines.push('1. **Standard Webhooks Authentication-Before-Freshness Ordering**: Hooklatch evaluates cryptographic authentication prior to timestamp freshness. Expired timestamps with invalid signatures fail with `invalid-signature`; the vendor SDK evaluates timestamp freshness first, throwing `Message timestamp too old`.');
-  lines.push('2. **Standard Webhooks Short Key Bounds**: Hooklatch enforces strict minimum 24-byte key bound for Standard Webhooks (`MIN_KEY_BYTES = 24`), rejecting weak keys with `invalid-secret`; the vendor SDK accepts arbitrary non-empty keys.');
-  lines.push('3. **Paddle Segment Whitespace Resiliency**: Hooklatch permissively trims whitespace around key-value tokens in headers; Paddle Node SDK splits on \';\' and \'=\' without trimming keys (\'  h1\' !== \'h1\'), failing header extraction.');
+  lines.push('2. **Standard Webhooks Minimum Key Length**: Hooklatch enforces strict `MIN_KEY_BYTES = 24` for symmetric keys, failing at option validation with `invalid-secret`. The vendor SDK permits arbitrary key lengths.');
+  lines.push('3. **Paddle Whitespace Resiliency**: Hooklatch trims segment whitespace around semicolons; `@paddle/paddle-node-sdk` splits on `;` without trimming, failing on whitespace.');
   lines.push('4. **Paddle Multi-Signature Rotation Accept-Set**: Hooklatch evaluates all `h1` tokens in `paddle-signature` against configured secrets; Paddle SDK loops and checks only the final `h1` token.');
   lines.push('5. **Paddle Authentication-Before-Freshness Ordering**: Hooklatch evaluates cryptographic authentication prior to timestamp freshness. Expired timestamps with invalid signatures fail with `invalid-signature`; Paddle Node SDK evaluates timestamp freshness first (`new Date() > ...`), returning `false`.');
-  lines.push('6. **Sanity Default Timestamp Freshness**: Hooklatch core enforces standard 300s timestamp freshness for Sanity webhooks; `@sanity/webhook` does not expire timestamps by policy and only checks a minimum timestamp bound.');
+  lines.push('6. **Sanity Default Freshness Policy**: Hooklatch enforces default 300s freshness window; `@sanity/webhook` does not validate timestamp freshness by default.');
   lines.push('7. **Sanity Empty Body Preservation**: Hooklatch authenticates exact request bytes including empty payloads (`""`); `@sanity/webhook` explicitly throws `WebhookSignatureFormatError` disallowing empty payloads.');
-  lines.push('8. **Linear Exact Body Preservation & Zero Parsing in Core**: Hooklatch verifies exact visible body bytes without parsing JSON or requiring body schemas; `@linear/sdk` requires JSON parsing and enforces `webhookTimestamp` in payload within 60s of `Date.now()`.');
-  lines.push('');
-  lines.push('## 4. Conformance Test Results Inventory');
-  lines.push('');
-  lines.push('| Case ID | Provider | Category | Classification | Hooklatch OK | SDK OK | Status |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
-
-  for (const item of results.details) {
-    const status = item.matchedExpectation ? 'PASS' : 'FAIL';
-
-    lines.push('| `' + item.id + '` | `' + item.provider + '` | ' + item.category + ' | `' + item.classification + '` | ' + item.hooklatch.direct.ok + ' | ' + item.sdk.ok + ' | ' + status + ' |');
-  }
-
+  lines.push('8. **Linear Exact Body Preservation & Zero Parsing in Core**: Hooklatch authenticates visible raw body bytes without parsing JSON or requiring body schemas; `@linear/sdk` parses payload JSON and enforces a 60-second freshness window.');
   lines.push('');
 
   return lines.join('\n');
 }
 
 async function runOfflineConformance(options) {
-  console.log('[provider-conformance] Starting offline SDK conformance harness (Round 2)...');
+  console.log('[provider-conformance] Starting offline SDK conformance harness (Round 3)...');
+
+  const cacheStatus = verifyCacheIntegrity();
+
+  if (!cacheStatus.ok) {
+    console.error('FATAL [provider-conformance]: Offline cache integrity failed: ' + cacheStatus.reason);
+
+    process.exit(1);
+  }
 
   const preSnapshot = takeIntegritySnapshot(REPO_ROOT);
-  const cacheCheck = verifyCacheIntegrity();
-
-  if (!cacheCheck.ok) {
-    console.error('ERROR: Cache integrity verification failed: ' + cacheCheck.reason);
-    console.error('Prerequisites missing: run node scripts/phase10/provider-conformance.mjs --prepare-online first.');
-
-    process.exit(3);
-  }
 
   if (!existsSync(DIST_INDEX)) {
-    console.error('ERROR: Built Hooklatch dist missing at ' + DIST_INDEX + '; run npm run build first.');
+    console.error('FATAL [provider-conformance]: Missing dist/index.js. Build Hooklatch first.');
 
-    process.exit(3);
+    process.exit(1);
   }
 
-  if (!existsSync(CORPUS_PATH)) {
-    console.error('ERROR: Conformance corpus missing at ' + CORPUS_PATH);
+  const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
 
-    process.exit(3);
-  }
-
-  let corpus;
-
-  try {
-    corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
-  } catch (err) {
-    console.error('ERROR: Failed to parse corpus JSON: ' + err.message);
-
-    process.exit(3);
-  }
-
-  try {
-    validateCorpus(corpus);
-  } catch (err) {
-    console.error('ERROR: Corpus validation failed: ' + err.message);
-
-    process.exit(3);
-  }
+  validateCorpus(corpus);
 
   const falPrivateKey = createPrivateKey({
     key: Buffer.from(corpus.falKeys.privateKeyDerBase64, 'base64'),
@@ -1455,60 +1736,53 @@ async function runOfflineConformance(options) {
     type: 'pkcs8',
   });
 
-  const npmCli = resolveNpmCli();
   const tempConsumer = createSafeTempConsumer();
-
-  let resultsSummary = {
-    timestamp: new Date().toISOString(),
-    totalCases: 0,
-    agreementCount: 0,
-    divergenceCount: 0,
-    docsProbeCount: 0,
-    unexpectedMismatchCount: 0,
-    controls: [],
-    details: [],
-  };
+  const uncertaintyLedger = [];
 
   try {
     console.log('  Packaging local Hooklatch from dist...');
 
+    const npmCli = resolveNpmCli();
+
     const packOutput = execFileSync(
       process.execPath,
-      [npmCli, 'pack', '--json', '--offline', '--ignore-scripts', '--pack-destination', tempConsumer],
-      { cwd: REPO_ROOT, encoding: 'utf8', timeout: 300000 },
-    );
+      [npmCli, 'pack', REPO_ROOT, '--pack-destination', tempConsumer, '--ignore-scripts'],
+      { cwd: tempConsumer, encoding: 'utf8', timeout: 300000 },
+    ).trim();
 
-    const packEntries = JSON.parse(packOutput);
-    const hooklatchTarball = join(tempConsumer, packEntries[0].filename);
+    const tarballFileName = packOutput.split('\r\n').pop().trim();
+    const localTarball = join(tempConsumer, tarballFileName);
+
+    assert(existsSync(localTarball), 'Local Hooklatch tarball was not created at ' + localTarball);
 
     console.log('  Setting up temporary consumer and installing cached packages offline...');
 
     const consumerPkgJson = {
-      name: 'gemini-conformance-consumer',
+      name: 'hooklatch-conformance-consumer',
       version: '1.0.0',
       type: 'module',
-      private: true,
+      dependencies: {
+        'hooklatch': 'file:' + localTarball.replace(/\\/g, '/'),
+        'standardwebhooks': '1.1.1',
+        '@paddle/paddle-node-sdk': '3.10.0',
+        '@sanity/webhook': '4.0.4',
+        '@linear/sdk': '99.0.0',
+      },
     };
 
-    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson, null, 2), 'utf8');
+    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson, null, 2) + '\n', 'utf8');
 
-    // Replay frozen package-lock.json if present
-    if (existsSync(FROZEN_LOCK_PATH)) {
-      copyFileSync(FROZEN_LOCK_PATH, join(tempConsumer, 'package-lock.json'));
-    }
-
-    const cachedTarballs = PINNED_PACKAGES.map((pkg) => join(CACHE_DIR, pkg.tarball));
+    copyFileSync(FROZEN_LOCK_PATH, join(tempConsumer, 'package-lock.json'));
 
     execFileSync(
       process.execPath,
-      [npmCli, 'install', '--offline', '--cache', NPM_CACHE_DIR, '--ignore-scripts', hooklatchTarball, ...cachedTarballs],
-      { cwd: tempConsumer, stdio: ['ignore', 'pipe', 'pipe'], timeout: 300000 },
+      [npmCli, 'install', '--offline', '--cache', NPM_CACHE_DIR, '--ignore-scripts'],
+      { cwd: tempConsumer, timeout: 300000, stdio: 'pipe' },
     );
 
     console.log('  Preparing isolated evaluator runner in consumer...');
 
     const evalRunnerPath = writeEvaluatorScript(tempConsumer);
-
     const evaluationItems = [];
 
     for (const testCase of corpus.cases) {
@@ -1525,20 +1799,37 @@ async function runOfflineConformance(options) {
     console.log('  Running ' + corpus.cases.length + ' test cases through isolated evaluator...');
 
     const evalStart = Date.now();
+
     const evalProc = spawnSync(process.execPath, [evalRunnerPath, evalInputPath], {
       cwd: tempConsumer,
       timeout: 120000,
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024,
     });
+
     const evalDuration = Date.now() - evalStart;
 
     if (evalProc.error) {
+      uncertaintyLedger.push({
+        type: 'process-error',
+        code: evalProc.error.code,
+        message: evalProc.error.message,
+      });
+
       if (evalProc.error.code === 'ETIMEDOUT') {
         throw new Error(`Evaluator timed out after ${evalDuration}ms`);
       }
 
       throw evalProc.error;
+    }
+
+    if (evalProc.signal !== null) {
+      uncertaintyLedger.push({
+        type: 'process-signal',
+        signal: evalProc.signal,
+      });
+
+      throw new Error(`Evaluator terminated by signal ${evalProc.signal}`);
     }
 
     if (evalProc.status !== 0) {
@@ -1590,22 +1881,48 @@ async function runOfflineConformance(options) {
 
       const dRes = hooklatchOutcome.direct;
 
-      // Metadata & exact bytes assertion
-      if (testCase.expectedHooklatch.ok && dRes.ok && dRes.rawBodyBase64) {
-        assert(Buffer.from(dRes.rawBodyBase64, 'base64').equals(Buffer.from(resolvedCase.payload)),
-          'Raw body bytes mismatch for ' + testCase.id);
-      }
+      // Unconditional identity & raw bytes assertions across ALL THREE Hooklatch APIs
+      if (testCase.expectedHooklatch.ok) {
+        const apis = [
+          { name: 'direct', res: dRes },
+          { name: 'verifier', res: hooklatchOutcome.verifier },
+          { name: 'request', res: hooklatchOutcome.request },
+        ];
 
-      if (testCase.expectedHooklatch.ok && dRes.ok && testCase.expectedHooklatch.identity) {
-        const expId = testCase.expectedHooklatch.identity;
-        if (expId.deliveryId !== undefined) {
-          assert.strictEqual(dRes.identity?.deliveryId, expId.deliveryId, 'deliveryId mismatch for ' + testCase.id);
-        }
-        if (expId.eventId !== undefined) {
-          assert.strictEqual(dRes.identity?.eventId, expId.eventId, 'eventId mismatch for ' + testCase.id);
-        }
-        if (expId.authenticatedFields) {
-          assert.deepStrictEqual(dRes.identity?.authenticatedFields, expId.authenticatedFields, 'authenticatedFields mismatch for ' + testCase.id);
+        for (const api of apis) {
+          assert(api.res && api.res.ok, `API ${api.name} must be ok=true for ${testCase.id}`);
+          assert(isString(api.res.rawBodyBase64), `API ${api.name} must return rawBodyBase64 for ${testCase.id}`);
+
+          const recBytes = Buffer.from(api.res.rawBodyBase64, 'base64');
+
+          assert(recBytes.equals(Buffer.from(resolvedCase.payload)),
+            `Raw body bytes mismatch on API ${api.name} for ${testCase.id}`);
+
+          const expId = testCase.expectedHooklatch.identity;
+
+          assert(api.res.identity !== null && api.res.identity !== undefined,
+            `API ${api.name} must return identity for ${testCase.id}`);
+
+          if (expId) {
+            assert.strictEqual(api.res.identity.deliveryId, expId.deliveryId,
+              `deliveryId mismatch on API ${api.name} for ${testCase.id}`);
+            assert.strictEqual(api.res.identity.eventId, expId.eventId,
+              `eventId mismatch on API ${api.name} for ${testCase.id}`);
+            assert.deepStrictEqual(api.res.identity.authenticatedFields, expId.authenticatedFields,
+              `authenticatedFields mismatch on API ${api.name} for ${testCase.id}`);
+
+            if (expId.authenticatedFields && expId.authenticatedFields.includes('timestamp')) {
+              assert(isNumber(api.res.identity.timestamp),
+                `API ${api.name} identity timestamp must be number for ${testCase.id}`);
+
+              const expectedTs = testCase.provider === 'sanity' && testCase.timestampConfig?.unit === 'milliseconds'
+                ? Math.floor(resolvedCase.dynamicTs / 1000)
+                : resolvedCase.dynamicTs;
+
+              assert.strictEqual(api.res.identity.timestamp, expectedTs,
+                `identity timestamp mismatch on API ${api.name} for ${testCase.id}`);
+            }
+          }
         }
       }
 
@@ -1621,6 +1938,7 @@ async function runOfflineConformance(options) {
         executedBytes: hooklatchOutcome.executedBytes ?? Buffer.from(resolvedCase.payload).length,
         materializedTimestamp: resolvedCase.dynamicTs ?? null,
         simulatedClock: resolvedCase.clock,
+        clockMode: testCase.clockMode || 'dynamic',
         executedSignature: resolvedCase.headers['webhook-signature'] || resolvedCase.headers['paddle-signature'] || resolvedCase.headers['sanity-webhook-signature'] || resolvedCase.headers['linear-signature'] || resolvedCase.headers['x-vercel-signature'] || resolvedCase.headers['x-fal-webhook-signature'] || null,
         hooklatch: {
           direct: { ok: dRes.ok, reason: dRes.reason || null, error: dRes.error || null },
@@ -1636,87 +1954,104 @@ async function runOfflineConformance(options) {
           sourceLocation: sdkOutcome.sourceLocation || null,
           ok: sdkOutcome.ok,
           error: sdkOutcome.error || null,
+          message: sdkOutcome.message || null,
           infrastructureFailure: Boolean(sdkOutcome.infrastructureFailure),
+          unsupportedVendorInterface: Boolean(sdkOutcome.unsupportedVendorInterface),
         },
         matchedExpectation: classificationResult.passed,
       });
     }
 
-    // Load public Hooklatch via tempConsumer node_modules
-    const consumerModulesDir = join(tempConsumer, 'node_modules');
-    const hooklatch = await import(pathToFileURL(join(consumerModulesDir, 'hooklatch', 'dist', 'index.js')).href);
+    const hooklatchConsumerModule = await import(pathToFileURL(join(tempConsumer, 'node_modules', 'hooklatch', 'dist', 'index.js')).href);
 
-    await verifyHeaderNormalizations(hooklatch, corpus.cases, falPrivateKey);
+    await verifyHeaderNormalizations(hooklatchConsumerModule, corpus.cases, falPrivateKey);
 
-    let controls = [];
+    let controlsResult = null;
 
-    if (options.controls) {
-      controls = await runControls(hooklatch, REPO_ROOT, tempConsumer);
+    if (options.runControls) {
+      controlsResult = runControls(tempConsumer);
     }
 
-    resultsSummary = {
-      timestamp: new Date().toISOString(),
+    const summary = {
       totalCases: corpus.cases.length,
-      agreementCount,
-      divergenceCount,
-      docsProbeCount,
-      unexpectedMismatchCount,
-      controls,
-      details,
+      agreements: agreementCount,
+      divergences: divergenceCount,
+      docsProbes: docsProbeCount,
+      unexpectedMismatches: unexpectedMismatchCount,
+      controlsPassed: controlsResult ? controlsResult.every((c) => c.passed) : true,
     };
-  } finally {
-    cleanupSafeTempConsumer(tempConsumer);
-  }
 
-  const postSnapshot = verifyIntegritySnapshot(REPO_ROOT, preSnapshot);
+    const finalReport = {
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      summary,
+      details,
+      controls: controlsResult,
+    };
 
-  if (!postSnapshot.ok) {
-    console.error('FATAL [provider-conformance]: Workspace or dist integrity violation detected post-run:');
+    writeFileSync(RESULTS_PATH, JSON.stringify(finalReport, null, 2) + '\n', 'utf8');
 
-    for (const v of postSnapshot.violations) {
-      console.error(`  - ${v.file}: ${v.reason} (expected: ${v.expectedHash}, current: ${v.currentHash})`);
+    const auditMarkdown = generateAuditReport(summary, details, controlsResult);
+
+    writeFileSync(REPORT_PATH, auditMarkdown + '\n', 'utf8');
+
+    console.log('[provider-conformance] Results written to ' + RESULTS_PATH);
+    console.log('[provider-conformance] Audit report written to ' + REPORT_PATH);
+
+    if (unexpectedMismatchCount > 0) {
+      console.error(`FATAL [provider-conformance]: ${unexpectedMismatchCount} unexpected mismatches detected. Conformance FAILED.`);
+
+      process.exit(1);
     }
 
-    process.exit(1);
+    const postSnapshot = verifyIntegritySnapshot(REPO_ROOT, preSnapshot);
+
+    if (!postSnapshot.ok) {
+      console.error('FATAL [provider-conformance]: Workspace or dist integrity violation detected post-run:');
+
+      for (const v of postSnapshot.violations) {
+        console.error(`  - ${v.file}: ${v.reason} (expected: ${v.expectedHash}, current: ${v.currentHash})`);
+      }
+
+      process.exit(1);
+    }
+
+    console.log(`[provider-conformance] PASS: ${summary.totalCases} cases verified (${summary.agreements} agreements, ${summary.divergences} documented divergences, ${summary.docsProbes} docs probes).`);
+
+    return summary;
+  } finally {
+    if (uncertaintyLedger.length > 0) {
+      console.warn('WARNING: Child process termination is uncertain. Preserving scratch directory for forensics:', tempConsumer);
+      console.warn('Uncertainty ledger entries:', uncertaintyLedger);
+    } else {
+      cleanupSafeTempConsumer(tempConsumer);
+    }
   }
-
-  if (resultsSummary.unexpectedMismatchCount > 0) {
-    console.error(`FATAL [provider-conformance]: ${resultsSummary.unexpectedMismatchCount} unexpected mismatches occurred.`);
-    process.exit(1);
-  }
-
-  writeFileSync(RESULTS_PATH, JSON.stringify(resultsSummary, null, 2) + '\n', 'utf8');
-  console.log('[provider-conformance] Results written to ' + RESULTS_PATH);
-
-  const report = generateMarkdownReport(resultsSummary, cacheCheck.receipt);
-
-  writeFileSync(REPORT_PATH, report + '\n', 'utf8');
-  console.log('[provider-conformance] Audit report written to ' + REPORT_PATH);
-
-  console.log(`[provider-conformance] PASS: ${resultsSummary.totalCases} cases verified (${resultsSummary.agreementCount} agreements, ${resultsSummary.divergenceCount} documented divergences, ${resultsSummary.docsProbeCount} docs probes).`);
 }
 
 async function main() {
   const args = process.argv.slice(2);
+
   const options = {
     prepareOnline: false,
-    controls: false,
+    runControls: false,
   };
 
   for (const arg of args) {
     if (arg === '--prepare-online') {
       options.prepareOnline = true;
     } else if (arg === '--controls') {
-      options.controls = true;
+      options.runControls = true;
     } else {
-      console.error('ERROR: Unknown CLI argument: ' + arg);
-      console.error('Usage: node scripts/phase10/provider-conformance.mjs [--prepare-online] [--controls]');
+      console.error(`Unknown argument: "${arg}". Only --prepare-online and --controls are supported.`);
+
       process.exit(2);
     }
   }
 
   if (options.prepareOnline) {
     runPrepareOnline();
+
     return;
   }
 
@@ -1725,5 +2060,6 @@ async function main() {
 
 main().catch((err) => {
   console.error('FATAL [provider-conformance]:', err);
+
   process.exit(1);
 });

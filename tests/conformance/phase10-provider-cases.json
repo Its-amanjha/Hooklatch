@@ -14,7 +14,7 @@
     "vercel",
     "fal"
   ],
-  "casesCount": 53,
+  "casesCount": 57,
   "cases": [
     {
       "id": "std-valid-standard",
@@ -246,10 +246,10 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "std-valid-default-tolerance-boundary",
+      "id": "std-valid-near-boundary-299s",
       "provider": "standard-webhooks",
       "category": "freshness-window",
-      "description": "Standard Webhooks default tolerance exact inclusive boundary edge (age 300s with omitted toleranceSeconds)",
+      "description": "Standard Webhooks near-boundary tolerance test (299s within 300s default window)",
       "payload": "{\"event\":\"order.completed\",\"orderId\":904}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
@@ -529,10 +529,10 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "paddle-valid-default-tolerance-boundary",
+      "id": "paddle-valid-near-boundary-4s",
       "provider": "paddle",
       "category": "freshness-window",
-      "description": "Paddle Billing exact default tolerance boundary edge (age 5s with omitted toleranceSeconds)",
+      "description": "Paddle Billing near-boundary tolerance test (4s within 5s default window)",
       "payload": "{\"event_id\":\"evt_02\",\"data\":{\"id\":\"sub_02\"}}",
       "secret": "pdl_sec_synthetic_test_key_001",
       "headers": {
@@ -944,10 +944,10 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "sanity-valid-default-tolerance-boundary",
+      "id": "sanity-valid-near-boundary-299s",
       "provider": "sanity",
       "category": "freshness-window",
-      "description": "Sanity webhook default tolerance exact inclusive boundary edge (age 300s with omitted toleranceSeconds)",
+      "description": "Sanity near-boundary tolerance test (299s within 300s default window)",
       "payload": "{\"_type\":\"article\",\"_id\":\"art_005\"}",
       "secret": "snt_sec_synthetic_test_key_001",
       "headers": {
@@ -1216,10 +1216,10 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "linear-valid-exact-tolerance-boundary",
+      "id": "linear-valid-near-boundary-59s",
       "provider": "linear",
       "category": "freshness-window",
-      "description": "Linear valid webhook at exact 60s Linear SDK timestamp window edge (-60s)",
+      "description": "Linear near-boundary tolerance test (59s within 60s SDK body timestamp policy window)",
       "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_005\"},\"webhookTimestamp\":0}",
       "secret": "lin_sec_synthetic_test_key_001",
       "headers": {
@@ -1701,6 +1701,148 @@
         "error": "timestamp-expired"
       },
       "classification": "docs-only-probe"
+    },
+    {
+      "id": "std-valid-exact-inclusive-edge-300s",
+      "provider": "standard-webhooks",
+      "category": "freshness-window",
+      "description": "Standard Webhooks exact inclusive tolerance edge (300s under deterministic SDK clock)",
+      "payload": "{\"event\":\"payment.captured\"}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_007_exact",
+        "webhook-timestamp": "0",
+        "webhook-signature": "v1,pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "relativeOffset": -300
+      },
+      "clockMode": "deterministic",
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_synthetic_std_007_exact",
+          "timestamp": null,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-valid-exact-inclusive-edge-5s",
+      "provider": "paddle",
+      "category": "freshness-window",
+      "description": "Paddle Billing exact inclusive tolerance edge (5s under deterministic SDK clock)",
+      "payload": "{\"event_id\":\"evt_pdl_exact_005\"}",
+      "secret": "pdl_sec_synthetic_test_key_001",
+      "headers": {
+        "paddle-signature": "ts=0;h1=pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "paddle-signature",
+        "unit": "seconds",
+        "relativeOffset": -5
+      },
+      "clockMode": "deterministic",
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
+      },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-valid-exact-inclusive-edge-60s",
+      "provider": "linear",
+      "category": "freshness-window",
+      "description": "Linear exact inclusive tolerance edge (60s under deterministic SDK clock)",
+      "payload": "{\"action\":\"create\",\"type\":\"Issue\",\"webhookTimestamp\":0}",
+      "secret": "lin_sec_synthetic_test_key_001",
+      "headers": {
+        "linear-signature": "pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "webhookTimestamp",
+        "unit": "milliseconds",
+        "relativeOffset": -60
+      },
+      "clockMode": "deterministic",
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
+      },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-valid-zero-tolerance-edge",
+      "provider": "standard-webhooks",
+      "category": "freshness-window",
+      "description": "Standard Webhooks exact zero tolerance edge (0s under deterministic SDK clock)",
+      "payload": "{\"event\":\"payment.captured\"}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_008_zero",
+        "webhook-timestamp": "0",
+        "webhook-signature": "v1,pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "relativeOffset": 0
+      },
+      "clockMode": "deterministic",
+      "options": {
+        "toleranceSeconds": 0
+      },
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": "msg_synthetic_std_008_zero",
+          "timestamp": null,
+          "authenticatedFields": [
+            "eventId",
+            "timestamp"
+          ]
+        }
+      },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
     }
   ]
 }
