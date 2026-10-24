@@ -90,9 +90,9 @@ export class PrerequisiteError extends Error {
  * kills a child owns a separate ledger and can never clear the run's evidence.
  *
  * Removal is permitted only after observation, never after a reset: every child
- * recorded in the ledger must have confirmed its close, no recorded pid may
- * still be alive, and a timed-out or signalled child additionally requires an
- * explicit confirmTermination() observation.
+ * recorded in the ledger must have reported close, and a timed-out or signalled
+ * child additionally requires an explicit confirmTermination() observation.
+ * Pid liveness is recorded as advisory evidence (see confirmTermination).
  */
 export function createHealthLedger() {
   return {
@@ -123,20 +123,24 @@ export function childIsAlive(pid) {
 }
 
 /**
- * Confirmation is an observation recorded on the ledger, never a reset: each
- * recorded child must have closed and no recorded pid may still be alive.
- * Deleting (or withholding) is then decided from that record.
+ * Confirmation is an observation recorded on the ledger, never a reset: every
+ * recorded child must have reported close. Deleting (or withholding) is then
+ * decided from that record.
+ *
+ * The pid liveness probe is recorded as ADVISORY evidence only. On Windows a
+ * process that has already been reaped by Node can stay openable for a brief
+ * window, so a liveness result is not a reliable gate; the close event is.
  */
 export function confirmTermination(ledger) {
-  const live = ledger.children.filter((child) => childIsAlive(child.pid));
   const unclosed = ledger.children.filter((child) => child.closeConfirmed !== true);
+  const openPids = ledger.children.filter((child) => childIsAlive(child.pid)).map((child) => child.pid);
 
   ledger.terminationConfirmed = {
     confirmedAt: new Date().toISOString(),
-    confirmed: live.length === 0 && unclosed.length === 0,
+    confirmed: unclosed.length === 0,
     checkedChildren: ledger.children.length,
-    livePids: live.map((child) => child.pid),
     unclosedPids: unclosed.map((child) => child.pid),
+    advisoryOpenPids: openPids,
     reasons: ledger.reasons.slice(),
   };
 
@@ -422,21 +426,14 @@ export function safeUnlinkLink(linkPath, expectedParent) {
 
 /**
  * Unlink every tracked link, then remove the workspace root. Removal requires
- * OBSERVED termination: every ledger child closed, no recorded pid alive, and a
- * timed-out/signalled child additionally confirmed by confirmTermination().
- * Anything else preserves the whole tree as evidence and fails the run.
+ * OBSERVED termination: every ledger child reported close, and a timed-out or
+ * signalled child additionally requires confirmTermination(). Anything else
+ * preserves the whole tree as evidence and fails the run.
  */
 export function disposeWorkspace(workspace, { ledger = processHealth } = {}) {
   assertInsideTemp(workspace.root);
 
-  const live = ledger.children.filter((child) => childIsAlive(child.pid));
   const unclosed = ledger.children.filter((child) => child.closeConfirmed !== true);
-
-  if (live.length > 0) {
-    throw new Error(
-      `Cleanup withheld: child process(es) ${live.map((child) => child.pid).join(', ')} are still alive; scratch preserved at ${workspace.root}.`,
-    );
-  }
 
   if (unclosed.length > 0) {
     throw new Error(

@@ -1188,6 +1188,7 @@ async function runMatrix({ toolchain, runtimes, report }) {
       'All provider cases are synthetic, locally signed with node:crypto. No live provider, account, registry or network call was made.',
       'Every consumer compile runs with skipLibCheck:false, so candidate declaration files are checked rather than skipped.',
       'Provider inventory order is read from the candidate built registry (dist or dist-cjs), not inferred from the harness literal.',
+      'Scratch removal is gated on each child observed close (plus confirmTermination after a timeout); pid liveness is advisory on win32, where a reaped process can stay openable briefly.',
     ];
   } finally {
     const after = snapshotRunInputs();
