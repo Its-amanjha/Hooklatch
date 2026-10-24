@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24T00:13:41.188Z",
-  "description": "Strict exact-byte provider SDK conformance corpus for Hooklatch Phase 10 Round 1 Repairs",
+  "generatedAt": "2026-10-24T07:47:54.212Z",
+  "description": "Strict exact-byte provider SDK conformance corpus for Hooklatch Phase 10 Round 2 Repairs",
   "falKeys": {
     "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
     "privateKeyDerBase64": "MC4CAQAwBQYDK2VwBCIEIGX5nT+IXYQJ80Cy9110m2/7nAXUBY9z46a+npkdZRvl"
@@ -14,13 +14,13 @@
     "vercel",
     "fal"
   ],
-  "casesCount": 54,
+  "casesCount": 53,
   "cases": [
     {
       "id": "std-valid-standard",
       "provider": "standard-webhooks",
       "category": "accept-reject",
-      "description": "Standard Webhooks valid v1 signature with whsec_ prefix and exact body bytes",
+      "description": "Standard Webhooks valid v1 signature with default tolerance (omitted toleranceSeconds)",
       "payload": "{\"event\":\"user.created\",\"id\":\"usr_synthetic_101\",\"timestamp\":1710000000}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
@@ -34,9 +34,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -72,9 +70,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -96,9 +92,13 @@
       "id": "std-valid-rotation-first-valid",
       "provider": "standard-webhooks",
       "category": "secret-rotation",
-      "description": "Standard Webhooks signature rotation with first signature valid in space-delimited list",
+      "description": "Standard Webhooks signature rotation with first signature valid in space-delimited list across configured secrets",
       "payload": "{\"event\":\"invoice.paid\",\"amount\":5000}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "secrets": [
+        "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+        "whsec_N0tH3rS3cr3tK3yF0rR0t4t10nT3st1ng9876543210="
+      ],
       "headers": {
         "webhook-id": "msg_synthetic_std_003",
         "webhook-timestamp": "0",
@@ -111,9 +111,7 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "v1,{sig} v1,QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -135,9 +133,13 @@
       "id": "std-valid-rotation-second-valid",
       "provider": "standard-webhooks",
       "category": "secret-rotation",
-      "description": "Standard Webhooks signature rotation with second signature valid in space-delimited list",
+      "description": "Standard Webhooks signature rotation with second signature valid in space-delimited list across configured secrets",
       "payload": "{\"event\":\"invoice.paid\",\"amount\":5000}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "secrets": [
+        "whsec_N0tH3rS3cr3tK3yF0rR0t4t10nT3st1ng9876543210=",
+        "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s="
+      ],
       "headers": {
         "webhook-id": "msg_synthetic_std_004",
         "webhook-timestamp": "0",
@@ -150,9 +152,7 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "v1,QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI= v1,{sig}",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -189,9 +189,7 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "v2,QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI= v1,{sig}",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -213,7 +211,7 @@
       "id": "std-valid-custom-tolerance",
       "provider": "standard-webhooks",
       "category": "freshness-window",
-      "description": "Standard Webhooks valid request with custom toleranceSeconds",
+      "description": "Standard Webhooks valid request with custom toleranceSeconds=600 accepting past 300s default",
       "payload": "{\"event\":\"order.completed\",\"orderId\":901}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
@@ -248,11 +246,11 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "std-valid-default-tolerance",
+      "id": "std-valid-default-tolerance-boundary",
       "provider": "standard-webhooks",
       "category": "freshness-window",
-      "description": "Standard Webhooks valid request with default toleranceSeconds",
-      "payload": "{\"event\":\"order.completed\",\"orderId\":902}",
+      "description": "Standard Webhooks default tolerance exact inclusive boundary edge (age 300s with omitted toleranceSeconds)",
+      "payload": "{\"event\":\"order.completed\",\"orderId\":904}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
         "webhook-id": "msg_synthetic_std_007",
@@ -263,7 +261,7 @@
         "mode": "relative",
         "field": "webhook-timestamp",
         "unit": "seconds",
-        "relativeOffset": -100
+        "relativeOffset": -299
       },
       "options": {},
       "expectedHooklatch": {
@@ -287,7 +285,7 @@
       "id": "std-valid-zero-tolerance",
       "provider": "standard-webhooks",
       "category": "freshness-window",
-      "description": "Standard Webhooks valid request with zero toleranceSeconds (age 0)",
+      "description": "Standard Webhooks valid request with explicit zero toleranceSeconds (age 0)",
       "payload": "{\"event\":\"order.completed\",\"orderId\":903}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
@@ -322,11 +320,11 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "std-valid-tolerance-boundary-inclusive",
+      "id": "std-reject-default-tolerance-stale",
       "provider": "standard-webhooks",
       "category": "freshness-window",
-      "description": "Standard Webhooks exact tolerance boundary inclusive (age 300s)",
-      "payload": "{\"event\":\"order.completed\",\"orderId\":904}",
+      "description": "Standard Webhooks default tolerance exact stale edge (age 301s exceeding 300s default)",
+      "payload": "{\"event\":\"payment.captured\"}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
         "webhook-id": "msg_synthetic_std_009",
@@ -337,25 +335,45 @@
         "mode": "relative",
         "field": "webhook-timestamp",
         "unit": "seconds",
-        "relativeOffset": -300
+        "relativeOffset": -301
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
-        "ok": true,
-        "identity": {
-          "deliveryId": null,
-          "eventId": "msg_synthetic_std_009",
-          "timestamp": null,
-          "authenticatedFields": [
-            "eventId",
-            "timestamp"
-          ]
-        }
+        "ok": false,
+        "reason": "timestamp-expired"
       },
       "expectedSdk": {
-        "ok": true
+        "ok": false,
+        "error": "WebhookVerificationError"
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "std-reject-future-timestamp",
+      "provider": "standard-webhooks",
+      "category": "freshness-window",
+      "description": "Standard Webhooks reject future timestamp (future 301s exceeding 300s default)",
+      "payload": "{\"event\":\"payment.captured\"}",
+      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
+      "headers": {
+        "webhook-id": "msg_synthetic_std_010",
+        "webhook-timestamp": "0",
+        "webhook-signature": "v1,pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "webhook-timestamp",
+        "unit": "seconds",
+        "relativeOffset": 305
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "reason": "timestamp-future"
+      },
+      "expectedSdk": {
+        "ok": false,
+        "error": "WebhookVerificationError"
       },
       "classification": "protocol-agreement"
     },
@@ -367,7 +385,7 @@
       "payload": "{\"event\":\"user.hacked\"}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
-        "webhook-id": "msg_synthetic_std_010",
+        "webhook-id": "msg_synthetic_std_011",
         "webhook-timestamp": "0",
         "webhook-signature": "v1,QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI="
       },
@@ -377,9 +395,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -407,74 +423,10 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-identity"
-      },
-      "expectedSdk": {
-        "ok": false,
-        "error": "WebhookVerificationError"
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "std-reject-stale-timestamp",
-      "provider": "standard-webhooks",
-      "category": "freshness-window",
-      "description": "Standard Webhooks reject stale timestamp (age 301s exceeding 300s tolerance)",
-      "payload": "{\"event\":\"payment.captured\"}",
-      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
-      "headers": {
-        "webhook-id": "msg_synthetic_std_012",
-        "webhook-timestamp": "0",
-        "webhook-signature": "v1,pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "webhook-timestamp",
-        "unit": "seconds",
-        "relativeOffset": -301
-      },
-      "options": {
-        "toleranceSeconds": 300
-      },
-      "expectedHooklatch": {
-        "ok": false,
-        "reason": "timestamp-expired"
-      },
-      "expectedSdk": {
-        "ok": false,
-        "error": "WebhookVerificationError"
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "std-reject-future-timestamp",
-      "provider": "standard-webhooks",
-      "category": "freshness-window",
-      "description": "Standard Webhooks reject future timestamp (future 301s exceeding 300s tolerance)",
-      "payload": "{\"event\":\"payment.captured\"}",
-      "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
-      "headers": {
-        "webhook-id": "msg_synthetic_std_013",
-        "webhook-timestamp": "0",
-        "webhook-signature": "v1,pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "webhook-timestamp",
-        "unit": "seconds",
-        "relativeOffset": 301
-      },
-      "options": {
-        "toleranceSeconds": 300
-      },
-      "expectedHooklatch": {
-        "ok": false,
-        "reason": "timestamp-future"
       },
       "expectedSdk": {
         "ok": false,
@@ -490,7 +442,7 @@
       "payload": "{\"event\":\"dispute.opened\"}",
       "secret": "whsec_MfKQ9r8GKYqrTwjmtUTnUgfaffhnTrrrQ1vKcwKqH4s=",
       "headers": {
-        "webhook-id": "msg_synthetic_std_014",
+        "webhook-id": "msg_synthetic_std_013",
         "webhook-timestamp": "0",
         "webhook-signature": "v1,QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI="
       },
@@ -500,9 +452,7 @@
         "unit": "seconds",
         "relativeOffset": -301
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -523,7 +473,7 @@
       "payload": "{\"event\":\"ping\"}",
       "secret": "whsec_c2hvcnRfa2V5XzE2Ynl0ZXM=",
       "headers": {
-        "webhook-id": "msg_synthetic_std_015",
+        "webhook-id": "msg_synthetic_std_014",
         "webhook-timestamp": "0",
         "webhook-signature": "v1,pending"
       },
@@ -533,9 +483,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "errorCode": "invalid-secret"
@@ -551,7 +499,7 @@
       "id": "paddle-valid-standard",
       "provider": "paddle",
       "category": "accept-reject",
-      "description": "Paddle Billing valid signature with ts and h1 components",
+      "description": "Paddle Billing valid signature with ts and h1 components using default tolerance",
       "payload": "{\"event_id\":\"evt_01\",\"data\":{\"id\":\"sub_01\"}}",
       "secret": "pdl_sec_synthetic_test_key_001",
       "headers": {
@@ -563,9 +511,40 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
       },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-valid-default-tolerance-boundary",
+      "provider": "paddle",
+      "category": "freshness-window",
+      "description": "Paddle Billing exact default tolerance boundary edge (age 5s with omitted toleranceSeconds)",
+      "payload": "{\"event_id\":\"evt_02\",\"data\":{\"id\":\"sub_02\"}}",
+      "secret": "pdl_sec_synthetic_test_key_001",
+      "headers": {
+        "paddle-signature": "ts=0;h1=pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "paddle-signature",
+        "unit": "seconds",
+        "relativeOffset": -4
+      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -586,8 +565,8 @@
       "id": "paddle-valid-custom-tolerance",
       "provider": "paddle",
       "category": "freshness-window",
-      "description": "Paddle Billing valid request with custom toleranceSeconds",
-      "payload": "{\"event_id\":\"evt_02\",\"data\":{\"id\":\"sub_02\"}}",
+      "description": "Paddle Billing valid request with explicit custom toleranceSeconds",
+      "payload": "{\"event_id\":\"evt_03\",\"data\":{\"id\":\"sub_03\"}}",
       "secret": "pdl_sec_synthetic_test_key_001",
       "headers": {
         "paddle-signature": "ts=0;h1=pending"
@@ -601,39 +580,6 @@
       "options": {
         "toleranceSeconds": 600
       },
-      "expectedHooklatch": {
-        "ok": true,
-        "identity": {
-          "deliveryId": null,
-          "eventId": null,
-          "timestamp": null,
-          "authenticatedFields": [
-            "timestamp"
-          ]
-        }
-      },
-      "expectedSdk": {
-        "ok": true
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "paddle-valid-default-tolerance",
-      "provider": "paddle",
-      "category": "freshness-window",
-      "description": "Paddle Billing valid request with default toleranceSeconds",
-      "payload": "{\"event_id\":\"evt_03\",\"data\":{\"id\":\"sub_03\"}}",
-      "secret": "pdl_sec_synthetic_test_key_001",
-      "headers": {
-        "paddle-signature": "ts=0;h1=pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "paddle-signature",
-        "unit": "seconds",
-        "relativeOffset": 0
-      },
-      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -686,11 +632,11 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "paddle-valid-tolerance-boundary-inclusive",
+      "id": "paddle-exact-body-whitespace",
       "provider": "paddle",
-      "category": "freshness-window",
-      "description": "Paddle Billing exact tolerance boundary within SDK 5s threshold and Hooklatch tolerance",
-      "payload": "{\"event_id\":\"evt_05\",\"data\":{\"id\":\"sub_05\"}}",
+      "category": "byte-preservation",
+      "description": "Paddle Billing preserving exact body bytes with inner whitespace",
+      "payload": "{\n  \"event_id\": \"evt_ws\",\n  \"status\": \"active\"\n}",
       "secret": "pdl_sec_synthetic_test_key_001",
       "headers": {
         "paddle-signature": "ts=0;h1=pending"
@@ -701,9 +647,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -721,12 +665,16 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "paddle-exact-body-whitespace",
+      "id": "paddle-valid-multi-secret",
       "provider": "paddle",
-      "category": "byte-preservation",
-      "description": "Paddle Billing preserving exact body bytes with inner whitespace",
-      "payload": "{\n  \"event_id\": \"evt_ws\",\n  \"status\": \"active\"\n}",
-      "secret": "pdl_sec_synthetic_test_key_001",
+      "category": "secret-rotation",
+      "description": "Paddle Billing verification with configured multi-secret accept array",
+      "payload": "{\"event_id\":\"evt_multi\",\"data\":{\"id\":\"sub_multi\"}}",
+      "secret": "pdl_sec_secondary_test_key_002",
+      "secrets": [
+        "pdl_sec_synthetic_test_key_001",
+        "pdl_sec_secondary_test_key_002"
+      ],
       "headers": {
         "paddle-signature": "ts=0;h1=pending"
       },
@@ -736,9 +684,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -752,6 +698,33 @@
       },
       "expectedSdk": {
         "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "paddle-reject-default-tolerance-stale",
+      "provider": "paddle",
+      "category": "freshness-window",
+      "description": "Paddle Billing default tolerance exact stale edge (age 6s exceeding 5s default)",
+      "payload": "{\"event_id\":\"evt_stale\"}",
+      "secret": "pdl_sec_synthetic_test_key_001",
+      "headers": {
+        "paddle-signature": "ts=0;h1=pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "paddle-signature",
+        "unit": "seconds",
+        "relativeOffset": -6
+      },
+      "options": {},
+      "expectedHooklatch": {
+        "ok": false,
+        "reason": "timestamp-expired"
+      },
+      "expectedSdk": {
+        "ok": false,
+        "error": "PaddleVerificationError"
       },
       "classification": "protocol-agreement"
     },
@@ -771,9 +744,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -800,9 +771,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-signature"
@@ -826,41 +795,10 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-timestamp"
-      },
-      "expectedSdk": {
-        "ok": false,
-        "error": "PaddleVerificationError"
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "paddle-reject-stale-timestamp",
-      "provider": "paddle",
-      "category": "freshness-window",
-      "description": "Paddle Billing reject stale timestamp (age 305s exceeding tolerance)",
-      "payload": "{\"event_id\":\"evt_stale\"}",
-      "secret": "pdl_sec_synthetic_test_key_001",
-      "headers": {
-        "paddle-signature": "ts=0;h1=pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "paddle-signature",
-        "unit": "seconds",
-        "relativeOffset": -305
-      },
-      "options": {
-        "toleranceSeconds": 300
-      },
-      "expectedHooklatch": {
-        "ok": false,
-        "reason": "timestamp-expired"
       },
       "expectedSdk": {
         "ok": false,
@@ -885,9 +823,7 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "ts={ts}; h1={sig}",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -924,9 +860,7 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "ts={ts};h1={sig};h1=5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -963,9 +897,7 @@
         "relativeOffset": -305
       },
       "signatureTemplate": "ts={ts};h1=5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -982,7 +914,7 @@
       "id": "sanity-valid-standard",
       "provider": "sanity",
       "category": "accept-reject",
-      "description": "Sanity webhook valid signature with t and v1 base64url HMAC",
+      "description": "Sanity webhook valid signature with default tolerance (omitted toleranceSeconds)",
       "payload": "{\"_type\":\"article\",\"_id\":\"art_001\",\"title\":\"Hello\"}",
       "secret": "snt_sec_synthetic_test_key_001",
       "headers": {
@@ -994,9 +926,40 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": [
+            "timestamp"
+          ]
+        }
       },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "sanity-valid-default-tolerance-boundary",
+      "provider": "sanity",
+      "category": "freshness-window",
+      "description": "Sanity webhook default tolerance exact inclusive boundary edge (age 300s with omitted toleranceSeconds)",
+      "payload": "{\"_type\":\"article\",\"_id\":\"art_005\"}",
+      "secret": "snt_sec_synthetic_test_key_001",
+      "headers": {
+        "sanity-webhook-signature": "t=0,v1=pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "sanity-webhook-signature",
+        "unit": "milliseconds",
+        "relativeOffset": -299
+      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1017,7 +980,7 @@
       "id": "sanity-valid-custom-tolerance",
       "provider": "sanity",
       "category": "freshness-window",
-      "description": "Sanity webhook valid request with custom toleranceSeconds",
+      "description": "Sanity webhook valid request with custom toleranceSeconds=600 accepting past 300s default",
       "payload": "{\"_type\":\"article\",\"_id\":\"art_002\"}",
       "secret": "snt_sec_synthetic_test_key_001",
       "headers": {
@@ -1032,39 +995,6 @@
       "options": {
         "toleranceSeconds": 600
       },
-      "expectedHooklatch": {
-        "ok": true,
-        "identity": {
-          "deliveryId": null,
-          "eventId": null,
-          "timestamp": null,
-          "authenticatedFields": [
-            "timestamp"
-          ]
-        }
-      },
-      "expectedSdk": {
-        "ok": true
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "sanity-valid-default-tolerance",
-      "provider": "sanity",
-      "category": "freshness-window",
-      "description": "Sanity webhook valid request with default toleranceSeconds",
-      "payload": "{\"_type\":\"article\",\"_id\":\"art_003\"}",
-      "secret": "snt_sec_synthetic_test_key_001",
-      "headers": {
-        "sanity-webhook-signature": "t=0,v1=pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "sanity-webhook-signature",
-        "unit": "milliseconds",
-        "relativeOffset": -100
-      },
-      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1117,11 +1047,11 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "sanity-valid-tolerance-boundary-inclusive",
+      "id": "sanity-reject-default-tolerance-stale",
       "provider": "sanity",
       "category": "freshness-window",
-      "description": "Sanity webhook exact tolerance boundary inclusive (age 300s)",
-      "payload": "{\"_type\":\"article\",\"_id\":\"art_005\"}",
+      "description": "Sanity webhook default tolerance exact stale edge (age 301s exceeding 300s default)",
+      "payload": "{\"_type\":\"article\",\"_id\":\"art_stale\"}",
       "secret": "snt_sec_synthetic_test_key_001",
       "headers": {
         "sanity-webhook-signature": "t=0,v1=pending"
@@ -1130,26 +1060,19 @@
         "mode": "relative",
         "field": "sanity-webhook-signature",
         "unit": "milliseconds",
-        "relativeOffset": -300
+        "relativeOffset": -301
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
-        "ok": true,
-        "identity": {
-          "deliveryId": null,
-          "eventId": null,
-          "timestamp": null,
-          "authenticatedFields": [
-            "timestamp"
-          ]
-        }
+        "ok": false,
+        "reason": "timestamp-expired"
       },
       "expectedSdk": {
         "ok": true
       },
-      "classification": "protocol-agreement"
+      "classification": "expected-documented-receiver-policy-divergence",
+      "divergenceReason": "Hooklatch core enforces standard timestamp freshness (300s default); @sanity/webhook assertValidSignature does not expire timestamps and only checks MINIMUM_TIMESTAMP bound.",
+      "evidenceReference": "Hooklatch verification pipeline in src/internal/verification.ts vs @sanity/webhook in dist/index.mjs"
     },
     {
       "id": "sanity-reject-corrupted-sig",
@@ -1168,16 +1091,14 @@
         "relativeOffset": 0
       },
       "signatureTemplate": "t={ts},v1=WlpWWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
       },
       "expectedSdk": {
         "ok": false,
-        "error": "SanityVerificationError"
+        "error": "WebhookSignatureValueError"
       },
       "classification": "protocol-agreement"
     },
@@ -1192,9 +1113,7 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-signature"
@@ -1218,16 +1137,14 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "malformed-signature"
       },
       "expectedSdk": {
         "ok": false,
-        "error": "SanityVerificationError"
+        "error": "WebhookSignatureFormatError"
       },
       "classification": "protocol-agreement"
     },
@@ -1247,9 +1164,7 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1263,7 +1178,7 @@
       },
       "expectedSdk": {
         "ok": false,
-        "error": "SanityVerificationError"
+        "error": "WebhookSignatureFormatError"
       },
       "classification": "expected-documented-receiver-policy-divergence",
       "divergenceReason": "Hooklatch authenticates exact request bytes including empty string payloads; @sanity/webhook assertValidSignature explicitly throws WebhookSignatureFormatError disallowing empty body verification.",
@@ -1285,9 +1200,38 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
+      "options": {},
+      "expectedHooklatch": {
+        "ok": true,
+        "identity": {
+          "deliveryId": null,
+          "eventId": null,
+          "timestamp": null,
+          "authenticatedFields": []
+        }
       },
+      "expectedSdk": {
+        "ok": true
+      },
+      "classification": "protocol-agreement"
+    },
+    {
+      "id": "linear-valid-exact-tolerance-boundary",
+      "provider": "linear",
+      "category": "freshness-window",
+      "description": "Linear valid webhook at exact 60s Linear SDK timestamp window edge (-60s)",
+      "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_005\"},\"webhookTimestamp\":0}",
+      "secret": "lin_sec_synthetic_test_key_001",
+      "headers": {
+        "linear-signature": "pending"
+      },
+      "timestampConfig": {
+        "mode": "relative",
+        "field": "webhookTimestamp",
+        "unit": "milliseconds",
+        "relativeOffset": -59
+      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1306,7 +1250,7 @@
       "id": "linear-valid-custom-tolerance",
       "provider": "linear",
       "category": "freshness-window",
-      "description": "Linear valid webhook with custom toleranceSeconds",
+      "description": "Linear valid webhook with explicit toleranceSeconds",
       "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_002\"},\"webhookTimestamp\":0}",
       "secret": "lin_sec_synthetic_test_key_001",
       "headers": {
@@ -1321,37 +1265,6 @@
       "options": {
         "toleranceSeconds": 600
       },
-      "expectedHooklatch": {
-        "ok": true,
-        "identity": {
-          "deliveryId": null,
-          "eventId": null,
-          "timestamp": null,
-          "authenticatedFields": []
-        }
-      },
-      "expectedSdk": {
-        "ok": true
-      },
-      "classification": "protocol-agreement"
-    },
-    {
-      "id": "linear-valid-default-tolerance",
-      "provider": "linear",
-      "category": "freshness-window",
-      "description": "Linear valid webhook with default toleranceSeconds",
-      "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_003\"},\"webhookTimestamp\":0}",
-      "secret": "lin_sec_synthetic_test_key_001",
-      "headers": {
-        "linear-signature": "pending"
-      },
-      "timestampConfig": {
-        "mode": "relative",
-        "field": "webhookTimestamp",
-        "unit": "milliseconds",
-        "relativeOffset": 0
-      },
-      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1400,11 +1313,11 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "linear-valid-exact-tolerance-boundary",
+      "id": "linear-exact-body-formatting",
       "provider": "linear",
-      "category": "freshness-window",
-      "description": "Linear valid webhook within Linear SDK 60s window (-50s)",
-      "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_005\"},\"webhookTimestamp\":0}",
+      "category": "byte-preservation",
+      "description": "Linear verifying exact visible raw bytes with custom JSON formatting and indentation",
+      "payload": "{\n  \"action\": \"create\",\n  \"type\": \"Comment\",\n  \"data\": {\n    \"body\": \"Nice!\"\n  },\n  \"webhookTimestamp\": 0\n}",
       "secret": "lin_sec_synthetic_test_key_001",
       "headers": {
         "linear-signature": "pending"
@@ -1413,11 +1326,9 @@
         "mode": "relative",
         "field": "webhookTimestamp",
         "unit": "milliseconds",
-        "relativeOffset": -50
+        "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1433,11 +1344,12 @@
       "classification": "protocol-agreement"
     },
     {
-      "id": "linear-exact-body-formatting",
+      "id": "linear-valid-binary-view",
       "provider": "linear",
       "category": "byte-preservation",
-      "description": "Linear verifying exact visible raw bytes with custom JSON formatting",
-      "payload": "{\n  \"action\": \"create\",\n  \"type\": \"Comment\",\n  \"data\": {\n    \"body\": \"Nice!\"\n  },\n  \"webhookTimestamp\": 0\n}",
+      "description": "Linear verifying non-zero offset Uint8Array view slice",
+      "payload": "{\"action\":\"view\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_bin\"},\"webhookTimestamp\":0}",
+      "isBinaryView": true,
       "secret": "lin_sec_synthetic_test_key_001",
       "headers": {
         "linear-signature": "pending"
@@ -1448,9 +1360,7 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1481,9 +1391,7 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -1508,9 +1416,7 @@
         "unit": "milliseconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-signature"
@@ -1525,7 +1431,7 @@
       "id": "linear-divergence-stale-body-timestamp",
       "provider": "linear",
       "category": "policy-divergence",
-      "description": "Linear stale body timestamp (Hooklatch authenticates exact body without parsing, @linear/sdk parses and rejects)",
+      "description": "Linear stale body timestamp at exact 61s edge (Hooklatch authenticates body without parsing, @linear/sdk parses and rejects)",
       "payload": "{\"action\":\"update\",\"type\":\"Issue\",\"data\":{\"id\":\"iss_stale\"},\"webhookTimestamp\":0}",
       "secret": "lin_sec_synthetic_test_key_001",
       "headers": {
@@ -1535,11 +1441,9 @@
         "mode": "relative",
         "field": "webhookTimestamp",
         "unit": "milliseconds",
-        "relativeOffset": -120
+        "relativeOffset": -61
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1570,9 +1474,7 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1600,9 +1502,7 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
@@ -1620,7 +1520,7 @@
     {
       "id": "vercel-reject-corrupted-sig",
       "provider": "vercel",
-      "category": "docs-probe",
+      "category": "corrupt-signature",
       "description": "Vercel docs probe reject corrupted signature (valid 40 hex chars wrong SHA1 HMAC)",
       "payload": "{\"type\":\"deployment.canceled\"}",
       "secret": "vcl_sec_synthetic_test_key_001",
@@ -1630,9 +1530,7 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -1646,7 +1544,7 @@
     {
       "id": "vercel-reject-missing-sig",
       "provider": "vercel",
-      "category": "docs-probe",
+      "category": "accept-reject",
       "description": "Vercel docs probe reject missing x-vercel-signature header",
       "payload": "{\"type\":\"deployment.canceled\"}",
       "secret": "vcl_sec_synthetic_test_key_001",
@@ -1654,9 +1552,7 @@
       "timestampConfig": {
         "mode": "none"
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "missing-signature"
@@ -1689,17 +1585,14 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": true,
         "identity": {
           "deliveryId": null,
-          "eventId": "req_fal_synthetic_001",
+          "eventId": null,
           "timestamp": null,
           "authenticatedFields": [
-            "eventId",
             "timestamp"
           ]
         }
@@ -1731,9 +1624,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -1754,6 +1645,7 @@
         "rawPublicKeyHex": "7e08acbead98b04430cc129c739f1b4c83a037c8a3e29707733482c972850a97",
         "expectedUserId": "user_fal_synthetic_001"
       },
+      "signedUserId": "user_fal_synthetic_001",
       "headers": {
         "x-fal-webhook-request-id": "req_fal_synthetic_001",
         "x-fal-webhook-user-id": "user_fal_other_999",
@@ -1766,9 +1658,7 @@
         "unit": "seconds",
         "relativeOffset": 0
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "invalid-signature"
@@ -1801,9 +1691,7 @@
         "unit": "seconds",
         "relativeOffset": -305
       },
-      "options": {
-        "toleranceSeconds": 300
-      },
+      "options": {},
       "expectedHooklatch": {
         "ok": false,
         "reason": "timestamp-expired"
