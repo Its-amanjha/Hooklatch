@@ -1,10 +1,35 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, createHmac, createPrivateKey, randomUUID, sign } from 'node:crypto';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { createHealthLedger, runChild, confirmTermination } from './cjs-prototype.mjs';
+
+export async function finishQualification({ cleanup, integrity, publish }) {
+  await cleanup();
+
+  const checked = integrity();
+
+  assert(checked.ok, 'Post-run integrity check failed');
+
+  return publish();
+}
+
+export function validateCacheReceipt(receipt, lock) {
+  assert(receipt.schemaVersion === 2 && isNonEmptyString(receipt.lockfileSha256), 'Missing pinned lockfile receipt');
+  assert(lock.lockfileVersion === 3 && isPlainObject(lock.packages), 'Invalid frozen lockfile');
+
+  for (const pkg of PINNED_PACKAGES) {
+    const pinned = receipt.packages?.[pkg.name];
+    const installed = lock.packages[`node_modules/${pkg.name}`];
+
+    assert(pinned?.version === pkg.version && pinned.exportPath === pkg.exportPath, 'Pinned package receipt mismatch');
+    assert(pinned.sourceRevision === pinned.integrity && isNonEmptyString(pinned.integrity), 'Missing published-source revision');
+    assert(installed?.version === pkg.version && installed.integrity === pinned.integrity, 'Frozen dependency graph mismatch');
+  }
+}
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '..', '..');
@@ -14,10 +39,9 @@ const RECEIPT_PATH = join(CACHE_DIR, 'receipt.json');
 const FROZEN_LOCK_PATH = join(CACHE_DIR, 'package-lock.json');
 const NPM_CACHE_DIR = join(CACHE_DIR, 'npm-cache');
 const CORPUS_PATH = join(REPO_ROOT, 'tests', 'conformance', 'phase10-provider-cases.json');
-const RESULTS_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-results.json');
-const REPORT_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-review.md');
+const RESULTS_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'coordinator-conformance-results.json');
+const REPORT_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'coordinator-conformance-review.md');
 const DIST_INDEX = join(REPO_ROOT, 'dist', 'index.js');
-const REPAIR_CLAIM_PATH = join(REPO_ROOT, 'notes', 'phase-10', 'gemini-repair-3-session.json');
 
 const PINNED_PACKAGES = [
   {
@@ -57,14 +81,14 @@ const PINNED_PACKAGES = [
 const DOCS_PROBES = [
   {
     provider: 'vercel',
-    officialSdkAvailable: false,
+    sdkCompared: false,
     evidenceClass: 'docs-only-probe',
     recipe: 'HMAC-SHA1 hex 40-character digest over raw request body',
     documentationUrl: 'https://vercel.com/docs/webhooks/webhooks-api',
   },
   {
     provider: 'fal',
-    officialSdkAvailable: false,
+    sdkCompared: false,
     evidenceClass: 'docs-only-probe',
     recipe: 'Ed25519 signature over requestId LF userId LF timestamp LF sha256Hex(body)',
     documentationUrl: 'https://fal.ai/docs/documentation/model-apis/inference/webhooks',
@@ -238,25 +262,11 @@ function computeSha256(filePath) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function verifyRepairClaim() {
-  if (!existsSync(REPAIR_CLAIM_PATH)) {
-    console.error('ERROR: Missing exclusive repair session claim at ' + REPAIR_CLAIM_PATH + '; STOP.');
-
-    process.exit(3);
+export function verifyCacheIntegrity() {
+  if (!existsSync(NPM_CACHE_DIR)) {
+    return { ok: false, reason: 'Missing offline dependency cache at ' + NPM_CACHE_DIR };
   }
 
-  const claim = JSON.parse(readFileSync(REPAIR_CLAIM_PATH, 'utf8'));
-
-  if (claim.owner !== 'gemini' || claim.state !== 'active' || !claim.sessionToken) {
-    console.error('ERROR: Repair session claim is not active for owner gemini; STOP.');
-
-    process.exit(3);
-  }
-
-  return claim.sessionToken;
-}
-
-function verifyCacheIntegrity() {
   if (!existsSync(RECEIPT_PATH)) {
     return { ok: false, reason: 'Missing receipt.json at ' + RECEIPT_PATH };
   }
@@ -273,9 +283,15 @@ function verifyCacheIntegrity() {
     return { ok: false, reason: 'Corrupted receipt.json: ' + err.message };
   }
 
-  if (receipt.schemaVersion !== 1) {
+  if (receipt.schemaVersion !== 2) {
     return { ok: false, reason: 'Unsupported receipt schemaVersion: ' + receipt.schemaVersion };
   }
+
+  const lockBytes = readFileSync(FROZEN_LOCK_PATH);
+  const lock = JSON.parse(lockBytes);
+
+  validateCacheReceipt(receipt, lock);
+  assert(computeSha256(FROZEN_LOCK_PATH) === receipt.lockfileSha256, 'Frozen lockfile checksum mismatch');
 
   for (const pkg of PINNED_PACKAGES) {
     const pkgReceipt = receipt.packages?.[pkg.name];
@@ -296,6 +312,10 @@ function verifyCacheIntegrity() {
 
     const actualHash = computeSha256(tarballPath);
 
+    const integrity = 'sha512-' + createHash('sha512').update(readFileSync(tarballPath)).digest('base64');
+
+    assert(integrity === pkgReceipt.integrity, 'Published package integrity mismatch');
+
     if (actualHash !== pkgReceipt.sha256) {
       return {
         ok: false,
@@ -307,7 +327,9 @@ function verifyCacheIntegrity() {
   return { ok: true, receipt };
 }
 
-function validateCorpus(corpus) {
+const REVIEWED_CASES = new Map([["std-valid-standard","131ffe05f84f4333200fdbaf1a065ad800a26b0a3a51efa4f795eb7b5fbf26ff"],["std-valid-no-prefix-secret","c4174726f5fe4044f7dd7659b3ca204028306d6fd157bbcb7799c4fd3fd843f7"],["std-valid-rotation-first-valid","7d2b157f6cf87518e00f5c40375ec8a14ca63e6772ab7a7d3508cfd0261434ac"],["std-valid-rotation-second-valid","e59d017aa048fa6f8901d27bb1b9891dd2c794a65efdff1b2bc356106be0dfe2"],["std-valid-unknown-scheme","83a176410156a5c6f2052b5d245ff1bdb1e41eb926843be0282d57d1e1104d71"],["std-valid-custom-tolerance","21a43f1e88ab446a29c3c6f39d021c5838b81ce727709ccba9b5b2be54a61f49"],["std-valid-near-boundary-299s","eb8c600283d356db083578d36e28e3d8b8cbadd0eec9e4eca80945f6c4046aca"],["std-valid-zero-tolerance","a100a11ab6f0f9fea3d92e95fa1aad4f099c9471186efd790ce57740bcda469f"],["std-reject-default-tolerance-stale","e83705b869cfef1d72757bc1771b77e1a759e816f8ef04ca066a5be69dd24d45"],["std-reject-future-timestamp","43adba07240a205be204fd91ca6752291a41a0a331f2aa853c364c2e3f2f4659"],["std-reject-corrupted-sig","0e5cfce57efccd4376a673f4375cf37a588b301f7e795c20f2ec737197c898ee"],["std-reject-missing-id","e92de3c22332bbba94e5f62fff0de645cd570643a4bd6f0e5b09121dbe1fa040"],["std-divergence-auth-before-freshness","7fd52208800607e9bfb28383e0fc235ffaa55d2735888624c71e6406b8cbe113"],["std-divergence-weak-key","9b43cde3c0089627cadd95ea6a03e06ecd52c9480e398785ce4c729bb7417b32"],["paddle-valid-standard","3cff69f67cd0e5a300a103903a81e33a6fbeb8a9d0748ec3ae09568ccca97b90"],["paddle-valid-near-boundary-4s","0e28ba991abf7a737720c389bd4e8fa85eaa02a9bc20c12cd2bcf0c4e89f6852"],["paddle-valid-custom-tolerance","ab0494b6f15d37a809f877a4dde828397813d43e3243bb543bda1f70b61436d4"],["paddle-valid-zero-tolerance","728c603c11197c47b61c1cd1fbc008b6434e3f9c46725217978f467419d7fe1c"],["paddle-exact-body-whitespace","e3ecd7a6c6e1c1110822c27980a17675a10e11b33fc21e48bd37846ae799a7ea"],["paddle-valid-multi-secret","3874eb9edc6e67a9da2991e86e4a9c8145b52898f36f779159e0cee9997be7db"],["paddle-reject-default-tolerance-stale","394b7a6176b051c1efa28d5d8ce288cedf78a31a88ec3f92890e9bbae825d834"],["paddle-reject-corrupted-sig","d73a6185e7e3b6d898a330a93f92ccc7fef37d377ccbba347c2f739f64d50f85"],["paddle-reject-missing-sig","3dbc2b355f5cb95580e04d70766d0cf103fa72a6c0000768cc9aa1dc929c0ad3"],["paddle-reject-missing-timestamp","38418b56b80842ecf91ec670600cc11cb5540d6ece2c268575ffe127993e702a"],["paddle-divergence-whitespace-segment","fd43cdf13980308a87b84d3907d13d5b7b634df4865272547b9b6e78353328a2"],["paddle-divergence-rotation-first-valid","61b88aa1f7f1433281fc5840c20150927658efbfcaa48a6253ffb96488a41ec7"],["paddle-divergence-auth-before-freshness","a549d673ffc72ac017bf3c897e4cd23e555f5301abe77803ce846fcd05c7b9a7"],["sanity-valid-standard","3c72626a3ca8f3650a6eac464418d6b9df3fee3796211c5f7d2ab603ccf7fb93"],["sanity-valid-near-boundary-299s","91c04892f91658af9784e2573b23260c44761c255841d6f48970c907138461bc"],["sanity-valid-custom-tolerance","5e5dd88708b72764ae4fc6033e01640a26dda39a6f4a7f4609c317bd736b5577"],["sanity-valid-zero-tolerance","f86a309d60d9cb3d75a6542f75bbdf676d56807594a82ff03c60a81eac591b02"],["sanity-reject-default-tolerance-stale","53e252c626154472bc244c940398222b1944b84c52669438194f9cf87cac4b68"],["sanity-reject-corrupted-sig","6ae029e0c81c4def0f20f14ff85206013e0367e02463827be3dd522b82793bb4"],["sanity-reject-missing-sig","9e327210aa91b57264fa9d1f45cb1a916ab6aa327de1b1c14eb0cd383b611e53"],["sanity-reject-missing-timestamp","0ffc1871cb874b106afc505d5be1b65d64a7cbe462ca5209e1c8e6a0be69ad5b"],["sanity-divergence-empty-body","2de0661ecf01380fe95ef6ad615c72b21af69b5cbec05115679a1f30d5b790a8"],["linear-valid-standard","7d8d3638130aea3388033d8c2612bc9a1b7e061124d3bfdfc38b6e5ac4a4dfad"],["linear-valid-near-boundary-59s","9ddbeac320cec9b89ff60e45355dff40d627147aefd67e5faf9a8c668303ad5c"],["linear-valid-custom-tolerance","ade93bd362be9afda8375a9c31c4b74b3b2978670f1e004850be5412e75221d1"],["linear-valid-zero-tolerance","f503c6cbb1b5832d5410971e9084da3ce0f6617302d41b5c5ff46c97c1cf32c7"],["linear-exact-body-formatting","24bbbc0ad5958a57311fd5bc1358ad202727870a3eb702f145116c2f7d4b4b68"],["linear-valid-binary-view","4f5e235e7cb93859d96b4c1979ceb44aa7b1dc71cdb1c1e7f434f2addd254678"],["linear-reject-corrupted-sig","51fc40273e970bcfa71f58bd63c4e710653d83a75a6614d8aa4d5d271b42f426"],["linear-reject-missing-sig","3e7f6075fcdb049d5336165897b12aa9be66ecd35b0d54a997b3f31af1847773"],["linear-divergence-stale-body-timestamp","8d2ca5837b56971d4cb18b04bcc4d6e5d4022c7dedfc7df900d1b3b245631263"],["vercel-valid-standard","fdfc239255e76aa13e805ef341d766d3ec2b36bcde117a19098b1ae416e6d7ae"],["vercel-valid-exact-body","cdbda0794c7d52b02fa47a94f7ec3a601a418be5d64317298ceb96e5e7e8bef0"],["vercel-reject-corrupted-sig","aafab01a0a133219746181e80e2aff1976192c4ccac795ca162371e82266efb3"],["vercel-reject-missing-sig","1e30951b5a6046d1ab6e09f2d657e2a76c3eb124e94966c707039729a7af3295"],["fal-valid-standard","78ac2189d066a02752a121b4dabc732e48a2c1193280d7cb831fdd73a7f8d580"],["fal-reject-corrupted-sig","deb7c823b41b419c25529784610366f7b433f4bac9b835df1031f9e3dc9ffa3f"],["fal-reject-wrong-user-id","e8d88c100596d298b6ac4cf7c4321951458e914e1f717fa7b1b6c8489edb9010"],["fal-reject-stale-timestamp","58e1ffc1ce93f1a0a0144a66fdcb4f640161b08b27b8fcb1680bf7af68a9b9cd"],["std-valid-exact-inclusive-edge-300s","82cf1d70b51b382d96fc332c804b3c26f57ce29dfc2bd4b65b92a69cb631d37d"],["paddle-valid-exact-inclusive-edge-5s","598f00c59e25229ce8dab36fbb48edbbafd63d7b56bcc189a841bce924690e11"],["linear-valid-exact-inclusive-edge-60s","e9ed6719631a56bf7709a3ffcaf410a92816f95727eddfdc976b7c9dac1b855b"],["std-valid-zero-tolerance-edge","e0060e743aec901000a7539ac42cc7c785bb6a79eea01731c2c8699c9f133eeb"]]);
+
+export function validateCorpus(corpus) {
   if (!isPlainObject(corpus)) {
     throw new Error('Corpus validation failed: corpus must be an object');
   }
@@ -439,6 +461,14 @@ function validateCorpus(corpus) {
     if (count === 0) {
       throw new Error(`Corpus validation failed: missing required provider coverage for "${provider}" (0 cases)`);
     }
+  }
+
+  assert(corpus.cases.length === REVIEWED_CASES.size, 'Corpus validation failed: reviewed inventory changed');
+
+  for (const row of corpus.cases) {
+    const digest = createHash('sha256').update(JSON.stringify(row)).digest('hex');
+
+    assert(REVIEWED_CASES.get(row.id) === digest, 'Corpus validation failed: reviewed case changed: ' + row.id);
   }
 
   return { ok: true, caseCount: corpus.cases.length };
@@ -668,12 +698,44 @@ function resolveNpmCli() {
   try {
     const npmPath = execFileSync('where', ['npm.cmd'], { encoding: 'utf8', timeout: 10000 }).trim().split('\r\n')[0];
 
-    if (npmPath && existsSync(npmPath)) return npmPath;
+    if (npmPath) {
+      const entry = join(dirname(npmPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+
+      if (existsSync(entry)) return entry;
+    }
   } catch {
     // fall through
   }
 
-  return 'npm';
+  throw blocked('npm CLI JavaScript entry is unavailable');
+}
+
+async function runCommand(args, { cwd, timeout = 120000, env = process.env } = {}, ledger) {
+  const evidence = await runChild(process.execPath, args, { cwd, timeoutMs: timeout, env, ledger });
+
+  return {
+    ...evidence,
+    status: evidence.exitCode,
+    error: evidence.timedOut ? { code: 'ETIMEDOUT' } : evidence.spawnError ? { code: 'SPAWN_ERROR' } : null,
+  };
+}
+
+async function checkedCommand(args, options, ledger) {
+  const result = await runCommand(args, options, ledger);
+
+  if (result.stderr.includes('ENOTCACHED')) throw blocked('Offline dependency cache is incomplete');
+
+  assert(result.ok, 'Child command failed: ' + JSON.stringify(result));
+
+  return result.stdout;
+}
+
+function blocked(message) {
+  const error = new Error(message);
+
+  error.code = 'PREREQUISITE_BLOCKED';
+
+  return error;
 }
 
 function createSafeTempConsumer() {
@@ -705,100 +767,6 @@ function cleanupSafeTempConsumer(consumerDir) {
 
   if (existsSync(consumerDir)) {
     throw new Error('Cleanup failed: temp consumer directory still exists at ' + consumerDir);
-  }
-}
-
-function runPrepareOnline() {
-  verifyRepairClaim();
-
-  console.log('[provider-conformance] Starting explicit online acquisition (--prepare-online)...');
-
-  const tempConsumer = createSafeTempConsumer();
-  const tempNpmCache = join(tempConsumer, 'npm-cache');
-
-  mkdirSync(tempNpmCache, { recursive: true });
-  mkdirSync(CACHE_DIR, { recursive: true });
-
-  const npmCli = resolveNpmCli();
-  const packageReceipts = {};
-
-  try {
-    for (const pkg of PINNED_PACKAGES) {
-      console.log('  Acquiring ' + pkg.name + '@' + pkg.version + '...');
-
-      const targetSpec = pkg.name + '@' + pkg.version;
-
-      execFileSync(
-        process.execPath,
-        [npmCli, 'pack', targetSpec, '--cache', tempNpmCache, '--ignore-scripts', '--pack-destination', CACHE_DIR],
-        { cwd: tempConsumer, timeout: 300000, stdio: 'inherit' },
-      );
-
-      const tarballPath = join(CACHE_DIR, pkg.tarball);
-
-      if (!existsSync(tarballPath)) {
-        throw new Error('Expected packed tarball not found at ' + tarballPath);
-      }
-
-      const hash = computeSha256(tarballPath);
-
-      packageReceipts[pkg.name] = {
-        name: pkg.name,
-        version: pkg.version,
-        tarball: pkg.tarball,
-        sha256: hash,
-        exportPath: pkg.exportPath,
-        repository: pkg.repository,
-        evidenceClass: pkg.evidenceClass,
-      };
-    }
-
-    const consumerPkgJson = {
-      name: 'hooklatch-conformance-consumer',
-      version: '1.0.0',
-      type: 'module',
-      dependencies: {
-        'standardwebhooks': '1.1.1',
-        '@paddle/paddle-node-sdk': '3.10.0',
-        '@sanity/webhook': '4.0.4',
-        '@linear/sdk': '99.0.0',
-      },
-    };
-
-    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson, null, 2) + '\n', 'utf8');
-
-    console.log('  Installing pinned packages in temp consumer to freeze lockfile...');
-    execFileSync(
-      process.execPath,
-      [npmCli, 'install', '--ignore-scripts', '--cache', tempNpmCache],
-      { cwd: tempConsumer, timeout: 300000, stdio: 'inherit' },
-    );
-
-    const generatedLockPath = join(tempConsumer, 'package-lock.json');
-
-    if (existsSync(generatedLockPath)) {
-      copyFileSync(generatedLockPath, FROZEN_LOCK_PATH);
-    }
-
-    const receipt = {
-      schemaVersion: 1,
-      acquiredAt: new Date().toISOString(),
-      acquiredBy: 'gemini',
-      baseSha: computeSha256(CORPUS_PATH),
-      lockfileSha256: existsSync(FROZEN_LOCK_PATH) ? computeSha256(FROZEN_LOCK_PATH) : null,
-      packages: packageReceipts,
-      docsOnlyProbes: DOCS_PROBES,
-    };
-
-    writeFileSync(RECEIPT_PATH, JSON.stringify(receipt, null, 2) + '\n', 'utf8');
-
-    if (existsSync(tempNpmCache)) {
-      cpSync(tempNpmCache, NPM_CACHE_DIR, { recursive: true });
-    }
-
-    console.log('[provider-conformance] Online acquisition complete.');
-  } finally {
-    cleanupSafeTempConsumer(tempConsumer);
   }
 }
 
@@ -890,7 +858,8 @@ function resolveCaseForExecution(testCase, referenceNowSec, referenceNowMs, falP
 }
 
 function writeEvaluatorScript(destDir) {
-  const evaluatorCode = `import { Buffer } from 'node:buffer';
+  const evaluatorCode = `import assert from 'node:assert/strict';
+import { Buffer } from 'node:buffer';
 import { createHmac, createHash, createPrivateKey, sign, createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import * as hooklatchModule from 'hooklatch';
 import { Webhook, WebhookVerificationError } from 'standardwebhooks';
@@ -898,6 +867,7 @@ import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 import { isValidSignature, assertValidSignature } from '@sanity/webhook';
 import { LinearWebhookClient } from '@linear/sdk/webhooks';
 
+const REQUIRED_PROVIDERS = ["standard-webhooks", "paddle", "sanity", "linear", "vercel", "fal"];
 const sdkModules = {
   standardwebhooks: { Webhook, WebhookVerificationError },
   paddle: { Paddle, Environment },
@@ -906,6 +876,7 @@ const sdkModules = {
 };
 
 ${resolveCaseForExecution.toString()}
+${verifyHeaderNormalizations.toString()}
 
 async function executeCaseAgainstHooklatch(resolvedCase, testCase) {
   const { verify, verifyRequest, createVerifier } = hooklatchModule;
@@ -1332,6 +1303,14 @@ async function main() {
     });
   }
 
+  if (input.headerChecks) {
+    const previousLog = console.log;
+
+    console.log = () => {};
+    await verifyHeaderNormalizations(hooklatchModule, input.items.map((item) => item.testCase), falPrivateKey);
+    console.log = previousLog;
+  }
+
   process.stdout.write(JSON.stringify(results));
 }
 
@@ -1353,7 +1332,7 @@ main().catch((err) => {
   return scriptPath;
 }
 
-function runControls(tempConsumer) {
+async function runControls(tempConsumer, ledger) {
   console.log('[provider-conformance] Running negative control suites (--controls)...');
 
   const controlOutcomes = [];
@@ -1366,11 +1345,11 @@ function runControls(tempConsumer) {
 
   writeFileSync(c1InputPath, JSON.stringify({ items: [{ resolvedCase: c1Resolved, testCase: c1Item }] }));
 
-  const c1Proc = spawnSync(process.execPath, [join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
+  const c1Proc = await runCommand([join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
     cwd: tempConsumer,
     env: { ...process.env, FAULT_INJECT: 'sdk-crash' },
     timeout: 5000,
-  });
+  }, ledger);
 
   assert(c1Proc.status !== 0, 'Control 1 failed: child process crash was not detected as failure');
   controlOutcomes.push({ name: 'control-sdk-crash', passed: true });
@@ -1379,11 +1358,11 @@ function runControls(tempConsumer) {
   const c2ReadyFile = join(tempConsumer, 'c2-hang-ready.txt');
   const c2Start = Date.now();
 
-  const c2Proc = spawnSync(process.execPath, [join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
+  const c2Proc = await runCommand([join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
     cwd: tempConsumer,
     env: { ...process.env, FAULT_INJECT: 'sdk-hang', HANG_READY_FILE: c2ReadyFile },
     timeout: 1000,
-  });
+  }, ledger);
 
   const c2Duration = Date.now() - c2Start;
 
@@ -1393,12 +1372,12 @@ function runControls(tempConsumer) {
   controlOutcomes.push({ name: 'control-sdk-hang', passed: true });
 
   // Control 3: Production SDK unexpected exception (TypeError)
-  const c3Proc = spawnSync(process.execPath, [join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
+  const c3Proc = await runCommand([join(tempConsumer, 'eval-runner.mjs'), c1InputPath], {
     cwd: tempConsumer,
     env: { ...process.env, FAULT_INJECT: 'unexpected-sdk-exception' },
     timeout: 5000,
     encoding: 'utf8',
-  });
+  }, ledger);
 
   const c3Results = JSON.parse(c3Proc.stdout || '[]');
   const c3SdkResult = c3Results[0]?.sdk || {};
@@ -1708,14 +1687,14 @@ function generateAuditReport(summary, details, controls) {
 }
 
 async function runOfflineConformance(options) {
-  console.log('[provider-conformance] Starting offline SDK conformance harness (Round 3)...');
+  console.log('[provider-conformance] Starting offline SDK conformance harness (coordinator)...');
 
   const cacheStatus = verifyCacheIntegrity();
 
   if (!cacheStatus.ok) {
     console.error('FATAL [provider-conformance]: Offline cache integrity failed: ' + cacheStatus.reason);
 
-    process.exit(1);
+    throw blocked('Offline cache missing: ' + cacheStatus.reason);
   }
 
   const preSnapshot = takeIntegritySnapshot(REPO_ROOT);
@@ -1723,7 +1702,7 @@ async function runOfflineConformance(options) {
   if (!existsSync(DIST_INDEX)) {
     console.error('FATAL [provider-conformance]: Missing dist/index.js. Build Hooklatch first.');
 
-    process.exit(1);
+    throw blocked('Build prerequisite missing');
   }
 
   const corpus = JSON.parse(readFileSync(CORPUS_PATH, 'utf8'));
@@ -1737,48 +1716,57 @@ async function runOfflineConformance(options) {
   });
 
   const tempConsumer = createSafeTempConsumer();
-  const uncertaintyLedger = [];
+  const processLedger = createHealthLedger();
+  let publication;
+  let executionError;
 
   try {
     console.log('  Packaging local Hooklatch from dist...');
 
     const npmCli = resolveNpmCli();
 
-    const packOutput = execFileSync(
-      process.execPath,
-      [npmCli, 'pack', REPO_ROOT, '--pack-destination', tempConsumer, '--ignore-scripts'],
-      { cwd: tempConsumer, encoding: 'utf8', timeout: 300000 },
-    ).trim();
+    const packOutput = (await checkedCommand(
+      [npmCli, 'pack', REPO_ROOT, '--offline', '--json', '--cache', join(tempConsumer, 'npm-cache'), '--pack-destination', tempConsumer, '--ignore-scripts'],
+      { cwd: tempConsumer, timeout: 300000 }, processLedger,
+    )).trim();
 
-    const tarballFileName = packOutput.split('\r\n').pop().trim();
+    const tarballFileName = JSON.parse(packOutput)[0].filename;
     const localTarball = join(tempConsumer, tarballFileName);
 
     assert(existsSync(localTarball), 'Local Hooklatch tarball was not created at ' + localTarball);
 
     console.log('  Setting up temporary consumer and installing cached packages offline...');
 
-    const consumerPkgJson = {
-      name: 'hooklatch-conformance-consumer',
-      version: '1.0.0',
-      type: 'module',
-      dependencies: {
-        'hooklatch': 'file:' + localTarball.replace(/\\/g, '/'),
-        'standardwebhooks': '1.1.1',
-        '@paddle/paddle-node-sdk': '3.10.0',
-        '@sanity/webhook': '4.0.4',
-        '@linear/sdk': '99.0.0',
-      },
-    };
+    const consumerLock = JSON.parse(readFileSync(FROZEN_LOCK_PATH, 'utf8'));
+    const consumerPkgJson = { ...consumerLock.packages[''], type: 'module', private: true };
 
-    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson, null, 2) + '\n', 'utf8');
+    mkdirSync(join(tempConsumer, 'vendor'));
 
-    copyFileSync(FROZEN_LOCK_PATH, join(tempConsumer, 'package-lock.json'));
+    for (const pkg of PINNED_PACKAGES) {
+      const target = 'file:vendor/' + pkg.tarball;
 
-    execFileSync(
-      process.execPath,
-      [npmCli, 'install', '--offline', '--cache', NPM_CACHE_DIR, '--ignore-scripts'],
-      { cwd: tempConsumer, timeout: 300000, stdio: 'pipe' },
+      copyFileSync(join(CACHE_DIR, pkg.tarball), join(tempConsumer, 'vendor', pkg.tarball));
+      consumerPkgJson.dependencies[pkg.name] = target;
+      consumerLock.packages[''].dependencies[pkg.name] = target;
+      consumerLock.packages['node_modules/' + pkg.name].resolved = target;
+    }
+
+    const localIntegrity = 'sha512-' + createHash('sha512').update(readFileSync(localTarball)).digest('base64');
+
+    consumerPkgJson.dependencies.hooklatch = 'file:' + tarballFileName;
+    consumerLock.packages[''].dependencies.hooklatch = 'file:' + tarballFileName;
+    consumerLock.packages['node_modules/hooklatch'].resolved = 'file:' + tarballFileName;
+    consumerLock.packages['node_modules/hooklatch'].integrity = localIntegrity;
+    writeFileSync(join(tempConsumer, 'package.json'), JSON.stringify(consumerPkgJson));
+    writeFileSync(join(tempConsumer, 'package-lock.json'), JSON.stringify(consumerLock));
+
+    const expectedLock = computeSha256(join(tempConsumer, 'package-lock.json'));
+
+    await checkedCommand(
+      [npmCli, 'ci', '--offline', '--cache', NPM_CACHE_DIR, '--ignore-scripts'],
+      { cwd: tempConsumer, timeout: 300000 }, processLedger,
     );
+    assert(computeSha256(join(tempConsumer, 'package-lock.json')) === expectedLock, 'Frozen dependency graph changed');
 
     console.log('  Preparing isolated evaluator runner in consumer...');
 
@@ -1793,48 +1781,17 @@ async function runOfflineConformance(options) {
 
     writeFileSync(evalInputPath, JSON.stringify({
       items: evaluationItems,
+      headerChecks: true,
       falPrivateKeyPem: falPrivateKey.export({ type: 'pkcs8', format: 'pem' }),
     }), 'utf8');
 
     console.log('  Running ' + corpus.cases.length + ' test cases through isolated evaluator...');
 
-    const evalStart = Date.now();
+    const evalProc = await runCommand([evalRunnerPath, evalInputPath], {
+      cwd: tempConsumer, timeout: 120000,
+    }, processLedger);
 
-    const evalProc = spawnSync(process.execPath, [evalRunnerPath, evalInputPath], {
-      cwd: tempConsumer,
-      timeout: 120000,
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024,
-    });
-
-    const evalDuration = Date.now() - evalStart;
-
-    if (evalProc.error) {
-      uncertaintyLedger.push({
-        type: 'process-error',
-        code: evalProc.error.code,
-        message: evalProc.error.message,
-      });
-
-      if (evalProc.error.code === 'ETIMEDOUT') {
-        throw new Error(`Evaluator timed out after ${evalDuration}ms`);
-      }
-
-      throw evalProc.error;
-    }
-
-    if (evalProc.signal !== null) {
-      uncertaintyLedger.push({
-        type: 'process-signal',
-        signal: evalProc.signal,
-      });
-
-      throw new Error(`Evaluator terminated by signal ${evalProc.signal}`);
-    }
-
-    if (evalProc.status !== 0) {
-      throw new Error(`Evaluator exited with status ${evalProc.status}: ${evalProc.stderr || evalProc.stdout}`);
-    }
+    assert(evalProc.ok, 'Evaluator failed: ' + JSON.stringify(evalProc));
 
     let evalResults;
 
@@ -1962,14 +1919,10 @@ async function runOfflineConformance(options) {
       });
     }
 
-    const hooklatchConsumerModule = await import(pathToFileURL(join(tempConsumer, 'node_modules', 'hooklatch', 'dist', 'index.js')).href);
-
-    await verifyHeaderNormalizations(hooklatchConsumerModule, corpus.cases, falPrivateKey);
-
     let controlsResult = null;
 
     if (options.runControls) {
-      controlsResult = runControls(tempConsumer);
+      controlsResult = await runControls(tempConsumer, processLedger);
     }
 
     const summary = {
@@ -1983,50 +1936,39 @@ async function runOfflineConformance(options) {
 
     const finalReport = {
       schemaVersion: 1,
+      docsOnlyRecipes: DOCS_PROBES,
       generatedAt: new Date().toISOString(),
       summary,
       details,
       controls: controlsResult,
     };
 
-    writeFileSync(RESULTS_PATH, JSON.stringify(finalReport, null, 2) + '\n', 'utf8');
-
-    const auditMarkdown = generateAuditReport(summary, details, controlsResult);
-
-    writeFileSync(REPORT_PATH, auditMarkdown + '\n', 'utf8');
-
-    console.log('[provider-conformance] Results written to ' + RESULTS_PATH);
-    console.log('[provider-conformance] Audit report written to ' + REPORT_PATH);
-
-    if (unexpectedMismatchCount > 0) {
-      console.error(`FATAL [provider-conformance]: ${unexpectedMismatchCount} unexpected mismatches detected. Conformance FAILED.`);
-
-      process.exit(1);
-    }
-
-    const postSnapshot = verifyIntegritySnapshot(REPO_ROOT, preSnapshot);
-
-    if (!postSnapshot.ok) {
-      console.error('FATAL [provider-conformance]: Workspace or dist integrity violation detected post-run:');
-
-      for (const v of postSnapshot.violations) {
-        console.error(`  - ${v.file}: ${v.reason} (expected: ${v.expectedHash}, current: ${v.currentHash})`);
-      }
-
-      process.exit(1);
-    }
-
-    console.log(`[provider-conformance] PASS: ${summary.totalCases} cases verified (${summary.agreements} agreements, ${summary.divergences} documented divergences, ${summary.docsProbes} docs probes).`);
-
-    return summary;
-  } finally {
-    if (uncertaintyLedger.length > 0) {
-      console.warn('WARNING: Child process termination is uncertain. Preserving scratch directory for forensics:', tempConsumer);
-      console.warn('Uncertainty ledger entries:', uncertaintyLedger);
-    } else {
-      cleanupSafeTempConsumer(tempConsumer);
-    }
+    assert(unexpectedMismatchCount === 0, 'Conformance unexpected mismatch');
+    publication = { finalReport, auditMarkdown: generateAuditReport(summary, details, controlsResult) };
+  } catch (error) {
+    executionError = error;
   }
+
+  return finishQualification({
+    cleanup: () => {
+      const confirmed = confirmTermination(processLedger);
+
+      assert(confirmed.confirmed, 'Cleanup withheld: child close unconfirmed; scratch preserved at ' + tempConsumer);
+      cleanupSafeTempConsumer(tempConsumer);
+    },
+    integrity: () => verifyIntegritySnapshot(REPO_ROOT, preSnapshot),
+    publish: () => {
+      if (executionError) throw executionError;
+
+      publication.finalReport.execution = { node: process.version, lockfileSha256: cacheStatus.receipt.lockfileSha256, cleanupCompleted: true, integrityPassed: true, dependencyInstall: 'npm ci --offline --ignore-scripts' };
+
+      writeFileSync(RESULTS_PATH, JSON.stringify(publication.finalReport, null, 2) + '\n');
+      writeFileSync(REPORT_PATH, publication.auditMarkdown + '\n');
+      console.log('PASS: conformance accepted after cleanup and integrity: ' + JSON.stringify(publication.finalReport.summary));
+
+      return publication.finalReport.summary;
+    },
+  });
 }
 
 async function main() {
@@ -2050,16 +1992,15 @@ async function main() {
   }
 
   if (options.prepareOnline) {
-    runPrepareOnline();
-
-    return;
+    throw blocked('Fresh SDK acquisition is not qualified for v2 receipts. Use a reviewed pinned cache; no cache was changed.');
   }
 
   await runOfflineConformance(options);
 }
 
-main().catch((err) => {
-  console.error('FATAL [provider-conformance]:', err);
-
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('FATAL [provider-conformance]:', err);
+    process.exitCode = err.code === 'PREREQUISITE_BLOCKED' ? 3 : 1;
+  });
+}
