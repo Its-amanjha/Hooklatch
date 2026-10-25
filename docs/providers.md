@@ -11,25 +11,31 @@ See [CLI scaffolding](cli.md) and [diagnostics](diagnostics.md).
 These providers are integrated and locally qualified in the current codebase.
 The package has not yet been published to npm.
 
-| ID | Header | Signed content | Secret form | Identity |
-|---|---|---|---|---|
-| stripe | `Stripe-Signature` (`t=...,v1=<hex>`) | `timestamp.body` | Literal string | timestamp authenticated |
-| github | `X-Hub-Signature-256: sha256=<hex>` | body only | Literal string | unsigned delivery ID only |
-| shopify | `X-Shopify-Hmac-Sha256: <base64>` | body only | Literal string | unsigned webhook/event IDs |
-| standard-webhooks | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
-| clerk | `svix-*` branded triplet only | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
-| svix | `svix-*` or `webhook-*` triplet | `id.timestamp.body` | Base64-decode after `whsec_` strip | eventId + timestamp authenticated |
-| razorpay | `X-Razorpay-Signature` | body only | Literal string | optional `x-razorpay-event-id` (unsigned, eventId) |
-| paddle | `Paddle-Signature` (`ts=...;h1=...`) | `ts:body` | Literal string | timestamp authenticated; no IDs |
-| lemon-squeezy | `X-Signature` | body only | Literal string | all identity fields null |
-| dodo-payments | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| gitlab | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| replicate | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip | eventId + timestamp authenticated |
-| workos | `workos-signature` (`t=...,v1=<hex>`) | `t.body` | Literal string | timestamp authenticated; no IDs |
-| sentry | `sentry-hook-signature` | raw body | Literal string | all identity fields null |
-| doppler | `x-doppler-signature` | raw body | Literal string | all identity fields null |
-| sanity | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal string | timestamp authenticated |
-| linear | `linear-signature` | raw body | Literal string | all identity fields null; no freshness extraction |
+<!-- hooklatch:provider-table:start -->
+| ID | Algorithm | Headers | Signed content | Credentials | Identity |
+|---|---|---|---|---|---|
+| `stripe` | HMAC-SHA256 | `Stripe-Signature` (`t=...,v1=<hex>`) | `timestamp.body` | Literal secret string | Signed timestamp only |
+| `github` | HMAC-SHA256 | `X-Hub-Signature-256: sha256=<hex>` | Body only | Literal secret string | Unsigned delivery ID only |
+| `shopify` | HMAC-SHA256 | `X-Shopify-Hmac-Sha256: <base64>` | Body only | Literal secret string | Unsigned webhook/event IDs |
+| `standard-webhooks` | HMAC-SHA256 | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `clerk` | HMAC-SHA256 | `svix-*` branded triplet only | `id.timestamp.body` | Base64-decode after `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `svix` | HMAC-SHA256 | `svix-*` or `webhook-*` triplet | `id.timestamp.body` | Base64-decode after `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `razorpay` | HMAC-SHA256 | `X-Razorpay-Signature` | Body only | Literal secret string | Optional unsigned event ID |
+| `paddle` | HMAC-SHA256 | `Paddle-Signature` (`ts=...;h1=...`) | `ts:body` | Literal secret string | Signed timestamp only |
+| `lemon-squeezy` | HMAC-SHA256 | `X-Signature` | Body only | Literal secret string | None extracted |
+| `dodo-payments` | HMAC-SHA256 | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `gitlab` | HMAC-SHA256 | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `replicate` | HMAC-SHA256 | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decode after optional `whsec_` strip (24–64 bytes) | Signed event ID + timestamp |
+| `workos` | HMAC-SHA256 | `workos-signature` (`t=...,v1=<hex>`) | `t.body` (millisecond `t`) | Literal secret string | Signed timestamp only |
+| `sentry` | HMAC-SHA256 | `sentry-hook-signature` | Body only | Literal secret string | None extracted |
+| `doppler` | HMAC-SHA256 | `x-doppler-signature` | Body only | Literal secret string | None extracted |
+| `sanity` | HMAC-SHA256 | `sanity-webhook-signature` | `UTF8(t + '.') + rawBody` | Literal secret string | Signed timestamp only |
+| `grafana` | HMAC-SHA256 | `x-grafana-alerting-signature` (default); configurable | Body (body mode) or `timestamp:body` (timestamped mode) | Literal secret string | Signed timestamp in timestamped mode |
+| `polar` | HMAC-SHA256 | `webhook-id`, `webhook-timestamp`, `webhook-signature` | `id.timestamp.body` | Base64-decoded (current) or literal UTF-8 (legacy); one mode per accept-set | Signed event ID + timestamp |
+| `linear` | HMAC-SHA256 | `linear-signature` | Body only | Literal secret string | None extracted; no freshness extraction |
+| `vercel` | HMAC-SHA1 | `x-vercel-signature` | Body only | Literal secret string | None extracted |
+| `fal` | Ed25519 | `x-fal-webhook-signature`, `x-fal-webhook-request-id`, `x-fal-webhook-user-id`, `x-fal-webhook-timestamp` | `requestId\nuserId\ntimestamp\nsha256hex(body)` | Raw 32-byte public keys (1..16) + required `expectedUserId`; no shared secret | Signed timestamp only |
+<!-- hooklatch:provider-table:end -->
 
 ### Authenticated vs unsigned identity
 

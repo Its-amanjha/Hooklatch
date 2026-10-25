@@ -194,3 +194,43 @@ grammar. They describe signature authentication only. A successful result does
 not establish freshness: Hooklatch does not extract the body timestamp, and the
 unsigned timestamp header cannot establish it. Diagnostic text is static and
 never reproduces the request body, secret, signature, or caller error message.
+
+## Source typing migration impact
+
+`VerifyOptions` is now a provider-discriminated union. Existing concrete-provider
+calls (e.g. `{ provider: 'stripe', secrets: [...] }`) remain valid without
+changes. The union narrows `providerOptions` based on the selected provider:
+required for Grafana, optional for Polar, and forbidden for all other providers.
+
+### What this means for existing code
+
+- **Concrete provider strings:** Calls with explicit `provider: 'stripe'` (or any
+  other supported ID) continue to type-check and run correctly.
+- **Broad provider objects:** Code that constructs a `VerifyOptions` object
+  without a concrete `provider` field (e.g. spreading a partial config into
+  `verify(request, options)`) may now require narrowing because the union
+  enforces provider-specific `providerOptions` arms.
+- **Interface extension:** Extending the `VerifyOptions` interface to add
+  custom fields is not supported; the discriminated union does not preserve
+  extension compatibility. Use composition or local type aliases instead.
+- **Casts hiding invalid arms:** Casting a union arm to `VerifyOptions` to
+  bypass the `providerOptions` restriction (e.g. passing Grafana options for a
+  Stripe call) will type-check but fail at runtime with `invalid-options`.
+  Such casts do not create valid verification configurations.
+- **Fal credentials:** Fal uses public keys and `expectedUserId`, not `secrets`.
+  The union reflects this: the fal arm has no `secrets` field and requires
+  `providerOptions` with `publicKeys` and `expectedUserId`.
+
+### Migration guidance
+
+1. If you pass a concrete `provider` string, no change is needed.
+2. If you build options dynamically, ensure the `provider` field is present
+   before adding `providerOptions`, or narrow with a type guard.
+3. Do not extend the public `VerifyOptions` interface. Define a local type that
+   composes the union if you need additional application fields.
+4. The CLI and generated handlers already produce correctly typed options for
+   each provider.
+
+See the [README](../README.md#configured-providers) for configured-provider
+examples and the [provider guide](providers.md) for per-provider option
+shapes.

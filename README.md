@@ -66,30 +66,35 @@ values. Replace them with your real endpoint secrets and provider payloads.
 
 ## Supported protocols
 
-All protocols use HMAC-SHA256. Verification never parses or validates
-payload schemas.
+Verification never parses or validates payload schemas. Algorithms are fixed per
+provider: the first nineteen use HMAC-SHA256, Vercel uses HMAC-SHA1, and fal uses
+Ed25519. Request data cannot select the algorithm.
 
-| Protocol | Signed content | Secret handling | Timestamp | Identity |
-|----------|---------------|-----------------|-----------|----------|
-| Stripe | `timestamp.body` | Literal secret string | Signed; inclusive tolerance | Signed timestamp only |
-| GitHub | Body only | Literal secret string | None signed | Unsigned delivery ID |
-| Shopify | Body only | Literal secret string | None signed | Unsigned delivery/event IDs |
-| Standard Webhooks | `id.timestamp.body` | Base64-decoded after `whsec_` strip | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
-| Clerk | `id.timestamp.body`, branded `svix-*` headers | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
-| Svix | `id.timestamp.body`, complete branded or canonical header family | Base64-decoded key, 24–64 bytes | Signed; inclusive tolerance | Signed event ID + attempt timestamp |
-| Razorpay | Body only | Literal secret string | None signed | Optional unsigned event ID |
-| Paddle Billing | `ts:body` | Literal secret string | Signed; default 5 seconds | Signed timestamp only |
-| Lemon Squeezy | Body only | Literal secret string | None signed | None extracted |
-| Dodo Payments | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
-| GitLab signing tokens | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
-| Replicate | `id.timestamp.body` | Base64-decoded key, 24–64 bytes | Signed; default 300 seconds | Signed message ID + timestamp |
-| WorkOS | `t.body`, with millisecond `t` | Literal secret string | Signed; default 180 seconds | Signed timestamp only |
-| Sentry App | Body only | Literal client secret | None signed | None extracted |
-| Doppler signed mode | Body only | Literal secret string | None signed | None extracted |
-| Sanity | `t.body`, with millisecond `t` | Literal secret string | Signed; default 300 seconds (receiver policy) | Signed timestamp only |
-| Grafana | Body or `timestamp:body`, explicitly selected | Literal secret string | Timestamped mode only; default 300 seconds | Signed timestamp in timestamped mode |
-| Polar | `id.timestamp.body` | Explicit current (Base64) or legacy (literal) key mode | Signed; default 300 seconds | Signed message ID + timestamp |
-| Linear | Body only | Literal secret string | Body timestamp is not extracted or freshness-checked | None extracted |
+<!-- hooklatch:provider-table:start -->
+| Provider | Algorithm | Signed content | Credentials | Freshness | Identity |
+|----------|-----------|----------------|-------------|-----------|----------|
+| `stripe` | HMAC-SHA256 | `timestamp.body` | Literal secret string | Signed; inclusive tolerance (default 300s) | Signed timestamp only |
+| `github` | HMAC-SHA256 | Body only | Literal secret string | None signed | Unsigned delivery ID |
+| `shopify` | HMAC-SHA256 | Body only | Literal secret string | None signed | Unsigned webhook/event IDs |
+| `standard-webhooks` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after `whsec_` strip (24–64 bytes) | Signed; inclusive tolerance (default 300s) | Signed event ID + attempt timestamp |
+| `clerk` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after `whsec_` strip (24–64 bytes) | Signed; inclusive tolerance (default 300s) | Signed event ID + attempt timestamp |
+| `svix` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after `whsec_` strip (24–64 bytes) | Signed; inclusive tolerance (default 300s) | Signed event ID + attempt timestamp |
+| `razorpay` | HMAC-SHA256 | Body only | Literal secret string | None signed | Optional unsigned event ID |
+| `paddle` | HMAC-SHA256 | `ts:body` | Literal secret string | Signed; default 5s (symmetric inclusive) | Signed timestamp only |
+| `lemon-squeezy` | HMAC-SHA256 | Body only | Literal secret string | None signed | None extracted |
+| `dodo-payments` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after optional `whsec_` strip (24–64 bytes) | Signed; default 300s | Signed event ID + timestamp |
+| `gitlab` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after optional `whsec_` strip (24–64 bytes) | Signed; default 300s | Signed event ID + timestamp |
+| `replicate` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded after optional `whsec_` strip (24–64 bytes) | Signed; default 300s | Signed event ID + timestamp |
+| `workos` | HMAC-SHA256 | `t.body` (millisecond `t`) | Literal secret string | Signed; default 180s | Signed timestamp only |
+| `sentry` | HMAC-SHA256 | Body only | Literal secret string | None signed | None extracted |
+| `doppler` | HMAC-SHA256 | Body only | Literal secret string | None signed | None extracted |
+| `sanity` | HMAC-SHA256 | `t.body` (with `.` separator) | Literal secret string | Signed; default 300s (receiver policy) | Signed timestamp only |
+| `grafana` | HMAC-SHA256 | Body (body mode) or `timestamp:body` (timestamped mode) | Literal secret string | Timestamped mode only; default 300s | Signed timestamp in timestamped mode |
+| `polar` | HMAC-SHA256 | `id.timestamp.body` | Base64-decoded (current) or literal UTF-8 (legacy); one mode per accept-set | Signed; default 300s | Signed event ID + timestamp |
+| `linear` | HMAC-SHA256 | Body only | Literal secret string | Body timestamp not extracted or freshness-checked | None extracted |
+| `vercel` | HMAC-SHA1 | Body only | Literal secret string | None signed | None extracted |
+| `fal` | Ed25519 | `requestId\nuserId\ntimestamp\nsha256hex(body)` | Raw 32-byte public keys (1..16) + required `expectedUserId`; no shared secret | Signed; default 300s | Signed timestamp only |
+<!-- hooklatch:provider-table:end -->
 
 Clerk ignores canonical `webhook-*` headers. Svix accepts either complete header
 family; if both appear they must be complete and equal. Partial families are

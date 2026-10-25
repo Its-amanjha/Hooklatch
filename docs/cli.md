@@ -59,10 +59,11 @@ The built CLI accepts these provider-specific configuration flags:
   in body mode.
 - `--polar-secret-mode current|legacy` — polar only; default `current`. Applies
   to every configured secret in the accept-set; no mixed-era migration.
-- New environment variable names: `GRAFANA_WEBHOOK_SECRET`,
-  `POLAR_WEBHOOK_SECRET`, `LINEAR_WEBHOOK_SECRET`,
-  `VERCEL_WEBHOOK_SECRET`, `FAL_WEBHOOK_PUBLIC_KEYS`,
-  `FAL_WEBHOOK_USER_ID`.
+- Default environment variable names for configured providers:
+  `GRAFANA_WEBHOOK_SECRET`, `POLAR_WEBHOOK_SECRET`.
+- Default environment variable names for Linear, Vercel, and fal:
+  `LINEAR_WEBHOOK_SECRET`, `VERCEL_WEBHOOK_SECRET`,
+  `FAL_WEBHOOK_PUBLIC_KEYS`, `FAL_WEBHOOK_USER_ID`.
 
 ### Vercel and fal credential flags
 
