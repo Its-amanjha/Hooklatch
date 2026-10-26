@@ -9,6 +9,7 @@ import {
   createGrafanaCustomHeaderVerifier,
   createPolarCurrentVerifier,
   createPolarLegacyVerifier,
+  createLinearAuthenticationVerifier,
 } from '../../examples/phase10/credential-recipes.js';
 
 const NOW = 1_700_000_100;
@@ -159,10 +160,27 @@ describe('phase10 fal credential recipe', () => {
     expect(undefinedUserError.message).not.toContain(marker);
   });
 
-  test('accepts sixteen keys', () => {
-    const value = Array.from({ length: 16 }, () => base64UrlKey(FAL_KEY)).join(',');
+  test('accepts sixteen trusted keys and rejects a retired signing key', async () => {
+    const keys = Array.from({ length: 16 }, (_, index) => base64UrlKey(makeFalKey(index + 1)));
+    const value = keys.join(',');
+    const options = falOptionsFromEnv(value, FAL_USER);
 
-    expect(falOptionsFromEnv(value, FAL_USER).publicKeys).toHaveLength(16);
+    const request = {
+      rawBody: BODY,
+      headers: {
+        'x-fal-webhook-signature': signFal(16, BODY),
+        'x-fal-webhook-request-id': FAL_REQUEST,
+        'x-fal-webhook-user-id': FAL_USER,
+        'x-fal-webhook-timestamp': String(NOW),
+      },
+    };
+
+    expect(options.publicKeys).toHaveLength(16);
+    expect((await verify(request, { ...options, now: () => NOW })).ok).toBe(true);
+
+    const retired = falOptionsFromEnv(keys.slice(0, -1).join(','), FAL_USER);
+
+    expect(await verify(request, { ...retired, now: () => NOW })).toMatchObject({ ok: false, reason: 'invalid-signature' });
   });
 });
 
@@ -285,8 +303,8 @@ describe('phase10 Polar recipes', () => {
     return `v1,${hmac}`;
   }
 
-  function signLegacy(body: Uint8Array): string {
-    const hmac = createHmac('sha256', Buffer.from(LEGACY_SECRET, 'utf8')).update(Buffer.concat([Buffer.from(`${ID}.${TIMESTAMP}.`, 'utf8'), Buffer.from(body)])).digest('base64');
+  function signLegacy(body: Uint8Array, secret = LEGACY_SECRET): string {
+    const hmac = createHmac('sha256', Buffer.from(secret, 'utf8')).update(Buffer.concat([Buffer.from(`${ID}.${TIMESTAMP}.`, 'utf8'), Buffer.from(body)])).digest('base64');
 
     return `v1,${hmac}`;
   }
@@ -323,7 +341,7 @@ describe('phase10 Polar recipes', () => {
 
   test('does not rescue a current-era signature with a legacy verifier', async () => {
     const currentVerifier = createPolarCurrentVerifier({ secrets: [CURRENT_SECRET], now: () => NOW });
-    const legacyVerifier = createPolarLegacyVerifier({ secrets: [LEGACY_SECRET], now: () => NOW });
+    const legacyVerifier = createPolarLegacyVerifier({ secrets: [CURRENT_SECRET], now: () => NOW });
 
     const currentResult = await currentVerifier({
       rawBody: BODY,
@@ -352,7 +370,7 @@ describe('phase10 Polar recipes', () => {
       headers: {
         'webhook-id': ID,
         'webhook-timestamp': TIMESTAMP,
-        'webhook-signature': signLegacy(BODY),
+        'webhook-signature': signLegacy(BODY, CURRENT_SECRET),
       },
     });
 
@@ -363,7 +381,7 @@ describe('phase10 Polar recipes', () => {
       headers: {
         'webhook-id': ID,
         'webhook-timestamp': TIMESTAMP,
-        'webhook-signature': signLegacy(BODY),
+        'webhook-signature': signLegacy(BODY, CURRENT_SECRET),
       },
     });
 
@@ -372,6 +390,26 @@ describe('phase10 Polar recipes', () => {
 });
 
 describe('phase10 recipes are usable through verify', () => {
+  test('Linear authenticates signed bytes without inferring freshness or identity', async () => {
+    const secret = 'phase10-linear-recipe-secret';
+    const body = new TextEncoder().encode('{"webhookTimestamp":1,"data":"stale but authenticated"}');
+    const signature = createHmac('sha256', secret).update(body).digest('hex');
+    const verifier = createLinearAuthenticationVerifier([secret]);
+    const request = { rawBody: body, headers: { 'linear-signature': signature, 'linear-timestamp': '1' } };
+    const result = await verifier(request);
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.rawBody).toEqual(body);
+      expect(result.identity).toEqual({ deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [] });
+    }
+
+    const tampered = await verifier({ ...request, rawBody: new TextEncoder().encode('changed') });
+
+    expect(tampered.ok).toBe(false);
+  });
+
   test('fal helper composes with verify', async () => {
     const request: WebhookRequest = {
       rawBody: BODY,

@@ -43,7 +43,7 @@ public keys or an expected account.
 
 | Arm | Providers | Required credentials | Forbidden |
 | --- | --- | --- | --- |
-| HMAC accept-set | the other 19 IDs, including `vercel` | `secrets: readonly string[]` | `publicKeys`, `expectedUserId`, `providerOptions` |
+| HMAC accept-set | the other 18 IDs, including `vercel` | `secrets: readonly string[]` | `publicKeys`, `expectedUserId`, `providerOptions` |
 | Grafana | `grafana` | `secrets` plus `providerOptions` (`mode: 'body'` or `mode: 'timestamped'`) | `publicKeys`, `expectedUserId` |
 | Polar | `polar` | `secrets`; optional `providerOptions: { secretMode?: 'current' | 'legacy' }` | `publicKeys`, `expectedUserId` |
 | fal | `fal` | `publicKeys: readonly Uint8Array[]` (raw 32-byte Ed25519 keys, 1..16 at runtime) and `expectedUserId` | `secrets`, `providerOptions` |
@@ -201,16 +201,17 @@ export const presets = {
 Migrating a shared-secret configuration to fal is not a secret rename. Remove
 `secrets`, add raw public keys and the expected account:
 
-```ts
-// Rejected: fal is asymmetric.
-const invalid = { provider: 'fal', secrets: ['synthetic'] };
+The mixed credential arm is rejected:
 
-// Accepted shape.
-const valid = { provider: 'fal', publicKeys: [new Uint8Array(32)], expectedUserId: 'synthetic-user' };
+<!-- compiler-case: core/negative-fal-secrets -->
+
+```ts
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8Array(32)], expectedUserId: 'synthetic-user', secrets: ['synthetic'] }; // @expect-error TS2322
 ```
 
-The first line is covered by `core/negative-fal-secrets`; the second by
-`core/positive-fal-keys-account`.
+The complete accepted configuration is shown in the fal section above and checked
+by `core/positive-fal-keys-account`.
 
 ### Omit optional properties, do not pass `undefined`
 
@@ -218,16 +219,20 @@ With `exactOptionalPropertyTypes`, `providerOptions: undefined` is not the same
 as omitting the property. This matters for HMAC providers, where
 `providerOptions` is `never`, and for optional Polar settings. Omit the property:
 
-```ts
-// Rejected with exactOptionalPropertyTypes.
-const invalid = { provider: 'stripe', secrets: ['synthetic'], providerOptions: undefined };
+<!-- compiler-case: core/negative-own-undefined -->
 
-// Accepted.
-const valid = { provider: 'stripe', secrets: ['synthetic'] };
+```ts
+import type { VerifyOptions } from 'hooklatch';
+export const options: VerifyOptions = { provider: 'stripe', secrets: ['synthetic'], providerOptions: undefined }; // @expect-error TS2375
 ```
 
-The rejection is `core/negative-own-undefined` (TS2375); the accepted shape is
-part of `core/positive-hmac-apis`.
+Omitting the property is accepted:
+
+<!-- compiler-case: core/positive-readonly-inputs -->
+
+```ts
+const baseOptions: VerifyOptions = { provider: 'stripe', secrets: ['synthetic'] };
+```
 
 ### Interface extension is not a supported migration
 
@@ -384,7 +389,8 @@ diagnostic evidence.
   errors.
 - `skipLibCheck: false` covers the shipped declarations in the tested
   environments, but not every bundler, editor or future TypeScript version.
-- The declaration surface is captured for review; it is not a hash lock over
-  internal source files and does not prevent future reviewed changes.
+- The entrypoints and their reachable in-package declaration definitions are
+  captured for review; they are not a hash lock over
+  internal source files and do not prevent future reviewed changes.
 - No API compatibility, CJS or lower-Node support is promoted beyond what the
   Phase10 evidence records.

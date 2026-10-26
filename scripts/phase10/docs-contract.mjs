@@ -16,7 +16,8 @@
  *    style claims outside fenced code. No other prose is judged.
  *  - Relative tracked Markdown file and heading-anchor links across
  *    README.md, docs/providers.md, docs/diagnostics.md, docs/cli.md,
- *    CONTRIBUTING.md and SECURITY.md, excluding fenced examples. Fragment-only
+ *    CONTRIBUTING.md, SECURITY.md, docs/api-stability.md, docs/credential-recipes.md
+ *    and CHANGELOG.md, excluding fenced examples. Fragment-only
  *    links resolve within the same document; duplicate heading slugs follow
  *    `-1`, `-2` numbering.
  *
@@ -35,7 +36,7 @@
  *  - Slugger: GitHub-style ASCII approximation. Unicode letters and exotic
  *    punctuation are stripped rather than percent-encoded, so anchors for such
  *    headings may diverge from github.com rendering.
- *  - Link targets must stay inside the fixed six-file tracked Markdown scope;
+ *  - Link targets must stay inside the fixed nine-file tracked Markdown scope;
  *    other Markdown targets are reported as drift, not silently passed.
  *
  * Exit codes:
@@ -102,7 +103,7 @@ const GLOBAL_CLAIM_PATTERNS = [
   { pattern: /all\s+signatures?\s+(?:are|use)\s+HMAC-SHA256/gi, kind: 'all-signatures-HMAC-SHA256' },
 ];
 
-export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md'];
+export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md', 'docs/api-stability.md', 'docs/credential-recipes.md', 'CHANGELOG.md'];
 
 const REGISTRY_RELATIVE = 'dist/providers/index.js';
 
@@ -472,19 +473,21 @@ export function collectHeadings(text) {
 
     if (heading === null) continue;
 
-    const slug = slugify(plainHeadingText(heading[2]));
+    const base = slugify(plainHeadingText(heading[2]));
 
-    if (slug === '') continue;
+    if (base === '') continue;
 
-    const seen = slugs.get(slug) ?? 0;
+    let slug = base;
+    let suffix = slugs.get(base) ?? 0;
 
-    if (seen === 0) {
-      slugs.set(slug, 1);
-    } else {
-      slugs.set(slug, seen + 1);
+    while (slugs.has(slug)) {
+      suffix += 1;
+      slug = `${base}-${suffix}`;
     }
 
-    headings.push({ slug, occurrence: seen });
+    slugs.set(base, suffix);
+    slugs.set(slug, 0);
+    headings.push({ slug, occurrence: suffix });
   }
 
   return { slugs, headings };
@@ -509,7 +512,7 @@ function plainHeadingText(text) {
       continue;
     }
 
-    if (!inCode) plain += character;
+    plain += character;
   }
 
   return plain;
@@ -518,22 +521,8 @@ function plainHeadingText(text) {
 /** Resolve one fragment slug against duplicate-aware positions. */
 export function headingMatch(headingIndex, fragment) {
   const slug = decodeURIComponent(fragment);
-  const occurrences = headingIndex.slugs.get(slug);
 
-  if (occurrences !== undefined) return true;
-
-  const positional = /^.*-(\d+)$/.exec(slug);
-
-  if (positional === null) return false;
-
-  const base = slug.slice(0, slug.lastIndexOf('-'));
-  const baseOccurrences = headingIndex.slugs.get(base);
-
-  if (baseOccurrences === undefined) return false;
-
-  const number = Number.parseInt(positional[1], 10);
-
-  return number >= 1 && number <= baseOccurrences - 1;
+  return headingIndex.slugs.has(slug);
 }
 
 /**

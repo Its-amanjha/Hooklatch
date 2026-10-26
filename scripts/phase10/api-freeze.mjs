@@ -28,10 +28,11 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import assert from 'node:assert/strict';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { createHash } from 'node:crypto';
 import {
-  existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -51,13 +52,6 @@ const NPM_TIMEOUT_MS = 180_000;
 const NODE_TIMEOUT_MS = 120_000;
 const TERMINATE_TIMEOUT_MS = 10_000;
 const MESSAGE_LIMIT = 240;
-const SNAPSHOT_DIRS = ['src', 'tests', 'scripts', 'examples', 'docs', '.github'];
-
-const SNAPSHOT_FILES = [
-  'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.check.json', 'tsconfig.cli.json',
-  'tsconfig.examples.json', 'tsconfig.workers.json', 'eslint.config.mjs', '.oxlintrc.json',
-];
-
 const EXPECTED_ROOT_EXPORTS = ['HooklatchError', 'createVerifier', 'verify', 'verifyRequest'];
 const EXPECTED_DIAGNOSTICS_EXPORTS = ['diagnose'];
 
@@ -65,8 +59,9 @@ const USAGE = `Usage: node scripts/phase10/api-freeze.mjs [--json] [--results <p
 
   (no flags)       run the frozen public-API matrix, controls and surface capture
   --json           print only the machine-readable JSON report
-  --results <path> also write the JSON report (notes/phase-10/ or OS temp only)
+  --results <path> write notes/phase-10/coordinator-api-freeze-results.json only
   --help           print this message
+  --self-test      run bounded regression controls without packing or compiling
 
 Preparation: run \`npm run build\` first. Exit 0 = every intended outcome and
 cleanup matched; 1 = contract/infrastructure failure; 2 = usage error.`;
@@ -232,28 +227,28 @@ function walkFiles(relativeDir, output) {
 }
 
 async function gitStatus() {
-  try {
-    return await run('git', ['-C', REPO_ROOT, 'status', '--porcelain'], {
-      cwd: REPO_ROOT, timeout: 15_000, label: 'git status',
-    });
-  } catch {
-    return null;
-  }
+  return run('git', ['-C', REPO_ROOT, 'status', '--porcelain'], {
+    cwd: REPO_ROOT, timeout: 15_000, label: 'git status',
+  });
 }
 
 async function snapshotCheckout() {
-  const files = [];
+  const tracked = await run('git', ['-C', REPO_ROOT, 'ls-files', '-z'], {
+    cwd: REPO_ROOT, timeout: 15_000, label: 'git ls-files',
+  });
 
-  for (const dir of SNAPSHOT_DIRS) walkFiles(dir, files);
+  const files = tracked.split('\0').filter((file) => file.length > 0);
+
 
   walkFiles('dist', files);
-
-  for (const file of SNAPSHOT_FILES) if (existsSync(path.join(REPO_ROOT, file))) files.push(file);
 
   const hashes = new Map();
 
   for (const file of [...new Set(files)].sort()) {
-    hashes.set(file, sha256Text(readFileSync(path.join(REPO_ROOT, file), 'utf8')));
+    const absolute = path.join(REPO_ROOT, file);
+
+    // A tracked deletion is part of the snapshot, rather than a read error.
+    hashes.set(file, existsSync(absolute) ? sha256Text(readFileSync(absolute)) : '<missing>');
   }
 
   let head = null;
@@ -271,6 +266,8 @@ async function snapshotCheckout() {
       }
     }
   }
+
+  if (head === null) throw new InfrastructureError('Checkout HEAD could not be verified.');
 
   return { hashes, gitStatus: await gitStatus(), head };
 }
@@ -436,11 +433,10 @@ function createLink(target, linkPath, ownedLinks) {
 
   const linkType = process.platform === 'win32' ? 'junction' : 'dir';
 
-  symlinkSync(resolvedTarget, resolvedLink, linkType);
-
   const created = { linkPath: resolvedLink, target: resolvedTarget };
 
   ownedLinks.push(created);
+  symlinkSync(resolvedTarget, resolvedLink, linkType);
 
   return created;
 }
@@ -621,6 +617,14 @@ function compileCase(caseDefinition, environment, source) {
 
       if (!terminated) worker.unref();
 
+      try {
+        requireConfirmedTermination(terminated);
+      } catch (terminationError) {
+        reject(terminationError);
+
+        return;
+      }
+
       if (error) reject(error);
       else resolve(result);
     };
@@ -633,6 +637,14 @@ function compileCase(caseDefinition, environment, source) {
     worker.once('exit', () => { if (!settled) void finish(new InfrastructureError('Compiler worker exited without a result.')); });
     timer = setTimeout(() => { void finish(new InfrastructureError('Compiler worker timed out.')); }, NODE_TIMEOUT_MS);
   });
+}
+
+function requireConfirmedTermination(terminated) {
+  if (terminated) return;
+
+  lifecycle.cleanupSafe = false;
+
+  throw new InfrastructureError('Compiler worker termination could not be confirmed; temp files retained.');
 }
 
 function parseMarkers(source) {
@@ -734,6 +746,8 @@ function exportInventory(ts, fileName, text) {
 function extractSurface(ts, environment, packageManifest) {
   const entrypoints = [];
   const exportMap = packageManifest.exports ?? {};
+  const declarations = new Map();
+  const pending = [];
 
   for (const [subpath, target] of Object.entries(exportMap)) {
     const typesTarget = target.types;
@@ -755,6 +769,43 @@ function extractSurface(ts, environment, packageManifest) {
       sha256: sha256Text(declaration),
       declaration,
     });
+    pending.push(absolute);
+  }
+
+  const installedRoot = path.resolve(environment.installedRoot);
+  const options = { module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext };
+
+  while (pending.length > 0) {
+    const absolute = path.resolve(pending.pop());
+    const relative = rel(installedRoot, absolute);
+
+    if (declarations.has(relative)) continue;
+
+    if (!absolute.startsWith(`${installedRoot}${path.sep}`) || !/\.d\.(?:ts|mts|cts)$/.test(absolute)) {
+      throw new InfrastructureError(`public declaration escaped the installed package: ${relative}`);
+    }
+
+    const declaration = readFileSync(absolute, 'utf8').replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').trimEnd() + '\n';
+
+    declarations.set(relative, {
+      types: relative, exports: exportInventory(ts, absolute, declaration), declaration,
+    });
+
+    const references = ts.preProcessFile(declaration, true, true);
+
+    for (const reference of references.importedFiles) {
+      if (!reference.fileName.startsWith('.')) continue;
+
+      const resolved = ts.resolveModuleName(reference.fileName, absolute, options, ts.sys).resolvedModule;
+
+      if (resolved === undefined) {
+        throw new InfrastructureError(`public declaration reference did not resolve: ${relative} -> ${reference.fileName}`);
+      }
+
+      pending.push(resolved.resolvedFileName);
+    }
+
+    for (const reference of references.referencedFiles) pending.push(path.resolve(path.dirname(absolute), reference.fileName));
   }
 
   entrypoints.sort((left, right) => left.subpath.localeCompare(right.subpath));
@@ -763,6 +814,7 @@ function extractSurface(ts, environment, packageManifest) {
     source: 'packed dist/*.d.ts as installed from the offline local tarball',
     packageExports: exportMap,
     entrypoints,
+    declarations: [...declarations.values()].sort((left, right) => left.types.localeCompare(right.types)),
   };
 }
 
@@ -795,33 +847,47 @@ console.log(JSON.stringify({ root: Object.keys(root).sort(), diagnostics: Object
 function parseDocsSamples(text) {
   const lines = text.split(/\r?\n/);
   const samples = [];
+  let caseId = null;
 
   for (let index = 0; index < lines.length; index += 1) {
     const match = /<!--\s*compiler-case:\s*([A-Za-z0-9/_-]+)\s*-->/.exec(lines[index]);
 
-    if (match === null) continue;
+    if (match !== null) {
+      if (caseId !== null) samples.push({ caseId, codeLines: [], error: 'missing fenced code block' });
 
-    let fenceStart = index + 1;
+      caseId = match[1];
 
-    while (fenceStart < lines.length && !lines[fenceStart].trimStart().startsWith('```')) fenceStart += 1;
-
-    if (fenceStart >= lines.length) {
-      samples.push({ caseId: match[1], codeLines: [], error: 'missing fenced code block' });
       continue;
     }
 
-    let fenceEnd = fenceStart + 1;
+    const fence = /^\s*(`{3,}|~{3,})\s*(\S*)\s*$/.exec(lines[index]);
 
-    while (fenceEnd < lines.length && lines[fenceEnd].trim() !== '```') fenceEnd += 1;
+    if (fence === null) continue;
+
+    let fenceEnd = index + 1;
+    const closing = fence[1][0].repeat(fence[1].length);
+
+    while (fenceEnd < lines.length && lines[fenceEnd].trim() !== closing) fenceEnd += 1;
 
     if (fenceEnd >= lines.length) {
-      samples.push({ caseId: match[1], codeLines: [], error: 'missing closing fence' });
-      continue;
+      samples.push({ caseId, codeLines: [], error: 'missing closing fence' });
+
+      break;
     }
 
-    samples.push({ caseId: match[1], codeLines: lines.slice(fenceStart + 1, fenceEnd) });
+    if (['ts', 'typescript', 'tsx'].includes(fence[2].toLowerCase())) {
+      samples.push({
+        caseId,
+        codeLines: lines.slice(index + 1, fenceEnd),
+        error: caseId === null ? 'TypeScript fence is missing a compiler-case marker' : undefined,
+      });
+    }
+
+    caseId = null;
     index = fenceEnd;
   }
+
+  if (caseId !== null) samples.push({ caseId, codeLines: [], error: 'missing fenced code block' });
 
   return samples;
 }
@@ -835,15 +901,15 @@ function verifyDocsSamples() {
   if (samples.length === 0) failures.push('docs contain no compiler-case samples');
 
   for (const sample of samples) {
+    if (sample.error !== undefined) {
+      failures.push(`${sample.caseId}: ${sample.error}`);
+      continue;
+    }
+
     const caseDefinition = casesById.get(sample.caseId);
 
     if (caseDefinition === undefined) {
       failures.push(`${sample.caseId}: docs sample names an unknown matrix case`);
-      continue;
-    }
-
-    if (sample.error !== undefined) {
-      failures.push(`${sample.caseId}: ${sample.error}`);
       continue;
     }
 
@@ -865,7 +931,7 @@ function verifyDocsSamples() {
   return {
     path: DOCS_PATH,
     sampleCount: samples.length,
-    caseIds: [...new Set(samples.map((sample) => sample.caseId))].sort(),
+    caseIds: [...new Set(samples.map((sample) => sample.caseId).filter((id) => id !== null))].sort(),
     failures,
     pass: failures.length === 0,
   };
@@ -1019,14 +1085,90 @@ async function runControls(ts, environments, tempRoot, report) {
 /* report helpers                                                             */
 /* -------------------------------------------------------------------------- */
 
+async function runRegressionControls() {
+  const failures = [];
+
+  const check = async (name, action) => {
+    try {
+      await action();
+      console.log(`PASS ${name}`);
+    } catch (error) {
+      failures.push(name);
+      console.error(`FAIL ${name}: ${bounded(error.message)}`);
+    }
+  };
+
+  await check('results cannot overwrite claims or unrelated files', () => {
+    for (const target of ['package.json', 'notes/phase-10/deepseek-normal-session.json', 'notes/phase-10/api-freeze-results.json']) {
+      assert.throws(() => resolveResultsPath(target), /assigned coordinator API result/);
+    }
+
+    assert.equal(resolveResultsPath('notes/phase-10/coordinator-api-freeze-results.json'), path.join(REPO_ROOT, 'notes', 'phase-10', 'coordinator-api-freeze-results.json'));
+  });
+
+  await check('unmarked TypeScript fence is rejected', () => {
+    const samples = parseDocsSamples('```ts\nconst unchecked: string = 42;\n```\n');
+
+    assert.equal(samples.length, 1);
+    assert.ok(samples[0].error);
+  });
+  await check('marked TypeScript fence is recognized across tilde and backtick fences', () => {
+    for (const fence of ['```ts', '~~~typescript', '````tsx']) {
+      const samples = parseDocsSamples(`<!-- compiler-case: example -->\n${fence}\nconst x = 1;\n${fence.replace(/[a-z]+$/, '')}\n`);
+
+      assert.equal(samples.length, 1);
+      assert.equal(samples[0].caseId, 'example');
+      assert.equal(samples[0].error, undefined);
+    }
+  });
+  await check('uncertain worker termination fails and preserves scratch', () => {
+    const previous = lifecycle.cleanupSafe;
+
+    try {
+      assert.throws(() => requireConfirmedTermination(false), InfrastructureError);
+      assert.equal(lifecycle.cleanupSafe, false);
+    } finally {
+      lifecycle.cleanupSafe = previous;
+    }
+
+    requireConfirmedTermination(true);
+    assert.equal(lifecycle.cleanupSafe, previous);
+  });
+  await check('all current TypeScript documentation fences are covered', () => {
+    const result = verifyDocsSamples();
+
+    assert.deepEqual(result.failures, []);
+  });
+  await check('tracked root docs and vendored tools are snapshotted', async () => {
+    const snapshot = await snapshotCheckout();
+
+    assert.ok(snapshot.hashes.has('README.md'));
+    assert.ok(snapshot.hashes.has('tools/oxlint/anti-slop/index.ts'));
+    assert.ok(snapshot.head);
+    assert.notEqual(snapshot.gitStatus, null);
+  });
+  await check('public capture includes referenced definitions', () => {
+    const surface = extractSurface(loadTypeScript(), { installedRoot: path.join(REPO_ROOT) },
+      JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')));
+
+    assert.ok(surface.declarations?.some((entry) => entry.types === 'dist/types.d.ts'));
+    assert.ok(surface.declarations?.some((entry) => entry.types === 'dist/core.d.ts'));
+    assert.ok(surface.declarations?.some((entry) => entry.types === 'dist/errors.d.ts'));
+  });
+
+  return failures.length === 0 ? EXIT.PASS : EXIT.FAIL;
+}
+
 function parseArguments(argv) {
-  const parsed = { jsonOnly: false, resultsPath: null, help: false };
+  const parsed = { jsonOnly: false, resultsPath: null, help: false, selfTest: false };
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
 
     if (argument === '--json') {
       parsed.jsonOnly = true;
+    } else if (argument === '--self-test') {
+      parsed.selfTest = true;
     } else if (argument === '--help') {
       parsed.help = true;
     } else if (argument === '--results') {
@@ -1046,13 +1188,14 @@ function parseArguments(argv) {
 
 function resolveResultsPath(value) {
   const resolved = path.resolve(REPO_ROOT, value);
-  const allowedNotes = path.resolve(REPO_ROOT, 'notes', 'phase-10');
-  const tempBase = path.resolve(tmpdir());
-  const insideNotes = resolved === allowedNotes || resolved.startsWith(`${allowedNotes}${path.sep}`);
-  const insideTemp = resolved.startsWith(`${tempBase}${path.sep}`);
+  const assigned = path.resolve(REPO_ROOT, 'notes', 'phase-10', 'coordinator-api-freeze-results.json');
 
-  if (!insideNotes && !insideTemp) {
-    throw new InfrastructureError('--results must target notes/phase-10/ or the OS temp directory');
+  if (resolved !== assigned) throw new InfrastructureError('--results must name the assigned coordinator API result; claims and prior evidence are immutable');
+
+  for (const component of ['notes', 'notes/phase-10', 'notes/phase-10/coordinator-api-freeze-results.json']) {
+    const full = path.join(REPO_ROOT, component);
+
+    if (lstatSync(full, { throwIfNoEntry: false })?.isSymbolicLink()) throw new InfrastructureError('--results refuses symbolic links');
   }
 
   return resolved;
@@ -1079,6 +1222,8 @@ async function main() {
 
     return EXIT.PASS;
   }
+
+  if (options.selfTest) return runRegressionControls();
 
   let resultsPath = null;
 
@@ -1335,7 +1480,17 @@ async function main() {
             break;
           }
 
-          if (lstatSync(linkPath, { throwIfNoEntry: false }) !== undefined) unlinkSync(linkPath);
+          const linkStat = lstatSync(linkPath, { throwIfNoEntry: false });
+
+          if (linkStat !== undefined) {
+            if (!linkStat.isSymbolicLink() || realpathSync(linkPath) !== realpathSync(link.target)) {
+              cleanup.error = `dependency link no longer matches the owned target: ${linkPath}`;
+
+              break;
+            }
+
+            unlinkSync(linkPath);
+          }
 
           cleanup.links.push(rel(cleanup.tempRoot, linkPath));
         }
@@ -1392,6 +1547,7 @@ async function main() {
 
     if (resultsPath !== null) {
       try {
+        resolveResultsPath(resultsPath);
         mkdirSync(path.dirname(resultsPath), { recursive: true });
         await writeFile(resultsPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
       } catch (writeError) {

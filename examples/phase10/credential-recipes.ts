@@ -175,3 +175,8 @@ export function createPolarCurrentVerifier(input: PolarRecipeInput) {
 export function createPolarLegacyVerifier(input: PolarRecipeInput) {
   return createVerifier(polarLegacyOptions(input));
 }
+
+/** Body authentication only; caller policy may inspect bytes after success. */
+export function createLinearAuthenticationVerifier(secrets: readonly string[]) {
+  return createVerifier({ provider: 'linear', secrets });
+}

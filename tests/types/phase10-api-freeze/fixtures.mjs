@@ -596,7 +596,7 @@ export const options: VerifyOptions = { provider: 'fal', publicKeys: [new Uint8A
     kind: 'negative',
     environment: 'core',
     file: 'negative-fal-missing-keys.ts',
-    description: 'fal requires at least one raw public key in the public type.',
+    description: 'fal requires the publicKeys property; nonempty arrays are validated at runtime.',
     source: `
 import type { VerifyOptions } from 'hooklatch';
 

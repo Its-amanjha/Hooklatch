@@ -598,7 +598,7 @@ export function resolveReportDestination(requested) {
   for (const part of parts) {
     walking = path.join(walking, part);
 
-    if (existsSync(walking) && lstatSync(walking).isSymbolicLink()) {
+    if (lstatSync(walking, { throwIfNoEntry: false })?.isSymbolicLink()) {
       throw new Error(`--out refuses a symlinked directory component: ${path.relative(REPO_ROOT, walking)}`);
     }
   }
@@ -612,7 +612,7 @@ export function resolveReportDestination(requested) {
     throw new Error(`--out resolved outside the checkout: ${realDirectory}`);
   }
 
-  if (existsSync(resolved) && lstatSync(resolved).isSymbolicLink()) {
+  if (lstatSync(resolved, { throwIfNoEntry: false })?.isSymbolicLink()) {
     throw new Error(`--out refuses to overwrite a symlink: ${relative}`);
   }
 

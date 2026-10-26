@@ -57,9 +57,10 @@ values. Replace them with your real endpoint secrets and provider payloads.
   bytes captured before any framework parsing or re-serialization.
 - **Explicit provider selection.** You name the provider; there is no
   auto-detection to misidentify a request.
-- **Secret rotation.** Pass every active secret; the verifier tries all
-  signatures against all secrets until one pair matches.
-- **Portable core.** Web Crypto HMAC with no Node-only imports; runs on
+- **Credential rotation.** For HMAC providers, pass every active secret; the
+  verifier tries signatures against the accept-set. For fal, configure the
+  trusted public-key accept-set and expected user ID.
+- **Portable core.** Web Crypto HMAC and Ed25519 with no Node-only imports; runs on
   Node 22+ and in Workers-compatible runtimes.
 - **Framework adapters.** Express, Next.js App Router, Cloudflare Workers,
   and Hono on isolated subpaths.
@@ -158,7 +159,11 @@ verify(request: WebhookRequest, options: VerifyOptions): Promise<VerificationRes
   comma-combined. Web `Headers` can normalize surrounding whitespace.
 - `providerOptions` — trusted application configuration, required for Grafana,
   optional for Polar, and forbidden for other providers. See configured providers below.
-- `secrets` — every active secret. During rotation include old and new.
+- `secrets` — HMAC providers only: every active secret, including old and new
+  during rotation.
+- `publicKeys` and `expectedUserId` — fal only: trusted raw 32-byte Ed25519
+  public keys (1..16) and the required expected signed user ID. Both fields
+  belong at the top level; fal forbids `secrets` and `providerOptions`.
 - `toleranceSeconds` — signed-timestamp freshness window. Default `5` for
   Paddle Billing, `180` for WorkOS and `300` for the other timestamped providers.
   The boundary is inclusive: a timestamp exactly `toleranceSeconds` old is
@@ -175,6 +180,23 @@ verify(request: WebhookRequest, options: VerifyOptions): Promise<VerificationRes
   freshness is measured at ingress, not at business-processing time.
 - `maxBodyBytes` — body size limit. Default `1048576` (1 MiB). Enforced
   while reading, not just from `Content-Length`.
+
+For fal, supply credentials from trusted application configuration:
+
+```ts
+const result = await verify(
+  { rawBody, headers },
+  {
+    provider: 'fal',
+    publicKeys: trustedPublicKeys, // 1..16 raw 32-byte Uint8Array values
+    expectedUserId: configuredUserId,
+  },
+);
+```
+
+Do not add dummy shared secrets or obtain keys or the expected user ID from
+the incoming request. Signature authentication precedes account matching and
+freshness checks; only the signed timestamp is returned as public identity.
 
 ### `verifyRequest(request, options)`
 

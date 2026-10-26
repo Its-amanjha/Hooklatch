@@ -170,3 +170,27 @@ October 8, 11, and 15. These dates do not establish when development occurred,
 and intermediate commits were not independently verified. Subsequent work uses
 actual timestamps. Private coordination files were removed from public history;
 some original commit positions and messages remain despite empty changes.
+
+## Adoption and release checks
+
+`npm run verify` includes the documentation contract, packed TypeScript API
+consumers and generated handlers running through all four framework surfaces on
+the current Node 22 or 24 runtime. The CI matrix runs this command on both.
+The API migration examples are in [API stability](docs/api-stability.md); portable
+setup helpers are in [credential recipes](docs/credential-recipes.md).
+
+`npm run test:conformance` is a separate opt-in check. It requires a reviewed,
+checksummed local SDK cache, exits BLOCKED when prerequisites are absent, and
+never fetches packages implicitly. Its four pinned SDK comparisons distinguish
+receiver-policy differences from agreement. Vercel and fal checks in that
+corpus are docs-only recipes. Fresh cache acquisition is currently BLOCKED.
+These checks do not establish live-provider interoperability.
+
+`npm run test:cjs-prototype` exercises disposable packaging candidates. It does
+not change the shipped ESM-only package or establish support for older runtimes.
+For two installed Node versions, run the generated-handler harness with
+`--runtime both` and set `PHASE10_NODE22` and `PHASE10_NODE24` to their executables.
+
+The [changelog](CHANGELOG.md) describes unreleased work. Publication, release
+tags, security reporting channels and any Code of Conduct enforcement contact
+require explicit maintainer decisions. Do not infer them from local checks.

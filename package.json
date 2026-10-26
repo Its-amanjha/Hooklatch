@@ -60,13 +60,18 @@
     "test:workers": "node scripts/workers-smoke.mjs && node scripts/workers-providers.mjs",
     "test:package": "node scripts/package-smoke.mjs",
     "test:templates": "node scripts/templates-smoke.mjs",
-    "lint:eslint": "eslint src tests scripts --no-error-on-unmatched-pattern",
+    "lint:eslint": "eslint src tests scripts examples --no-error-on-unmatched-pattern",
     "lint:anti-slop": "oxlint --config .oxlintrc.json src tests scripts examples",
     "test:mutations": "node scripts/phase6-mutations.mjs --include-controls",
     "test:public-contracts": "node scripts/public-contract-smoke.mjs",
     "test:provider-config": "node scripts/phase7-config-qualification.mjs --json",
     "test:configured-templates": "node scripts/phase7-cli-config-smoke.mjs",
-    "test:crypto-runtime": "node scripts/phase9-runtime-qualification.mjs --json"
+    "test:crypto-runtime": "node scripts/phase9-runtime-qualification.mjs --json",
+    "test:docs-contract": "node scripts/phase10/docs-contract-controls.mjs && node scripts/phase10/docs-contract.mjs",
+    "test:api-freeze": "node scripts/phase10/api-freeze.mjs --self-test && node scripts/phase10/api-freeze.mjs --results notes/phase-10/coordinator-api-freeze-results.json",
+    "test:generated-runtime": "node scripts/phase10/generated-handlers-runtime.mjs --controls && node scripts/phase10/generated-handlers-runtime.mjs --runtime current",
+    "test:conformance": "node scripts/phase10/provider-conformance-controls.mjs && node scripts/phase10/provider-conformance.mjs --controls",
+    "test:cjs-prototype": "node scripts/phase10/cjs-consumers.mjs"
   },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",
@@ -101,5 +106,20 @@
     "ts-jest": "29.4.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.0"
-  }
+  },
+  "homepage": "https://github.com/Its-amanjha/Hooklatch#readme",
+  "bugs": {
+    "url": "https://github.com/Its-amanjha/Hooklatch/issues"
+  },
+  "keywords": [
+    "webhooks",
+    "signature-verification",
+    "hmac",
+    "ed25519",
+    "typescript",
+    "express",
+    "hono",
+    "nextjs",
+    "cloudflare-workers"
+  ]
 }

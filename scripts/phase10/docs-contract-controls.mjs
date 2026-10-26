@@ -226,7 +226,7 @@ const CLI_PLAIN = ['# Hooklatch CLI', '', '## Usage', '', '`hooklatch init webho
 const CONTRIBUTING_PLAIN = ['# Contributing', '', 'Run npm run verify.'].join('\n');
 const SECURITY_PLAIN = ['# Security Policy', '', 'See the reporting section.'].join('\n');
 
-/** The corrected authored six-file baseline. `options` adjusts variants. */
+/** The corrected authored nine-file baseline. `options` adjusts variants. */
 function buildBaselineFiles(options) {
   const settings = options ?? {};
 
@@ -234,6 +234,9 @@ function buildBaselineFiles(options) {
     'README.md': readmeDocument(buildRows(readmeRow, settings.readmeAlgorithmOverrides), settings.readmeExtraProse),
     'CONTRIBUTING.md': CONTRIBUTING_PLAIN,
     'SECURITY.md': SECURITY_PLAIN,
+    'docs/api-stability.md': '# API stability',
+    'docs/credential-recipes.md': '# Credential recipes',
+    'CHANGELOG.md': '# Changelog',
     'docs/providers.md': providersDocument(buildRows(guideRow, settings.guideAlgorithmOverrides), settings.guideExtraLink),
     'docs/diagnostics.md': settings.withMigrationAnchor === false ? DIAGNOSTICS_PLAIN : DIAGNOSTICS_WITH_ANCHOR,
     'docs/cli.md': settings.cliDocument ?? CLI_PLAIN,
@@ -353,6 +356,21 @@ const ledger = { roots: [], files: [], removed: false };
 const controlReports = [];
 
 /** The corrected baseline must be entirely green, links checked sincerely. */
+async function controlReleaseDocumentationLinks() {
+  const files = buildBaselineFiles();
+
+  files['CONTRIBUTING.md'] += '\n[API](docs/api-stability.md#api-stability) [Recipes](docs/credential-recipes.md#credential-recipes) [Changes](CHANGELOG.md#changelog)';
+
+  const report = runDocsContract(files, CONTROL_REGISTRY, ALGORITHM_POLICY);
+
+  expectEqual(report.findings, [], 'release documentation links are checked');
+  files['docs/api-stability.md'] = '# Changed title';
+
+  const invalid = runDocsContract(files, CONTROL_REGISTRY, ALGORITHM_POLICY);
+
+  expectFinding(invalid.findings, { kind: 'broken-heading-anchor', file: 'CONTRIBUTING.md' }, 'changed release documentation anchor is rejected');
+}
+
 async function controlCorrectedBaselineGreen() {
   const report = runDocsContract(buildBaselineFiles(), CONTROL_REGISTRY, ALGORITHM_POLICY);
 
@@ -704,6 +722,28 @@ async function controlDuplicateHeadingSlugs() {
   );
 }
 
+/** Inline code contributes its visible text to the heading slug. */
+async function controlInlineCodeHeading() {
+  const document = '## Using `verify`\n[first](#using-verify) [wrong](#using-)';
+  const report = checkRelativeLinks(document, 'README.md', new Map());
+
+  expectEqual(report.counts.checked, 1, 'inline-code heading checked');
+  expectEqual(report.findings.map((finding) => finding.fragment), ['using-'], 'inline-code missing text rejected');
+}
+
+/** Generated suffixes reserve names against later literal heading slugs. */
+async function controlHeadingSlugCollisions() {
+  for (const document of [
+    '## Foo\n## Foo\n## Foo-1\n[first](#foo) [second](#foo-1) [third](#foo-1-1) [wrong](#foo-2)',
+    '## Foo-1\n## Foo\n## Foo\n[first](#foo-1) [second](#foo) [third](#foo-2) [wrong](#foo-1-1)',
+  ]) {
+    const report = checkRelativeLinks(document, 'README.md', new Map());
+
+    expectEqual(report.counts.checked, 3, 'reserved collision slugs checked');
+    expectEqual(report.findings.length, 1, 'unallocated collision slug rejected');
+  }
+}
+
 /** A registry with an extra future provider must reach policy-registry-desync. */
 async function controlRegistryExtraDesync() {
   const futureRegistry = [...CONTROL_REGISTRY, 'acme'];
@@ -784,6 +824,7 @@ async function controlCliRedMissingDocs(ledgerArg) {
 
 const CONTROLS = [
   controlCorrectedBaselineGreen,
+  controlReleaseDocumentationLinks,
   controlMissingFalVercelIds,
   controlWrongAlgorithmVercel,
   controlWrongAlgorithmFal,
@@ -805,6 +846,8 @@ const CONTROLS = [
   controlUnexpectedMarkdownTarget,
   controlEscapingTarget,
   controlDuplicateHeadingSlugs,
+  controlInlineCodeHeading,
+  controlHeadingSlugCollisions,
   controlRegistryExtraDesync,
   controlPolicyExtraDesync,
   () => controlBuiltRegistryUnavailable(ledger),
@@ -814,6 +857,7 @@ const CONTROLS = [
 
 const CONTROL_NAMES = [
   'corrected-baseline-green',
+  'release-documentation-links',
   'missing-fal-vercel-ids',
   'wrong-algorithm-vercel-readme',
   'wrong-algorithm-fal-guide',
@@ -835,6 +879,8 @@ const CONTROL_NAMES = [
   'unexpected-markdown-target',
   'escaping-link-target',
   'duplicate-heading-slugs',
+  'inline-code-heading',
+  'heading-slug-collisions',
   'policy-desync-registry-extra',
   'policy-desync-policy-extra',
   'built-registry-unavailable-null',

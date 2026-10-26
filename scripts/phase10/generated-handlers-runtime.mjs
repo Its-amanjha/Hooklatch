@@ -2,8 +2,9 @@
 /**
  * Phase 10 / Big Pickle - generated handler runtime matrix.
  *
- *   node scripts/phase10/generated-handlers-runtime.mjs [--runtime both|node24|node22]
+ *   node scripts/phase10/generated-handlers-runtime.mjs [--runtime current|both|node24|node22]
  *                                                       [--keep-temp]
+ *   node scripts/phase10/generated-handlers-runtime.mjs --controls
  *
  * What this proves:
  *
@@ -37,8 +38,8 @@
  *   never echoed. The receipt and registry assertions are themselves fed known-bad
  *   input, and the bounded child runner is proven to detect a real crash and a
  *   real hang. A re-run after the forced kill proves the runner still reports.
- * - PASS is printed only after dependency-junction cleanup, read-only dependency
- *   integrity, full repository tree integrity and temp-workspace removal succeed.
+ * - Matrix PASS is printed only after dependency-junction cleanup, linked-package
+ *   content integrity, tracked-file/dist integrity and temp-workspace removal succeed.
  *   A failed run retains its temp workspace for diagnosis; cleanup failure is a
  *   run failure, and no junction is ever removed recursively over its target.
  *
@@ -71,13 +72,14 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  realpathSync,
   rmSync,
-  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
+import { EventEmitter } from 'node:events';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -90,8 +92,6 @@ import { build as esbuildBuild } from 'esbuild';
 
 const OWNER = 'big-pickle';
 const BASE_SHA = '4b748a2142789590de56b0f15afc6975afc54657';
-const BRANCH = 'phase-10/big-pickle';
-const WORKTREE = 'D:/Typescript SDK/.worktrees/phase-10-big-pickle';
 const RUNTIME_MANIFEST = 'tasks/phase-10/workspace.json';
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -776,22 +776,11 @@ async function proveAnchors(providers) {
  * Preflight, registry and installed-package workspace
  * ------------------------------------------------------------------ */
 
-const OWNED_SCRIPT = 'scripts/phase10/generated-handlers-runtime.mjs';
-const SESSION_FILE = 'notes/phase-10/big-pickle-session.json';
 
 function gitOutput(args) {
   return execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf8', timeout: 60_000 }).trim();
 }
 
-function gitSucceeds(args) {
-  try {
-    execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf8', stdio: 'ignore', timeout: 60_000 });
-
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Registry drift is an environment problem, not a failed assertion: the reviewed
@@ -812,65 +801,31 @@ function assertExactRegistry(providers) {
   }
 }
 
-function preflight() {
-  const toplevel = gitOutput(['rev-parse', '--show-toplevel']).replaceAll('\\', '/');
+function preflight(runtimeChoice) {
+  const currentMajor = Number(process.versions.node.split('.')[0]);
 
-  if (toplevel.toLowerCase() !== WORKTREE.toLowerCase()) blocked(`Wrong worktree: ${toplevel} is not ${WORKTREE}.`);
+  const labels = runtimeChoice === 'both' ? ['node24', 'node22']
+    : runtimeChoice === 'current' ? [`node${currentMajor}`] : [runtimeChoice];
 
-  if (gitOutput(['branch', '--show-current']) !== BRANCH) blocked(`Wrong branch: expected ${BRANCH}.`);
-
-  if (!gitSucceeds(['merge-base', '--is-ancestor', BASE_SHA, 'HEAD'])) {
-    blocked(`HEAD does not descend from the reviewed base ${BASE_SHA}.`);
-  }
-
-  const changed = gitOutput(['diff', '--name-only', `${BASE_SHA}..HEAD`]).split('\n').filter(Boolean);
-
-  for (const file of changed) {
-    assert(file === OWNED_SCRIPT, `Unexpected committed path outside the owned script: ${file}.`);
-  }
-
-  const allowed = new Set(['', `?? ${OWNED_SCRIPT}`, '?? scripts/phase10/']);
-
-  for (const line of gitOutput(['status', '--porcelain']).split('\n')) {
-    assert(allowed.has(line), `Unexpected dirty path: ${line}.`);
-  }
-
-  const sessionPath = join(REPO_ROOT, SESSION_FILE);
-
-  if (!existsSync(sessionPath)) blocked('The exclusive session claim file is missing.');
-  const session = JSON.parse(readFileSync(sessionPath, 'utf8'));
-
-  if (session.owner !== OWNER) blocked(`Claim owner mismatch: ${String(session.owner)}. Existing claims are never recovered.`);
-
-  if (session.baseSha !== BASE_SHA) blocked('Claim base mismatch.');
-
-  if (session.state !== 'active') blocked(`Claim state is ${String(session.state)}; only an active claim may write.`);
-
-  if (!isString(session.sessionToken) || session.sessionToken.length === 0) blocked('Claim session token is missing.');
-
-  const manifest = JSON.parse(readFileSync(join(REPO_ROOT, RUNTIME_MANIFEST), 'utf8'));
-  const assignment = manifest.assignments.find((item) => item.owner === OWNER);
-
-  if (assignment === undefined) blocked('Owner assignment is missing from the workspace manifest.');
-
-  if (assignment.worktree.replaceAll('\\', '/').toLowerCase() !== WORKTREE.toLowerCase()) {
-    blocked('Manifest worktree does not match this checkout.');
-  }
-
-  if (assignment.branch !== BRANCH) blocked('Manifest branch does not match this checkout.');
-
+  const manifestPath = join(REPO_ROOT, RUNTIME_MANIFEST);
+  const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {};
   const runtimes = [];
 
-  for (const label of ['node24', 'node22']) {
-    const executable = manifest.runtimes[label];
+  for (const label of labels) {
+    if (label !== 'node22' && label !== 'node24') blocked('This matrix qualifies Node22/24 only.');
 
-    if (!isString(executable) || executable.length === 0) blocked(`Manifest runtime ${label} is missing.`);
+    const executable = process.env[`PHASE10_${label.toUpperCase()}`]
+      ?? (label === `node${currentMajor}` ? process.execPath : manifest.runtimes?.[label]);
 
-    if (!existsSync(executable)) blocked(`Manifest runtime ${label} is missing on disk: ${executable}.`);
-    runtimes.push({ label, executable, version: execFileSync(executable, ['--version'], { encoding: 'utf8' }).trim() });
+    if (!isString(executable) || !existsSync(executable)) blocked(`Runtime ${label} missing; set PHASE10_${label.toUpperCase()}.`);
+
+    const version = execFileSync(executable, ['--version'], { encoding: 'utf8', timeout: 10000 }).trim();
+
+    assert(version.startsWith('v' + label.slice(4) + '.'), 'Runtime executable version disagrees with selection.');
+    runtimes.push({ label, executable, version });
   }
 
-  return { session, runtimes, head: gitOutput(['rev-parse', 'HEAD']) };
+  return { runtimes, head: gitOutput(['rev-parse', 'HEAD']), branch: gitOutput(['branch', '--show-current']) };
 }
 
 function requireBuildArtifacts() {
@@ -894,10 +849,11 @@ function fingerprintTree(root) {
   const walk = (directory) => {
     for (const name of readdirSync(directory).sort()) {
       const full = join(directory, name);
-      const stat = statSync(full);
+      const stat = lstatSync(full);
 
-      if (stat.isDirectory()) walk(full);
-      else entries.push(`${relative(root, full)}:${stat.size}:${Math.floor(stat.mtimeMs)}`);
+      if (stat.isSymbolicLink()) entries.push(`${relative(root, full)}:link:${readlinkSync(full)}`);
+      else if (stat.isDirectory()) walk(full);
+      else entries.push(`${relative(root, full)}:${sha256hex(readFileSync(full))}`);
     }
   };
 
@@ -924,6 +880,7 @@ function createWorkspace() {
     npmCache: join(root, 'npm-cache'),
     junctions: [],
     dependencyStats: [],
+    children: [],
   };
 
   for (const directory of [workspace.packDir, workspace.consumerRoot, workspace.specsDir, workspace.resultsDir, workspace.npmCache]) {
@@ -1029,11 +986,11 @@ function linkPinnedDependency(workspace, readOnlyRoot, name) {
 
   assert(existsSync(manifest), `Pinned dependency ${name} is missing at ${target}.`);
 
-  const before = statSync(manifest);
+  const before = fingerprintTree(target);
 
-  symlinkSync(target, link, 'junction');
   workspace.junctions.push({ link, target, label: name });
-  workspace.dependencyStats.push({ label: name, manifest, size: before.size, mtimeMs: before.mtimeMs });
+  symlinkSync(target, link, 'junction');
+  workspace.dependencyStats.push({ label: name, target, fingerprint: before });
 
   assert(existsSync(link), `Junction for ${name} was not created.`);
   const actual = readlinkSync(link).replace(/^\\\\\?\\/, '');
@@ -2032,40 +1989,47 @@ function terminateTree(pid) {
     try {
       execFileSync('taskkill', ['/pid', String(pid), '/t', '/f'], { stdio: 'ignore', timeout: 30_000 });
     } catch {
-      // The tree is already gone; `close` still fires.
+      // Failure does not establish termination; the child-close ledger must confirm it.
     }
 
     return;
   }
 
   try {
-    process.kill(pid, 'SIGKILL');
+    process.kill(-pid, 'SIGKILL');
   } catch {
     // Already gone.
   }
 }
 
-function runBoundedChild(options) {
+function runBoundedChild(options, runtime = { spawn, setTimeout, clearTimeout, terminateTree, now: Date.now }) {
   return new Promise((resolvePromise) => {
-    const started = Date.now();
+    const started = runtime.now();
+    const record = { pid: null, closed: false, spawnFailed: false, timedOut: false };
+
+    options.ledger.push(record);
     let child;
 
     try {
-      child = spawn(options.executable, [options.scriptPath, ...options.args], {
+      child = runtime.spawn(options.executable, [options.scriptPath, ...options.args], {
         cwd: options.cwd,
         env: options.env,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
+        detached: process.platform !== 'win32',
       });
+      record.pid = child.pid ?? null;
     } catch (error) {
+      record.spawnFailed = true;
       resolvePromise({
         ok: false,
         status: null,
         signal: null,
         timedOut: false,
+        terminationConfirmed: true,
         stdout: '',
         stderr: `spawn failed: ${String(error)}`,
-        durationMs: Date.now() - started,
+        durationMs: runtime.now() - started,
       });
 
       return;
@@ -2082,25 +2046,27 @@ function runBoundedChild(options) {
       if (settled) return;
 
       settled = true;
-      clearTimeout(timer);
+      runtime.clearTimeout(timer);
 
-      if (forceTimer !== undefined) clearTimeout(forceTimer);
+      if (forceTimer !== undefined) runtime.clearTimeout(forceTimer);
       resolvePromise({
         ok: !timedOut && status === 0 && extra === undefined,
         status,
         signal,
         timedOut,
+        terminationConfirmed: record.closed || (record.spawnFailed && record.pid === null),
         stdout,
         stderr: extra === undefined ? stderr : `${stderr}\n${extra}`,
-        durationMs: Date.now() - started,
+        durationMs: runtime.now() - started,
       });
     };
 
-    timer = setTimeout(() => {
+    timer = runtime.setTimeout(() => {
       timedOut = true;
-      terminateTree(child.pid);
-      forceTimer = setTimeout(() => {
-        terminateTree(child.pid);
+      record.timedOut = true;
+      runtime.terminateTree(child.pid);
+      forceTimer = runtime.setTimeout(() => {
+        runtime.terminateTree(child.pid);
         settle(null, null, 'the child did not close after forced termination');
       }, 20_000);
     }, options.timeoutMs);
@@ -2114,15 +2080,38 @@ function runBoundedChild(options) {
       stderr = (stderr + chunk).slice(-40_000);
     });
     child.on('error', (error) => {
+      if (record.pid === null) record.spawnFailed = true;
       stderr = (stderr + `\nchild error: ${String(error)}`).slice(-40_000);
     });
     child.on('close', (status, signal) => {
+      record.closed = true;
       settle(status, signal, undefined);
     });
   });
 }
 
+function assertCaseInventory(cases, providers, label) {
+  const required = new Set();
+
+  for (const provider of providers) {
+    for (const name of ['valid', 'tamper', 'overflow']) required.add(`primary|${provider}|${name}`);
+  }
+
+  for (const variant of CONFIGURED_VARIANTS) {
+    for (const name of ['valid', 'wrong-layout']) required.add(`configured|${variant.key}|${name}`);
+  }
+
+  for (const record of cases) {
+    const tuple = `${record.kind}|${record.entry}|${record.case}`;
+
+    assert(required.delete(tuple), `${label} recorded an unexpected or duplicate handler/case tuple ${tuple}.`);
+  }
+
+  assert(required.size === 0, `${label} omitted required handler/case tuples: ${[...required].join(', ')}.`);
+}
+
 function validateChildResult(execution, expectation) {
+  assert(execution.terminationConfirmed === true, `${expectation.label} child termination is unconfirmed; preserve its workspace.`);
   const detail = execution.stderr.trim().length > 0 ? `\nchild stderr:\n${execution.stderr.trim()}` : '';
 
   assert(!execution.timedOut, `${expectation.label} timed out after ${execution.durationMs} ms.${detail}`);
@@ -2142,6 +2131,7 @@ function validateChildResult(execution, expectation) {
     `${expectation.label} ran on ${String(result.runtime)} instead of the pinned ${expectation.runtimeVersion}.`,
   );
   assert(Array.isArray(result.cases), `${expectation.label} result has no case list.`);
+  assertCaseInventory(result.cases, expectation.providers, expectation.label);
   assert(
     result.cases.length === TOTAL_CASES_PER_FRAMEWORK,
     `${expectation.label} recorded ${result.cases.length} executions instead of ${TOTAL_CASES_PER_FRAMEWORK}.`,
@@ -2241,12 +2231,15 @@ function hashFileIfPresent(name) {
 }
 
 function snapshotRepoState() {
+  const trackedFiles = gitOutput(['ls-files', '-z']).split('\0').filter(Boolean);
+
   return {
     status: gitOutput(['status', '--porcelain']),
     head: gitOutput(['rev-parse', 'HEAD']),
     src: fingerprintTree(join(REPO_ROOT, 'src')),
     tests: fingerprintTree(join(REPO_ROOT, 'tests')),
     dist: fingerprintTree(join(REPO_ROOT, 'dist')),
+    tracked: sha256hex(utf8(trackedFiles.map((name) => `${name}:${hashFileIfPresent(name)}`).join('\n'))),
     files: Object.fromEntries(
       ['package.json', 'package-lock.json', 'tsconfig.json', '.oxlintrc.json', 'eslint.config.mjs']
         .map((name) => [name, hashFileIfPresent(name)]),
@@ -2260,15 +2253,14 @@ function verifyRepoIntegrity(before, after) {
   assert(before.src === after.src, 'The tracked source tree changed while the runtime matrix was running.');
   assert(before.tests === after.tests, 'The tracked test tree changed while the runtime matrix was running.');
   assert(before.dist === after.dist, 'The build output changed while the runtime matrix was running.');
+  assert(before.tracked === after.tracked, 'A tracked file changed while the runtime matrix was running.');
   assert(deepEqual(before.files, after.files), 'A tracked root configuration file changed while the runtime matrix was running.');
 }
 
 function verifyDependencyIntegrity(workspace) {
   for (const record of workspace.dependencyStats) {
-    const after = statSync(record.manifest);
-
     assert(
-      after.size === record.size && after.mtimeMs === record.mtimeMs,
+      fingerprintTree(record.target) === record.fingerprint,
       `Read-only dependency ${record.label} was modified by the run.`,
     );
   }
@@ -2280,7 +2272,17 @@ function verifyDependencyIntegrity(workspace) {
   return workspace.dependencyStats.map((record) => record.label);
 }
 
+function assertChildrenClosed(children) {
+  for (const child of children) {
+    assert(
+      child.closed || (child.spawnFailed && child.pid === null),
+      `Child ${String(child.pid)} has not confirmed close; preserve the workspace and its junctions.`,
+    );
+  }
+}
+
 function cleanupWorkspace(workspace) {
+  assertChildrenClosed(workspace.children);
   const removed = [];
 
   for (const junction of [...workspace.junctions].reverse()) {
@@ -2325,11 +2327,23 @@ function writeControlScripts(workspace) {
   return directory;
 }
 
-async function proveBoundedChildFailure(workspace, executable, scriptPath, baseEnv) {
+function assertTimeoutTermination(hang) {
+  assert(hang.ok === false, 'The bounded runner treated a hanging child as a success.');
+  assert(hang.timedOut === true, 'The bounded runner did not record the hang timeout.');
+  assert(hang.terminationConfirmed === true, 'Hang control termination is unconfirmed; preserve its workspace.');
+  assert(
+    hang.signal !== null || (hang.status !== null && hang.status !== 0),
+    'The hang control did not confirm abnormal termination after its timeout.',
+  );
+  assert(hang.durationMs < 60_000, `The hanging control child took ${hang.durationMs} ms to terminate.`);
+}
+
+async function proveBoundedChildFailure(workspace, executable, baseEnv) {
   const directory = writeControlScripts(workspace);
   const controls = [];
 
   const crash = await runBoundedChild({
+    ledger: workspace.children,
     executable,
     scriptPath: join(directory, 'crash.mjs'),
     args: [],
@@ -2339,10 +2353,12 @@ async function proveBoundedChildFailure(workspace, executable, scriptPath, baseE
   });
 
   assert(crash.ok === false, 'The bounded runner treated a crashing child as a success.');
+  assert(crash.terminationConfirmed === true && !crash.timedOut, 'Crash control did not close before its timeout.');
   assert(crash.status === 9, `The crashing control child exited with ${String(crash.status)} instead of 9.`);
   controls.push({ control: 'child-crash-detected', exitStatus: crash.status, detected: true });
 
   const hang = await runBoundedChild({
+    ledger: workspace.children,
     executable,
     scriptPath: join(directory, 'hang.mjs'),
     args: [],
@@ -2351,12 +2367,12 @@ async function proveBoundedChildFailure(workspace, executable, scriptPath, baseE
     timeoutMs: HANG_CONTROL_TIMEOUT_MS,
   });
 
-  assert(hang.ok === false, 'The bounded runner treated a hanging child as a success.');
-  assert(hang.timedOut === true, 'The bounded runner did not record the hang timeout.');
-  assert(hang.durationMs < 60_000, `The hanging control child took ${hang.durationMs} ms to terminate.`);
-  controls.push({ control: 'child-timeout-detected', timedOut: true, durationMs: hang.durationMs, detected: true });
+  assertTimeoutTermination(hang);
+  assertChildrenClosed(workspace.children);
+  controls.push({ control: 'child-timeout-detected', timedOut: true, terminationConfirmed: hang.terminationConfirmed, durationMs: hang.durationMs, detected: true });
 
   const runnerStillUsable = await runBoundedChild({
+    ledger: workspace.children,
     executable,
     scriptPath: join(directory, 'crash.mjs'),
     args: [],
@@ -2365,7 +2381,10 @@ async function proveBoundedChildFailure(workspace, executable, scriptPath, baseE
     timeoutMs: 60_000,
   });
 
-  assert(runnerStillUsable.status === 9, 'The bounded runner stopped reporting statuses after a forced kill.');
+  assert(
+    runnerStillUsable.status === 9 && runnerStillUsable.terminationConfirmed && !runnerStillUsable.timedOut,
+    'The bounded runner stopped reporting closed crash statuses after a forced kill.',
+  );
 
   return controls;
 }
@@ -2373,6 +2392,96 @@ async function proveBoundedChildFailure(workspace, executable, scriptPath, baseE
 /* ------------------------------------------------------------------ *
  * Parent orchestration
  * ------------------------------------------------------------------ */
+
+function assertControlRejects(action, message) {
+  let detected = false;
+
+  try {
+    action();
+  } catch (error) {
+    if (!(error instanceof HarnessError)) throw error;
+    detected = true;
+  }
+
+  assert(detected, message);
+}
+
+async function runPureControls() {
+  const cases = [];
+
+  for (const provider of EXPECTED_PROVIDERS) {
+    for (const name of ['valid', 'tamper', 'overflow']) cases.push({ kind: 'primary', entry: provider, case: name });
+  }
+
+  for (const variant of CONFIGURED_VARIANTS) {
+    for (const name of ['valid', 'wrong-layout']) cases.push({ kind: 'configured', entry: variant.key, case: name });
+  }
+
+  assertCaseInventory(cases, EXPECTED_PROVIDERS, 'control/exact-inventory');
+  const swapped = cases.map((record) => ({ ...record }));
+
+  swapped.find((record) => record.entry === 'github' && record.case === 'tamper').case = 'wrong-layout';
+  swapped.find((record) => record.entry === 'grafana-timestamped' && record.case === 'wrong-layout').case = 'tamper';
+  assertControlRejects(
+    () => assertCaseInventory(swapped, EXPECTED_PROVIDERS, 'control/swapped-inventory'),
+    'The exact inventory assertion accepted swapped primary/configured cases.',
+  );
+
+  const ledger = [];
+  const timers = new Map();
+  const child = new EventEmitter();
+
+  child.pid = 12345;
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.stdout.setEncoding = () => {};
+
+  child.stderr.setEncoding = () => {};
+
+  let elapsed = 0;
+  let nextTimer = 0;
+  let killAttempts = 0;
+
+  const runtime = {
+    spawn: () => child,
+    now: () => elapsed,
+    setTimeout: (callback, delay) => {
+      const timer = ++nextTimer;
+
+      timers.set(timer, { callback, delay });
+
+      return timer;
+    },
+    clearTimeout: (timer) => timers.delete(timer),
+    terminateTree: () => { killAttempts += 1; },
+  };
+
+  const pending = runBoundedChild({
+    executable: 'control-only', scriptPath: 'control-only', args: [], cwd: '.', env: {},
+    timeoutMs: HANG_CONTROL_TIMEOUT_MS, ledger,
+  }, runtime);
+
+  while (timers.size > 0) {
+    const [id, timer] = timers.entries().next().value;
+
+    timers.delete(id);
+    elapsed += timer.delay;
+    timer.callback();
+  }
+
+  const uncertain = await pending;
+
+  assert(killAttempts === 2 && uncertain.timedOut && !uncertain.terminationConfirmed, 'Unclosed-child control did not exercise both failed termination attempts.');
+  assertControlRejects(() => assertTimeoutTermination(uncertain), 'The timeout assertion accepted an unclosed child.');
+  assertControlRejects(() => assertChildrenClosed(ledger), 'Cleanup accepted a ledger containing an unclosed child.');
+  child.emit('close', null, 'SIGKILL');
+  assertChildrenClosed(ledger);
+  const crash = { ok: false, timedOut: false, terminationConfirmed: true, status: 9, signal: null, durationMs: 1 };
+
+  assertControlRejects(() => assertTimeoutTermination(crash), 'The timeout assertion accepted a crash without a timeout.');
+  assertTimeoutTermination({ ...crash, timedOut: true, signal: 'SIGKILL', status: null });
+  process.stdout.write('PHASE10 PURE CONTROLS PASS exact-inventory swapped-case unconfirmed-termination cleanup-ledger crash-is-not-timeout\n');
+}
 
 class UsageError extends Error {
   constructor(message) {
@@ -2382,13 +2491,13 @@ class UsageError extends Error {
 }
 
 function assertRuntimeOption(value) {
-  if (value !== 'both' && value !== 'node24' && value !== 'node22') {
-    throw new UsageError(`--runtime must be one of both, node24 or node22 (received ${String(value)}).`);
+  if (value !== 'both' && value !== 'node24' && value !== 'node22' && value !== 'current') {
+    throw new UsageError(`--runtime must be one of current, both, node24 or node22 (received ${String(value)}).`);
   }
 }
 
 function parseArgs(argv) {
-  const options = { runtime: 'both', keepTemp: false };
+  const options = { runtime: 'current', keepTemp: false };
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -2426,7 +2535,7 @@ function writeResultsNote(summary) {
 
   mkdirSync(directory, { recursive: true });
 
-  const target = join(directory, 'generated-runtime-results.json');
+  const target = join(directory, 'coordinator-generated-runtime-results.json');
 
   writeFileSync(target, `${JSON.stringify(summary, null, 2)}\n`);
 
@@ -2467,7 +2576,7 @@ function summarise(results) {
 async function main(argv) {
   const options = parseArgs(argv);
   const startedAt = Date.now();
-  const preflightState = preflight();
+  const preflightState = preflight(options.runtime);
 
   if (process.env.NODE_OPTIONS !== undefined) {
     assert(
@@ -2483,15 +2592,10 @@ async function main(argv) {
   const repoBefore = snapshotRepoState();
   const childEnvironment = sanitizedChildEnvironment();
 
-  const runtimeSelection = options.runtime === 'both'
-    ? preflightState.runtimes
-    : preflightState.runtimes.filter((runtime) => runtime.label === options.runtime);
+  const runtimeSelection = preflightState.runtimes;
+  const pinnedRoot = realpathSync(join(REPO_ROOT, 'node_modules'));
 
-  assert(runtimeSelection.length === (options.runtime === 'both' ? 2 : 1), 'Runtime selection is incomplete.');
-
-  const pinnedRoot = JSON.parse(readFileSync(join(REPO_ROOT, RUNTIME_MANIFEST), 'utf8')).readOnlyDependencies;
-
-  assert(isString(pinnedRoot) && existsSync(pinnedRoot), 'The pinned read-only dependency root is missing.');
+  assert(existsSync(pinnedRoot), 'The pinned read-only dependency root is missing.');
 
   const workspace = createWorkspace();
   const results = [];
@@ -2517,6 +2621,7 @@ async function main(argv) {
         const spec = await writeRuntimeSpec(workspace, runtime.label, framework, transpiled, fal);
 
         const execution = await runBoundedChild({
+          ledger: workspace.children,
           executable: runtime.executable,
           scriptPath,
           args: ['--child', spec.specPath],
@@ -2565,7 +2670,6 @@ async function main(argv) {
     const childControls = await proveBoundedChildFailure(
       workspace,
       runtimeSelection[0].executable,
-      scriptPath,
       childEnvironment.env,
     );
 
@@ -2585,10 +2689,10 @@ async function main(argv) {
       schemaVersion: 1,
       phase: 'phase-10',
       owner: OWNER,
-      branch: BRANCH,
+      branch: preflightState.branch,
       baseSha: BASE_SHA,
       head: preflightState.head,
-      claimSessionToken: preflightState.session.sessionToken,
+      authoringClaimRequired: false,
       generatedAt: new Date().toISOString(),
       result: 'PASS',
       durationMs: Date.now() - startedAt,
@@ -2628,12 +2732,14 @@ async function main(argv) {
       })),
       integrity: {
         dependencyJunctionsRemoved: removedJunctions,
-        readOnlyDependenciesVerified: dependencyIntegrity,
+        readOnlyDependencyPackageTreesVerified: dependencyIntegrity,
+        childCloseConfirmed: workspace.children.map((child) => ({ ...child })),
         ambientSecretEnvironmentFiltered: childEnvironment.removed,
         repositoryUnchanged: true,
         temporaryWorkspaceRemoved: true,
       },
       limitations: [
+        'Dependency content fingerprints cover the three linked package trees (express, hono, miniflare), not external transitive dependencies; nested links are recorded without traversing their targets.',
         'Generated Next.js and Cloudflare templates surface only {received, bytes}; their exact-byte proof is MAC acceptance over the transmitted bytes plus the returned byte length, not an identity deep-equal.',
         'Generated templates inject no clock, so each request is signed at wall-clock time immediately before it is sent; fixture timestamps are never replayed and no tolerance is widened.',
         'This harness proves runtime adapter behavior, not semantic TypeScript compilation of the generated files; the existing build and type gates own that.',
@@ -2664,7 +2770,12 @@ async function main(argv) {
 
 const cliArgs = process.argv.slice(2);
 
-if (cliArgs[0] === '--child') {
+if (cliArgs.length === 1 && cliArgs[0] === '--controls') {
+  runPureControls().catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
+} else if (cliArgs[0] === '--child') {
   const specPath = cliArgs[1];
 
   if (specPath === undefined) {

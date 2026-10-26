@@ -218,8 +218,10 @@ required for Grafana, optional for Polar, and forbidden for all other providers.
   Stripe call) will type-check but fail at runtime with `invalid-options`.
   Such casts do not create valid verification configurations.
 - **Fal credentials:** Fal uses public keys and `expectedUserId`, not `secrets`.
-  The union reflects this: the fal arm has no `secrets` field and requires
-  `providerOptions` with `publicKeys` and `expectedUserId`.
+  The fal arm requires top-level `publicKeys` and `expectedUserId` fields;
+  `secrets` and `providerOptions` are forbidden. A broad object that combines
+  an HMAC provider's `secrets` with a provider that might be fal must first
+  narrow the provider and construct the corresponding credential arm.
 
 ### Migration guidance
 

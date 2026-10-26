@@ -27,8 +27,9 @@ const options = falOptionsFromEnv(process.env.FAL_WEBHOOK_PUBLIC_KEYS, process.e
 
 Rotation is caller-owned: add the new public key to the comma-delimited list,
 deploy, then remove the retired key in a later change. Hooklatch tries every
-configured key; it does not deduplicate keys, cache a "current" key, or provide
-replay protection or exactly-once delivery.
+configured key and validates the signed timestamp against the configured freshness
+window. It does not remember delivery IDs or prevent duplicates within that
+window. Business idempotency remains caller-owned.
 
 Errors from `falOptionsFromEnv` are generic and never include environment values
 or key material.
@@ -42,7 +43,7 @@ key inference.
 import { createGrafanaTimestampedVerifier } from './credential-recipes.js';
 
 const verify = createGrafanaTimestampedVerifier({
-  secret: process.env.GRAFANA_SECRET!,
+  secret: process.env.GRAFANA_WEBHOOK_SECRET!,
   timestampHeader: 'x-grafana-timestamp',
   now: () => Math.floor(Date.now() / 1000),
 });
@@ -56,7 +57,7 @@ part of the signed bytes.
 import { createGrafanaCustomHeaderVerifier } from './credential-recipes.js';
 
 const verify = createGrafanaCustomHeaderVerifier({
-  secret: process.env.GRAFANA_SECRET!,
+  secret: process.env.GRAFANA_WEBHOOK_SECRET!,
   signatureHeader: 'x-custom-grafana-signature',
   timestampHeader: 'x-custom-grafana-timestamp',
   now: () => Math.floor(Date.now() / 1000),
@@ -76,12 +77,12 @@ every secret in the verifier.
 import { createPolarCurrentVerifier, createPolarLegacyVerifier } from './credential-recipes.js';
 
 const current = createPolarCurrentVerifier({
-  secrets: [process.env.POLAR_SECRET!],
+  secrets: [process.env.POLAR_WEBHOOK_SECRET!],
   now: () => Math.floor(Date.now() / 1000),
 });
 
 const legacy = createPolarLegacyVerifier({
-  secrets: [process.env.POLAR_SECRET!],
+  secrets: [process.env.POLAR_WEBHOOK_SECRET!],
   now: () => Math.floor(Date.now() / 1000),
 });
 ```
@@ -99,21 +100,15 @@ or identity fields. Parsing, duplicate-key detection, idempotency, replay
 handling, and business policy belong to caller code after a successful result.
 
 ```ts
-const result = await verify({ rawBody, headers });
+import { createLinearAuthenticationVerifier } from './credential-recipes.js';
 
-if (!result.ok) {
-  // Reject the request.
-}
-
-// Caller-owned post-authentication policy:
-// - parse the JSON body;
-// - enforce any application freshness or duplicate-delivery policy;
-// - apply business idempotency.
+const verify = createLinearAuthenticationVerifier([process.env.LINEAR_WEBHOOK_SECRET!]);
 ```
 
-Hooklatch does not provide a body-extraction API or a JSON duplicate-key
-parser. The raw body remains available as `result.rawBody` for any
-caller-owned parsing.
+Call the verifier with the raw request bytes and headers. Reject a failed result
+before parsing. After `result.ok` is true, caller code may parse `result.rawBody`
+and enforce its own freshness, duplicate-key, and business-idempotency policies.
+Hooklatch does not provide a body-extraction API or JSON duplicate-key parser.
 
 ## Safety notes
 
@@ -121,4 +116,3 @@ caller-owned parsing.
 - Capture raw request bytes before any framework body parsing.
 - Treat a successful verification result as authentication only.
 - Do not promise exactly-once processing or provider retry behavior.
-```
