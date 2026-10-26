@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { finishQualification, validateCorpus, validateCacheReceipt } from './provider-conformance.mjs';
+import { finishQualification, validateCorpus, validateCacheReceipt, verifyCacheIntegrity } from './provider-conformance.mjs';
+
+const prerequisite = verifyCacheIntegrity();
+
+if (!prerequisite.ok) {
+  console.error('BLOCKED: ' + prerequisite.reason);
+  process.exit(3);
+}
 
 const corpus = JSON.parse(readFileSync(new URL('../../tests/conformance/phase10-provider-cases.json', import.meta.url)));
 
