@@ -45,8 +45,12 @@
  *  - Node ESM facades (dist/node/**) import exactly the corresponding
  *    dist/cjs/<base>.cjs module and re-export exactly the policy names;
  *  - declarations (dist/node/*.d.ts, dist/cjs/*.d.cts) reference only dist/cjs
- *    members; their only allowed bare specifiers are the optional peers.
- *    `declare module` augmentations are not scanned (bounded scanner limit);
+ *    members; a relative `./x.cjs` specifier must resolve to the canonical
+ *    sibling TYPE member `x.d.cts` (TypeScript Node16/NodeNext resolution),
+ *    so an existing runtime `x.cjs` twin can never prove a declaration edge
+ *    (facade reexports and declaration import-types included); their only
+ *    allowed bare specifiers are the optional peers. `declare module`
+ *    augmentations are not scanned (bounded scanner limit);
  *  - ALL runtime and declaration edges are collected with the pinned repo
  *    TypeScript parser (real AST nodes, never regex over comments or string
  *    payloads): static require calls, literal dynamic import() calls,
@@ -1059,12 +1063,28 @@ export function runGraphEdgeChecks(entries) {
 }
 
 /**
+ * Canonical DECLARATION target of one relative declaration specifier in the
+ * frozen additive layout. TypeScript's Node16/NodeNext resolution maps a
+ * `./x.cjs` specifier inside a declaration file to the sibling `x.d.cts`;
+ * the runtime `.cjs` twin is NOT a declaration and can never prove the edge.
+ * Specifiers that do not name a runtime `.cjs` module are returned unchanged
+ * (the structure scan already rejects them for declarations).
+ */
+export function declarationTargetOf(joined) {
+  if (joined.endsWith('.cjs')) return `${joined.slice(0, -4)}.d.cts`;
+
+  return joined;
+}
+
+/**
  * EXISTENCE edge scan: every relative specifier in the additive graphs must
  * resolve to an actual member of the tarball. Runtime files report
- * `cjs-edge-unresolved`/`facade-edge-unresolved`; declarations report
- * `declaration-edge-unresolved`. Escapes are reported by the structure scan;
- * unprovable (non-literal) edges are rejected there and carry no specifier
- * to resolve here.
+ * `cjs-edge-unresolved`/`facade-edge-unresolved` and resolve the runtime
+ * `.cjs` member. Declarations report `declaration-edge-unresolved` and
+ * resolve the canonical TYPE member, so `./core.cjs` requires
+ * `dist/cjs/core.d.cts`; a present runtime twin is not declaration proof.
+ * Escapes are reported by the structure scan; unprovable (non-literal) edges
+ * are rejected there and carry no specifier to resolve here.
  */
 export function runEdgeResolutionChecks(entries, memberNames) {
   const findings = [];
@@ -1078,13 +1098,19 @@ export function runEdgeResolutionChecks(entries, memberNames) {
 
       const resolved = resolveRelativeWithinRoot(specifier, rel, 'dist/cjs', memberSet);
 
-      if (resolved.ok || resolved.reason !== 'unresolved') continue;
+      if (resolved.reason === 'bare-specifier' || resolved.reason === 'outside-root' || resolved.reason === 'escapes-root') {
+        continue; /* structural classification; never a declaration proof */
+      }
+
+      const target = scanned.isDeclaration ? declarationTargetOf(resolved.target) : resolved.target;
+
+      if (memberSet.size === 0 || memberSet.has(target)) continue;
 
       const kind = scanned.isDeclaration
         ? 'declaration-edge-unresolved'
         : (rel.startsWith('dist/node/') ? 'facade-edge-unresolved' : 'cjs-edge-unresolved');
 
-      findings.push({ kind, file: rel, specifier, target: resolved.target });
+      findings.push({ kind, file: rel, specifier, target });
     }
   }
 
@@ -2307,8 +2333,9 @@ function runSelfTest() {
 
   record('edge-resolution-detects-missing-import-type', () => {
     /* Declaration edges collected from real ImportTypeNodes: a dynamic
-     * import-type of an absent .cjs member must be unresolved. */
-    const members = ['dist/cjs/index.cjs', 'dist/cjs/internal/provider.cjs'];
+     * import-type of an absent .cjs member must be unresolved against its
+     * canonical .d.cts TYPE member. */
+    const members = ['dist/cjs/index.d.cts', 'dist/cjs/internal/provider.d.cts'];
 
     const entries = [{
       rel: 'dist/cjs/providers/demo.d.cts',
@@ -2317,8 +2344,67 @@ function runSelfTest() {
 
     const findings = runEdgeResolutionChecks(entries, members);
 
-    if (findings.length !== 1 || findings[0].kind !== 'declaration-edge-unresolved' || findings[0].specifier !== '../internal/absent.cjs') {
+    if (findings.length !== 1 || findings[0].kind !== 'declaration-edge-unresolved'
+      || findings[0].specifier !== '../internal/absent.cjs' || findings[0].target !== 'dist/cjs/internal/absent.d.cts') {
       throw new Error(`expected declaration-edge-unresolved for the absent import-type, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('edge-resolution-declaration-needs-dcts-not-runtime-twin', () => {
+    const entries = [{ rel: 'dist/cjs/index.d.cts', text: "export { verify } from './core.cjs';\n" }];
+    const runtimeTwin = runEdgeResolutionChecks(entries, ['dist/cjs/index.d.cts', 'dist/cjs/core.cjs']);
+    const declarationTwin = runEdgeResolutionChecks(entries, ['dist/cjs/index.d.cts', 'dist/cjs/core.d.cts']);
+
+    if (runtimeTwin.length !== 1 || runtimeTwin[0].kind !== 'declaration-edge-unresolved'
+      || runtimeTwin[0].target !== 'dist/cjs/core.d.cts') {
+      throw new Error(`a runtime twin must not prove a declaration edge, got ${JSON.stringify(runtimeTwin)}`);
+    }
+
+    if (declarationTwin.length !== 0) {
+      throw new Error(`the canonical .d.cts member must satisfy the declaration edge, got ${JSON.stringify(declarationTwin)}`);
+    }
+  });
+
+  record('edge-resolution-facade-reexport-resolves-dcts', () => {
+    const entries = [{ rel: 'dist/node/index.d.ts', text: 'export * from "../cjs/index.cjs";\n' }];
+    const runtimeTwin = runEdgeResolutionChecks(entries, ['dist/cjs/index.cjs']);
+    const declarationTwin = runEdgeResolutionChecks(entries, ['dist/cjs/index.d.cts']);
+
+    if (runtimeTwin.length !== 1 || runtimeTwin[0].kind !== 'declaration-edge-unresolved'
+      || runtimeTwin[0].target !== 'dist/cjs/index.d.cts') {
+      throw new Error(`a facade reexport must resolve the .d.cts declaration, got ${JSON.stringify(runtimeTwin)}`);
+    }
+
+    if (declarationTwin.length !== 0) {
+      throw new Error(`an intact facade reexport must pass, got ${JSON.stringify(declarationTwin)}`);
+    }
+  });
+
+  record('edge-resolution-import-type-transitive-declaration', () => {
+    const entries = [{ rel: 'dist/cjs/internal/verification.d.cts', text: 'import type { X } from "./options.cjs";\n' }];
+    const intact = runEdgeResolutionChecks(entries, ['dist/cjs/internal/verification.d.cts', 'dist/cjs/internal/options.d.cts']);
+    const missing = runEdgeResolutionChecks(entries, ['dist/cjs/internal/verification.d.cts', 'dist/cjs/internal/options.cjs']);
+
+    if (intact.length !== 0) throw new Error(`an intact import-type edge must pass, got ${JSON.stringify(intact)}`);
+
+    if (missing.length !== 1 || missing[0].kind !== 'declaration-edge-unresolved'
+      || missing[0].target !== 'dist/cjs/internal/options.d.cts') {
+      throw new Error(`a missing transitive declaration must be unresolved, got ${JSON.stringify(missing)}`);
+    }
+  });
+
+  record('edge-resolution-runtime-edges-keep-runtime-members', () => {
+    const entries = [{ rel: 'dist/cjs/index.cjs', text: "const core = require('./core.cjs');\nvoid core;\n" }];
+    const runtimeTwin = runEdgeResolutionChecks(entries, ['dist/cjs/index.cjs', 'dist/cjs/core.cjs']);
+    const declarationOnly = runEdgeResolutionChecks(entries, ['dist/cjs/index.cjs', 'dist/cjs/core.d.cts']);
+
+    if (runtimeTwin.length !== 0) {
+      throw new Error(`a runtime .cjs edge must resolve the runtime member, got ${JSON.stringify(runtimeTwin)}`);
+    }
+
+    if (declarationOnly.length !== 1 || declarationOnly[0].kind !== 'cjs-edge-unresolved'
+      || declarationOnly[0].target !== 'dist/cjs/core.cjs') {
+      throw new Error(`a declaration twin must not prove a runtime edge, got ${JSON.stringify(declarationOnly)}`);
     }
   });
 

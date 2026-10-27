@@ -33,6 +33,21 @@
  *    spaced dynamic import() with a .js specifier, and a nonliteral dynamic
  *    import() are each rejected by their intended check; commented/string
  *    require payloads produce NO false findings;
+ *  - declaration edges resolve TYPE members, not runtime twins: a relative
+ *    `./x.cjs` specifier in a .d.cts/.d.ts member resolves to the canonical
+ *    sibling `x.d.cts` (TypeScript Node16/NodeNext), for ordinary imports,
+ *    import-types and facade reexports. Removing an INTERNAL declaration while
+ *    its runtime twin stays present fails `declaration-edges` (never silently
+ *    passes), removing a declaration reached only through another declaration
+ *    import-type fails the same check, intact twins pass, and deleting a
+ *    runtime member never passes on its declaration twin;
+ *  - mid-run watchers are BOUND to one gate run: each watched base is an owned
+ *    scratch child passed to the gate child through its own env, the watcher
+ *    requires a run marker, acknowledges readiness before the gate starts,
+ *    acknowledges its single mutation, and is stopped with confirmed
+ *    termination BEFORE scratch cleanup. An unrelated gate-like temp root (and
+ *    another base's gate root) cannot trigger a watcher, and an early BLOCKED
+ *    gate never leaves a writer alive;
  *  - a CJS graph edge leaving dist/cjs (require("../index.js")) ->
  *    cjs-graph-edges with cjs-edge-escapes-cjs (no CJS->ESM fallback);
  *  - a broken facade export line -> facade-module-shape;
@@ -78,21 +93,42 @@
  * scratch is PRESERVED and the suite fails instead of being cleaned up and
  * reported as a passing negative control.
  *
+ * Watcher safety: a watcher is spawned attached (never detached/unref-forget)
+ * with its PID in the watcher ledger; it is passed its own watched base, run
+ * marker and acknowledgment paths, and it can only touch a target inside the
+ * owned run root. It is stopped (confirmed exit) in `finally` before the
+ * suite's cleanup phase; a watcher that cannot be confirmed stopped preserves
+ * its scratch and fails the suite.
+ *
+ * Coverage accounting: each declared control reports exactly one of
+ * passed/failed/blocked/not-run. A control whose mandatory OS capability is
+ * unavailable (the dangling FILE symlink vector) is BLOCKED with its reason;
+ * a genuine failure stays FAIL. Full PASS (exit 0) requires the full declared
+ * control set executed, every execution passed, and cleanup verified. A
+ * blocked/not-run control (or a diagnostics-only `--only` subset) makes the
+ * suite INCOMPLETE/BLOCKED with exit 3 - never a full PASS.
+ *
  * Environment limits (documented honestly):
  *  - this host cannot create file symlinks unprivileged (EPERM), so the
- *    dangling-file-link vector is attempted and, where blocked, the
- *    junction-ancestor vector stands in for the link-ancestor rule;
+ *    dangling-file-link vector cannot execute here; that control reports
+ *    BLOCKED (exit 3 for the suite) and the junction-ancestor vector stands in
+ *    for the link-ancestor rule. The junction proof does NOT execute dangling
+ *    FILE symlink semantics; a Linux executor must run that control;
  *  - the isolated ready checkouts use the frozen seed metadata, so they do
  *    not depend on private tasks or on this worktree's live package state.
  *
  * Usage: node scripts/phase11/package-contract-controls.mjs --seed FILE
+ *        node scripts/phase11/package-contract-controls.mjs --self-test-aggregation
  *        (--only name1,name2 runs a diagnostics-only subset; a partial
  *        selection can never report suite status pass)
  *
  * Exit codes:
- *   0  PASS  - every control reached its intended verdict
- *   1  FAIL  - one or more controls failed, or cleanup was not verified
- *   2  USAGE - invalid controls invocation
+ *   0  PASS    - the full control set executed and every control passed
+ *   1  FAIL    - one or more controls failed, or cleanup was not verified
+ *   2  USAGE   - invalid controls invocation
+ *   3  BLOCKED - no failure, but coverage is incomplete (a mandatory control
+ *                could not execute on this host, or --only selected a subset);
+ *                a BLOCKED suite is never a full PASS
  */
 
 import {
@@ -104,11 +140,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { POLICY_PROVIDERS, isPlainRecord } from './package-contract.mjs';
 
-const EXIT = { PASS: 0, FAIL: 1, USAGE: 2 };
+const EXIT = { PASS: 0, FAIL: 1, USAGE: 2, BLOCKED: 3 };
 const TAR_TIMEOUT_MS = 60_000;
 const GATE_TIMEOUT_MS = 480_000;
 const FAST_GATE_TIMEOUT_MS = 120_000;
@@ -116,6 +153,10 @@ const PYTHON_TIMEOUT_MS = 120_000;
 const GIT_TIMEOUT_MS = 60_000;
 const MUTATED_BYTES_LIMIT = 4096;
 const GATE_TEMP_PREFIX = 'hooklatch-phase11-contract-';
+const WATCHER_START_TIMEOUT_MS = 15_000;
+const WATCHER_STOP_TIMEOUT_MS = 15_000;
+const WATCHER_SETTLE_MS = 500;
+const WATCHER_DEADLINE_MS = GATE_TIMEOUT_MS + 60_000;
 
 /** Checks explicitly not-run when extraction is blocked by member findings. */
 const EXTRACTION_BLOCKED_NOT_RUN = Object.freeze([
@@ -149,6 +190,7 @@ const RUNTIME_NOT_RUN = Object.freeze([
 ]);
 
 const ledger = { entries: [], uncertain: false };
+const watcherLedger = [];
 let nodeModulesSource = null;
 let gatePathGlobal = null;
 let lastGateReport = null;
@@ -293,13 +335,22 @@ function runTar(args) {
   }
 }
 
-/** Run the delivered gate as a bounded child; returns {status, stdout, stderr}. */
-function runGateChild(gatePath, args, timeout) {
-  const child = spawnSync(process.execPath, [gatePath, ...args], {
+/**
+ * Run one Node script as a bounded child. `tempBase`, when given, is passed
+ * through the child's OWN env (TMPDIR/TMP/TEMP) so the child's os.tmpdir()
+ * resolves to a per-control base; the parent process env is never mutated and
+ * no other agent's temp roots are involved. Returns {status, stdout, stderr}.
+ */
+function runNodeChild(scriptPath, args, timeout, tempBase) {
+  const env = tempBase === undefined
+    ? process.env
+    : { ...process.env, TMPDIR: tempBase, TMP: tempBase, TEMP: tempBase };
+  const child = spawnSync(process.execPath, [scriptPath, ...args], {
     encoding: 'utf8',
     timeout,
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
+    env,
   });
 
   if (child.error !== undefined && child.error.code === 'ETIMEDOUT') {
@@ -307,15 +358,20 @@ function runGateChild(gatePath, args, timeout) {
      * targets) may outlive it: termination is uncertain, so the ledger
      * preserves scratch instead of deleting it and calling that a pass. */
     ledger.uncertain = true;
-    throw new Error(`gate child timed out after ${timeout}ms: ${JSON.stringify(args)}`);
+    throw new Error(`node child timed out after ${timeout}ms: ${JSON.stringify([scriptPath, ...args])}`);
   }
 
   if (child.status === null) {
     ledger.uncertain = true;
-    throw new Error(`gate child terminated abnormally (signal ${JSON.stringify(child.signal)}): ${JSON.stringify(args)}`);
+    throw new Error(`node child terminated abnormally (signal ${JSON.stringify(child.signal)}): ${JSON.stringify([scriptPath, ...args])}`);
   }
 
   return child;
+}
+
+/** Run the delivered gate as a bounded child in an optional isolated temp base. */
+function runGateChild(gatePath, args, timeout, tempBase) {
+  return runNodeChild(gatePath, args, timeout, tempBase);
 }
 
 /** Run a python heredoc child (tarball crafting); marks uncertainty on timeout. */
@@ -347,8 +403,8 @@ function runGit(cwd, args) {
   }
 }
 
-/** Parse the gate's machine-JSON report from a child's stdout. */
-function parseGateReport(child, label) {
+/** Parse one child's machine-JSON report from its stdout. */
+function parseChildJson(child, label) {
   let report = null;
 
   if (child.stdout !== '') {
@@ -360,8 +416,15 @@ function parseGateReport(child, label) {
   }
 
   if (report === null || !isPlainRecord(report)) {
-    throw new Error(`${label}: gate child produced no parsable JSON report (status ${child.status}); stderr: ${boundedText(child.stderr)}`);
+    throw new Error(`${label}: child produced no parsable JSON report (status ${child.status}); stderr: ${boundedText(child.stderr)}`);
   }
+
+  return report;
+}
+
+/** Parse the gate's machine-JSON report from a child's stdout. */
+function parseGateReport(child, label) {
+  const report = parseChildJson(child, label);
 
   lastGateReport = report;
 
@@ -573,54 +636,307 @@ function craftSeedTarball(seedPath, root, label, spec) {
 /* isolated ready / nonready checkouts                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Run a small readiness probe watcher child (detached). */
-function spawnWatcher(root, mode, target, payload) {
-  const watcherPath = path.join(root, 'hooklatch-control-watcher.mjs');
-
-  const watcherSource = `/* Phase11 control watcher: waits for a NEW gate temp root, then waits for
- * its extracted package to appear (pack and listing complete), then performs
- * exactly one mutation. Self-terminates at the deadline. */
+/**
+ * Source of ONE run-bound watcher child. It watches ONLY its own watched base,
+ * requires the run marker to match its run id for the whole run, performs at
+ * most one mutation inside the owned run root, acknowledges readiness,
+ * mutation, stop and deadline states, and never scans unrelated temp roots.
+ */
+function watcherSource() {
+  return `/* Phase11 control watcher: bound to exactly ONE gate run. */
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-const mode = process.argv[2];
-const target = process.argv[3];
-const deadline = Date.now() + 180000;
-const initial = new Set(fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith('${GATE_TEMP_PREFIX}')));
+const [watchedBase, markerPath, armedPath, outcomePath, stopPath, mode, target, runId, payload, deadlineRaw, allowedRoot] = process.argv.slice(2);
+const deadline = Date.now() + Number(deadlineRaw);
+
+const writeState = (file, value) => {
+  const temp = file + '.tmp';
+  fs.writeFileSync(temp, JSON.stringify(value));
+  fs.renameSync(temp, file);
+};
+
+const readMarker = () => {
+  try {
+    return JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const refuse = (reason) => {
+  writeState(outcomePath, { state: 'refused', reason, mutation: 'none', pid: process.pid, runId, at: new Date().toISOString() });
+  process.exit(3);
+};
+
+const finish = (state, mutation, watchedRoot) => {
+  writeState(outcomePath, { state, mutation, watchedRoot, pid: process.pid, runId, at: new Date().toISOString() });
+  process.exit(0);
+};
+
+const contains = (root, candidate) => {
+  const resolvedRoot = path.resolve(root);
+  const resolvedCandidate = path.resolve(candidate);
+
+  return resolvedCandidate === resolvedRoot || resolvedCandidate.startsWith(resolvedRoot + path.sep);
+};
+
+const marker = readMarker();
+
+if (marker === null || marker.runId !== runId || marker.watchedRoot !== watchedBase) refuse('run marker mismatch');
+if (!contains(allowedRoot, target)) refuse('target outside the owned run root');
+if (contains(watchedBase, target)) refuse('target inside the watched gate temp base');
+if (!contains(allowedRoot, watchedBase)) refuse('watched base outside the owned run root');
+
+const initial = new Set(fs.readdirSync(watchedBase));
+
+writeState(armedPath, { state: 'armed', pid: process.pid, runId, watchedRoot: watchedBase, target, mode, at: new Date().toISOString() });
 
 const tick = () => {
+  if (fs.existsSync(stopPath)) {
+    finish('stopped', 'none', null);
+    return;
+  }
+
+  const current = readMarker();
+
+  if (current === null || current.runId !== runId) refuse('run marker changed during the run');
+
   try {
-    const fresh = fs.readdirSync(os.tmpdir())
+    const fresh = fs.readdirSync(watchedBase)
       .filter((name) => name.startsWith('${GATE_TEMP_PREFIX}') && !initial.has(name))
-      .map((name) => path.join(os.tmpdir(), name));
+      .map((name) => path.join(watchedBase, name));
 
     if (fresh.length > 0 && fs.existsSync(path.join(fresh[0], 'extract', 'package', 'package.json'))) {
       if (mode === 'append') fs.appendFileSync(target, '// integrity-probe mutation (comment only)\\n');
       if (mode === 'delete') fs.rmSync(target, { force: true });
-      if (mode === 'write') fs.writeFileSync(target, process.argv[4]);
-
+      if (mode === 'write') fs.writeFileSync(target, payload);
+      finish('mutated', mode, fresh[0]);
       return;
     }
   } catch {
     /* transient FS races during polling are ignored */
   }
 
-  if (Date.now() > deadline) return;
+  if (Date.now() > deadline) {
+    finish('deadline', 'none', null);
+    return;
+  }
 
-  setTimeout(tick, 250);
+  setTimeout(tick, 100);
 };
 
 tick();
 `;
+}
 
-  writeFileSync(watcherPath, watcherSource, { encoding: 'utf8' });
+function readJsonOrNull(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
 
-  const args = [watcherPath, mode, target];
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
-  if (payload !== undefined) args.push(payload);
+function childExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
 
-  spawn(process.execPath, args, { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+async function waitForExit(child, timeoutMs) {
+  if (childExited(child)) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+
+      settled = true;
+      resolve(false);
+    }, timeoutMs);
+
+    child.once('exit', () => {
+      if (settled) return;
+
+      settled = true;
+      clearTimeout(timer);
+      resolve(true);
+    });
+  });
+}
+
+async function waitForWatcherState(handle, file, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+
+  for (;;) {
+    const value = readJsonOrNull(file);
+
+    if (value !== null) return value;
+    if (handle.spawnError !== null || childExited(handle.child)) return null;
+    if (Date.now() > deadline) return null;
+
+    await sleep(50);
+  }
+}
+
+/**
+ * Spawn ONE run-bound watcher, retain its child handle in the watcher ledger,
+ * and wait for its bounded readiness acknowledgment BEFORE the gate starts.
+ * The watched base is an owned scratch child created here and handed to the
+ * gate child through that child's own env, never the parent process env.
+ */
+async function startWatcher(root, label, mode, target, payload) {
+  const watcherDir = path.join(root, 'watcher');
+  const watchedBase = path.join(root, 'gate-tmp');
+  const runId = randomUUID();
+  const watcherPath = path.join(watcherDir, 'watcher.mjs');
+  const markerPath = path.join(watcherDir, 'run.json');
+  const armedPath = path.join(watcherDir, 'armed.json');
+  const outcomePath = path.join(watcherDir, 'outcome.json');
+  const stopPath = path.join(watcherDir, 'stop.txt');
+
+  await mkdir(watcherDir, { recursive: true });
+  await mkdir(watchedBase, { recursive: true });
+  writeFileSync(watcherPath, watcherSource(), { encoding: 'utf8' });
+  writeFileSync(markerPath, `${JSON.stringify({ runId, label, watchedRoot: watchedBase, target, mode })}\n`, { encoding: 'utf8' });
+
+  const child = spawn(process.execPath, [
+    watcherPath, watchedBase, markerPath, armedPath, outcomePath, stopPath,
+    mode, target, runId, payload === undefined ? '' : payload, String(WATCHER_DEADLINE_MS), root,
+  ], { stdio: 'ignore', windowsHide: true });
+
+  const record = {
+    label,
+    runId,
+    pid: child.pid ?? null,
+    watchedRoot: watchedBase,
+    target,
+    mode,
+    state: 'starting',
+    mutation: 'none',
+    termination: 'unknown',
+    exitCode: null,
+    startedAt: new Date().toISOString(),
+    stoppedAt: null,
+  };
+
+  watcherLedger.push(record);
+
+  const handle = { child, record, runId, watchedRoot: watchedBase, watcherDir, outcomePath, stopPath, spawnError: null };
+
+  child.once('error', (error) => {
+    handle.spawnError = boundedText(error);
+  });
+
+  const armed = await waitForWatcherState(handle, armedPath, WATCHER_START_TIMEOUT_MS);
+
+  if (armed === null || armed.state !== 'armed' || armed.runId !== runId) {
+    record.state = 'failed-start';
+    const stopped = await terminateWatcher(handle);
+
+    throw new Error(`${label}: watcher did not acknowledge readiness within ${WATCHER_START_TIMEOUT_MS}ms (pid ${record.pid}, state ${JSON.stringify(armed)}, spawn error ${JSON.stringify(handle.spawnError)}, termination ${stopped ? 'confirmed' : 'unconfirmed; own scratch preserved'})`);
+  }
+
+  record.state = 'armed';
+
+  return handle;
+}
+
+/** Stop one watcher and confirm termination; records the outcome in the ledger. */
+async function terminateWatcher(handle) {
+  const { child, record, outcomePath, stopPath } = handle;
+
+  if (!childExited(child)) {
+    try {
+      writeFileSync(stopPath, `${new Date().toISOString()}\n`, { encoding: 'utf8' });
+    } catch {
+      /* a missing stop marker still falls through to the kill path */
+    }
+  }
+
+  let exited = await waitForExit(child, WATCHER_STOP_TIMEOUT_MS);
+
+  if (!exited) {
+    child.kill();
+    exited = await waitForExit(child, WATCHER_STOP_TIMEOUT_MS);
+  }
+
+  const outcome = readJsonOrNull(outcomePath);
+
+  record.outcome = outcome === null ? null : { state: outcome.state, mutation: outcome.mutation ?? 'none' };
+  record.exitCode = child.exitCode;
+
+  if (outcome !== null && typeof outcome.mutation === 'string') record.mutation = outcome.mutation;
+
+  record.stoppedAt = new Date().toISOString();
+
+  if (!exited) {
+    ledger.uncertain = true;
+    record.state = 'stop-unconfirmed';
+    record.termination = 'unconfirmed';
+
+    return false;
+  }
+
+  record.state = 'stopped';
+  record.termination = outcome !== null && outcome.state === 'mutated' ? 'exited-after-mutation' : 'stopped-ack';
+
+  return true;
+}
+
+/** Stop a watcher in `finally`; an unconfirmed stop fails and preserves scratch. */
+async function stopWatcher(handle) {
+  const confirmed = await terminateWatcher(handle);
+
+  if (!confirmed) {
+    throw new Error(`${handle.record.label}: watcher pid ${handle.record.pid} did not confirm termination; own scratch preserved`);
+  }
+
+  return handle.record;
+}
+
+/** Wait for the intended mutation acknowledgment; a stop/deadline is a failure. */
+async function requireWatcherMutation(handle, label) {
+  const outcome = await waitForWatcherState(handle, handle.outcomePath, WATCHER_STOP_TIMEOUT_MS);
+
+  if (outcome === null) {
+    throw new Error(`${label}: watcher produced no mutation acknowledgment (pid ${handle.record.pid}, spawn error ${JSON.stringify(handle.spawnError)})`);
+  }
+
+  if (outcome.state !== 'mutated') {
+    throw new Error(`${label}: watcher outcome ${JSON.stringify(outcome.state)} is not the intended mutation`);
+  }
+
+  if (outcome.runId !== handle.runId) {
+    throw new Error(`${label}: watcher mutation acknowledgment run id mismatch`);
+  }
+
+  return outcome;
+}
+
+/** Compact watcher evidence (PID, run binding, target, termination status). */
+function watcherNote(handle) {
+  const { record } = handle;
+
+  return {
+    watcher: {
+      label: record.label,
+      runId: record.runId,
+      pid: record.pid,
+      watchedRoot: record.watchedRoot,
+      target: record.target,
+      mode: record.mode,
+      state: record.state,
+      mutation: record.mutation,
+      termination: record.termination,
+      exitCode: record.exitCode,
+    },
+  };
 }
 
 /** Build an isolated ready checkout (seed metadata + dist) for default mode. */
@@ -690,9 +1006,9 @@ async function buildNonreadyCheckout(root, gatePath) {
   return ready;
 }
 
-/** Count existing gate temp roots under the OS temp directory. */
-function countGateTempRoots() {
-  return readdirSync(tmpdir()).filter((name) => name.startsWith(GATE_TEMP_PREFIX)).length;
+/** Count existing gate temp roots under one base (default: the OS temp dir). */
+function countGateTempRoots(base = tmpdir()) {
+  return readdirSync(base).filter((name) => name.startsWith(GATE_TEMP_PREFIX)).length;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1176,15 +1492,20 @@ async function controlFakeRootBlocked(gatePath, seedPath) {
 
 /**
  * Default mode in an isolated CONTROLLED nonready checkout must BLOCK with
- * exit 3 and must provably allocate no gate temp root (no-temp proof).
+ * exit 3 and must provably allocate no gate temp root in its OWN isolated
+ * base (no-temp proof; no global OS-temp scan).
  */
 async function controlDefaultNonreadyBlocked(gatePath) {
   const root = await newScratchRoot('default-nonready-blocked');
   const ready = await buildNonreadyCheckout(root, gatePath);
   const copiedGate = path.join(ready, 'scripts', 'phase11', 'package-contract.mjs');
-  const beforeCount = countGateTempRoots();
-  const child = runGateChild(copiedGate, [], FAST_GATE_TIMEOUT_MS);
-  const afterCount = countGateTempRoots();
+  const tempBase = path.join(root, 'gate-tmp');
+
+  await mkdir(tempBase, { recursive: true });
+
+  const beforeCount = countGateTempRoots(tempBase);
+  const child = runGateChild(copiedGate, [], FAST_GATE_TIMEOUT_MS, tempBase);
+  const afterCount = countGateTempRoots(tempBase);
   const report = parseGateReport(child, 'default-nonready-blocked');
 
   if (child.status !== 3) {
