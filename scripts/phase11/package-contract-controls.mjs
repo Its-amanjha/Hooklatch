@@ -345,6 +345,7 @@ function runNodeChild(scriptPath, args, timeout, tempBase) {
   const env = tempBase === undefined
     ? process.env
     : { ...process.env, TMPDIR: tempBase, TMP: tempBase, TEMP: tempBase };
+
   const child = spawnSync(process.execPath, [scriptPath, ...args], {
     encoding: 'utf8',
     timeout,
@@ -748,25 +749,29 @@ function childExited(child) {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
-async function waitForExit(child, timeoutMs) {
-  if (childExited(child)) return true;
+async function waitForClose(handle, timeoutMs) {
+  if (handle.closeConfirmed) return true;
 
   return new Promise((resolve) => {
     let settled = false;
+
     const timer = setTimeout(() => {
       if (settled) return;
 
       settled = true;
+      handle.child.removeListener('close', closed);
       resolve(false);
     }, timeoutMs);
 
-    child.once('exit', () => {
+    const closed = () => {
       if (settled) return;
 
       settled = true;
       clearTimeout(timer);
       resolve(true);
-    });
+    };
+
+    handle.child.once('close', closed);
   });
 }
 
@@ -777,7 +782,9 @@ async function waitForWatcherState(handle, file, timeoutMs) {
     const value = readJsonOrNull(file);
 
     if (value !== null) return value;
+
     if (handle.spawnError !== null || childExited(handle.child)) return null;
+
     if (Date.now() > deadline) return null;
 
     await sleep(50);
@@ -820,6 +827,7 @@ async function startWatcher(root, label, mode, target, payload) {
     state: 'starting',
     mutation: 'none',
     termination: 'unknown',
+    closeConfirmed: false,
     exitCode: null,
     startedAt: new Date().toISOString(),
     stoppedAt: null,
@@ -827,7 +835,12 @@ async function startWatcher(root, label, mode, target, payload) {
 
   watcherLedger.push(record);
 
-  const handle = { child, record, runId, watchedRoot: watchedBase, watcherDir, outcomePath, stopPath, spawnError: null };
+  const handle = { child, record, runId, watchedRoot: watchedBase, watcherDir, outcomePath, stopPath, spawnError: null, closeConfirmed: false };
+
+  child.once('close', () => {
+    handle.closeConfirmed = true;
+    record.closeConfirmed = true;
+  });
 
   child.once('error', (error) => {
     handle.spawnError = boundedText(error);
@@ -859,11 +872,11 @@ async function terminateWatcher(handle) {
     }
   }
 
-  let exited = await waitForExit(child, WATCHER_STOP_TIMEOUT_MS);
+  let exited = await waitForClose(handle, WATCHER_STOP_TIMEOUT_MS);
 
   if (!exited) {
     child.kill();
-    exited = await waitForExit(child, WATCHER_STOP_TIMEOUT_MS);
+    exited = await waitForClose(handle, WATCHER_STOP_TIMEOUT_MS);
   }
 
   const outcome = readJsonOrNull(outcomePath);
@@ -871,7 +884,7 @@ async function terminateWatcher(handle) {
   record.outcome = outcome === null ? null : { state: outcome.state, mutation: outcome.mutation ?? 'none' };
   record.exitCode = child.exitCode;
 
-  if (outcome !== null && typeof outcome.mutation === 'string') record.mutation = outcome.mutation;
+  if (outcome !== null && ['append', 'delete', 'write', 'none'].includes(outcome.mutation)) record.mutation = outcome.mutation;
 
   record.stoppedAt = new Date().toISOString();
 
@@ -895,6 +908,13 @@ async function stopWatcher(handle) {
 
   if (!confirmed) {
     throw new Error(`${handle.record.label}: watcher pid ${handle.record.pid} did not confirm termination; own scratch preserved`);
+  }
+
+  const outcome = readJsonOrNull(handle.outcomePath);
+
+  if (handle.child.exitCode !== 0 || outcome === null || outcome.runId !== handle.runId
+    || !['mutated', 'stopped'].includes(outcome.state)) {
+    throw new Error(`${handle.record.label}: watcher closed abnormally (exit ${handle.child.exitCode}, outcome ${JSON.stringify(outcome)}); control refused`);
   }
 
   return handle.record;
@@ -935,6 +955,7 @@ function watcherNote(handle) {
       mutation: record.mutation,
       termination: record.termination,
       exitCode: record.exitCode,
+      closeConfirmed: record.closeConfirmed,
     },
   };
 }
@@ -1042,6 +1063,55 @@ async function controlMissingDcts(gatePath, seedPath) {
   });
 
   expectFailedChecks(report, 'missing-dcts', ['tarball-target-presence']);
+}
+
+/** An internal runtime twin cannot satisfy a missing declaration. */
+async function controlInternalDeclarationMissing(gatePath, seedPath) {
+  const { report } = await runMutatedGate(gatePath, seedPath, 'internal-declaration-missing', (packageDir) => {
+    const declaration = path.join(packageDir, 'dist', 'cjs', 'core.d.cts');
+
+    expectEqual(existsSync(path.join(packageDir, 'dist', 'cjs', 'core.cjs')), true, 'runtime twin retained');
+    unlinkSync(declaration);
+  });
+
+  expectFailedChecks(report, 'internal-declaration-missing', ['declaration-edges']);
+  expectCheckEvidence(report, 'internal-declaration-missing', 'declaration-edges',
+    (finding) => finding.kind === 'declaration-edge-unresolved' && finding.target === 'dist/cjs/core.d.cts',
+    'missing internal declaration target');
+}
+
+/** A transitive import-type must resolve its declaration, too. */
+async function controlTransitiveDeclarationMissing(gatePath, seedPath) {
+  const { report } = await runMutatedGate(gatePath, seedPath, 'transitive-declaration-missing', (packageDir) => {
+    const file = path.join(packageDir, 'dist', 'cjs', 'internal', 'verification.d.cts');
+    const text = readFileSync(file, 'utf8');
+    const original = "import type { NormalizedOptions } from './options.cjs';";
+
+    if (!text.includes(original)) throw new Error('transitive declaration fixture differs from pinned seed');
+
+    writeFileSync(file, text.replace(original, "type NormalizedOptions = import('./options.cjs').NormalizedOptions;"));
+    unlinkSync(path.join(packageDir, 'dist', 'cjs', 'internal', 'options.d.cts'));
+  });
+
+  expectFailedChecks(report, 'transitive-declaration-missing', ['declaration-edges']);
+  expectCheckEvidence(report, 'transitive-declaration-missing', 'declaration-edges',
+    (finding) => finding.kind === 'declaration-edge-unresolved'
+      && finding.file === 'dist/cjs/internal/verification.d.cts'
+      && finding.target === 'dist/cjs/internal/options.d.cts',
+    'transitive import-type target');
+}
+
+/** Conversely, declarations cannot replace a missing runtime module. */
+async function controlInternalRuntimeMissing(gatePath, seedPath) {
+  const { report } = await runMutatedGate(gatePath, seedPath, 'internal-runtime-missing', (packageDir) => {
+    unlinkSync(path.join(packageDir, 'dist', 'cjs', 'core.cjs'));
+    expectEqual(existsSync(path.join(packageDir, 'dist', 'cjs', 'core.d.cts')), true, 'declaration twin retained');
+  });
+
+  expectFailedChecks(report, 'internal-runtime-missing', ['cjs-graph-edges']);
+  expectCheckEvidence(report, 'internal-runtime-missing', 'cjs-graph-edges',
+    (finding) => finding.kind === 'cjs-edge-unresolved' && finding.target === 'dist/cjs/core.cjs',
+    'missing internal runtime target');
 }
 
 /** Reordered top-level condition keys must reach structure and shape checks. */
@@ -1581,24 +1651,32 @@ async function controlIntegrityAdditiveEdit(gatePath, seedPath) {
   const copiedGate = path.join(ready, 'scripts', 'phase11', 'package-contract.mjs');
   const additiveFile = path.join(ready, 'dist', 'cjs', 'index.cjs');
 
-  spawnWatcher(root, 'append', additiveFile);
+  const watcher = await startWatcher(root, 'integrity-additive-edit-midrun', 'append', additiveFile);
 
-  const child = runGateChild(copiedGate, [], GATE_TIMEOUT_MS);
-  const report = parseGateReport(child, 'integrity-additive-edit-midrun');
+  try {
+    const child = runGateChild(copiedGate, [], GATE_TIMEOUT_MS, watcher.watchedRoot);
+    const report = parseGateReport(child, 'integrity-additive-edit-midrun');
 
-  expectEqual(report.status, 'fail', 'integrity edit status');
-  expectEqual(report.exit, 1, 'integrity edit exit');
-  expectFindingKinds(report, 'integrity-additive-edit-midrun', ['integrity-change']);
-  expectEqual(
-    report.integrity.changed.some((change) => change.path === 'dist/cjs/index.cjs' && change.change === 'modified'),
-    true,
-    'integrity edit change entry',
-  );
-  expectEqual(
-    report.integrity.changed.some((change) => change.change === 'added'),
-    false,
-    'integrity edit must not report unchanged additive files as added',
-  );
+    await requireWatcherMutation(watcher, 'integrity-additive-edit-midrun');
+
+    expectEqual(report.status, 'fail', 'integrity edit status');
+    expectEqual(report.exit, 1, 'integrity edit exit');
+    expectFindingKinds(report, 'integrity-additive-edit-midrun', ['integrity-change']);
+    expectEqual(
+      report.integrity.changed.some((change) => change.path === 'dist/cjs/index.cjs' && change.change === 'modified'),
+      true,
+      'integrity edit change entry',
+    );
+    expectEqual(
+      report.integrity.changed.some((change) => change.change === 'added'),
+      false,
+      'integrity edit must not report unchanged additive files as added',
+    );
+  } finally {
+    await stopWatcher(watcher);
+  }
+
+  return watcherNote(watcher);
 }
 
 /**
@@ -1611,24 +1689,102 @@ async function controlIntegrityAdditiveDelete(gatePath, seedPath) {
   const copiedGate = path.join(ready, 'scripts', 'phase11', 'package-contract.mjs');
   const additiveFile = path.join(ready, 'dist', 'node', 'adapters', 'express.js');
 
-  spawnWatcher(root, 'delete', additiveFile);
+  const watcher = await startWatcher(root, 'integrity-additive-delete-midrun', 'delete', additiveFile);
 
-  const child = runGateChild(copiedGate, [], GATE_TIMEOUT_MS);
-  const report = parseGateReport(child, 'integrity-additive-delete-midrun');
+  try {
+    const child = runGateChild(copiedGate, [], GATE_TIMEOUT_MS, watcher.watchedRoot);
+    const report = parseGateReport(child, 'integrity-additive-delete-midrun');
 
-  expectEqual(report.status, 'fail', 'integrity delete status');
-  expectEqual(report.exit, 1, 'integrity delete exit');
-  expectFindingKinds(report, 'integrity-additive-delete-midrun', ['integrity-change']);
-  expectEqual(
-    report.integrity.changed.some((change) => change.path === 'dist/node/adapters/express.js' && change.change === 'removed'),
-    true,
-    'integrity delete change entry',
-  );
-  expectEqual(
-    report.integrity.changed.some((change) => change.change === 'added'),
-    false,
-    'integrity delete must not report unchanged additive files as added',
-  );
+    await requireWatcherMutation(watcher, 'integrity-additive-delete-midrun');
+
+    expectEqual(report.status, 'fail', 'integrity delete status');
+    expectEqual(report.exit, 1, 'integrity delete exit');
+    expectFindingKinds(report, 'integrity-additive-delete-midrun', ['integrity-change']);
+    expectEqual(
+      report.integrity.changed.some((change) => change.path === 'dist/node/adapters/express.js' && change.change === 'removed'),
+      true,
+      'integrity delete change entry',
+    );
+    expectEqual(
+      report.integrity.changed.some((change) => change.change === 'added'),
+      false,
+      'integrity delete must not report unchanged additive files as added',
+    );
+  } finally {
+    await stopWatcher(watcher);
+  }
+
+  return watcherNote(watcher);
+}
+
+/** Unrelated roots cannot trigger a writer; confirmed close prevents later writes. */
+async function controlWatcherIgnoresOtherRuns() {
+  const root = await newScratchRoot('watcher-ignores-other-runs');
+  const target = path.join(root, 'sentinel.txt');
+  const bytes = 'owned watcher sentinel\n';
+
+  writeFileSync(target, bytes);
+
+  const watcher = await startWatcher(root, 'watcher-ignores-other-runs', 'append', target);
+
+  try {
+    const foreign = ledgerRoot(await mkdtemp(path.join(tmpdir(), GATE_TEMP_PREFIX)), 'unrelated-gate-root');
+    const otherBase = path.join(root, 'other-base', `${GATE_TEMP_PREFIX}unrelated`);
+
+    for (const unrelated of [foreign, otherBase]) {
+      const extracted = path.join(unrelated, 'extract', 'package');
+
+      await mkdir(extracted, { recursive: true });
+      writeFileSync(path.join(extracted, 'package.json'), '{}');
+    }
+
+    await sleep(WATCHER_SETTLE_MS);
+    expectEqual(existsSync(watcher.outcomePath), false, 'unrelated roots cannot acknowledge mutation');
+    expectEqual(readFileSync(target, 'utf8'), bytes, 'unrelated roots cannot modify target');
+  } finally {
+    await stopWatcher(watcher);
+  }
+
+  expectEqual(watcher.record.closeConfirmed, true, 'writer confirmed closed');
+  expectEqual(watcher.record.mutation, 'none', 'writer did not mutate');
+
+  const lateRoot = path.join(watcher.watchedRoot, `${GATE_TEMP_PREFIX}after-close`, 'extract', 'package');
+
+  await mkdir(lateRoot, { recursive: true });
+  writeFileSync(path.join(lateRoot, 'package.json'), '{}');
+  await sleep(WATCHER_SETTLE_MS);
+  expectEqual(readFileSync(target, 'utf8'), bytes, 'no writes after confirmed close');
+
+  return watcherNote(watcher);
+}
+
+/** An early blocked gate leaves no watcher alive when cleanup begins. */
+async function controlWatcherEarlyBlocked(gatePath) {
+  const root = await newScratchRoot('watcher-early-blocked');
+  const ready = await buildNonreadyCheckout(root, gatePath);
+  const target = path.join(root, 'sentinel.txt');
+  const bytes = 'early-blocked watcher sentinel\n';
+
+  writeFileSync(target, bytes);
+
+  const watcher = await startWatcher(root, 'watcher-early-blocked', 'append', target);
+
+  try {
+    const child = runGateChild(path.join(ready, 'scripts', 'phase11', 'package-contract.mjs'), [], FAST_GATE_TIMEOUT_MS, watcher.watchedRoot);
+    const report = parseGateReport(child, 'watcher-early-blocked');
+
+    expectEqual(child.status, 3, 'gate actually blocked');
+    expectEqual(report.cleanup.attempted, false, 'blocked gate allocated no scratch');
+    expectEqual(countGateTempRoots(watcher.watchedRoot), 0, 'no gate roots after early block');
+  } finally {
+    await stopWatcher(watcher);
+  }
+
+  expectEqual(watcher.record.closeConfirmed, true, 'early-blocked writer closed');
+  expectEqual(watcher.record.mutation, 'none', 'early-blocked writer did not mutate');
+  expectEqual(readFileSync(target, 'utf8'), bytes, 'early-blocked target unchanged');
+
+  return watcherNote(watcher);
 }
 
 /** A candidate whose probe child exits 9 after good JSON must not pass. */
@@ -1760,8 +1916,8 @@ async function controlResultsAncestorLinkRefused(gatePath, seedPath) {
 /**
  * The dangling FINAL-component file-symlink vector, where the host permits
  * file symlink creation. On hosts where creation is unprivileged-blocked
- * (EPERM), the control passes with an honest environment-blocked note
- * because the junction-ancestor control already covers the link rule.
+ * (EPERM/EACCES), the control is BLOCKED. A junction ancestor does not
+ * execute this separate final-file-link case.
  */
 async function controlResultsDanglingFileLink(gatePath, seedPath) {
   const root = await newScratchRoot('results-dangling-file-link');
@@ -1773,12 +1929,14 @@ async function controlResultsDanglingFileLink(gatePath, seedPath) {
   let created = true;
 
   try {
-    symlinkSync(path.join(tmpdir(), 'hooklatch-nonexistent-dangling-target'), danglingPath, 'file');
-  } catch {
+    symlinkSync(path.join(root, 'nonexistent-dangling-target'), danglingPath, 'file');
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || !['EPERM', 'EACCES'].includes(error.code)) throw error;
+
     created = false;
   }
 
-  if (!created) return { environmentBlocked: 'file symlink creation is EPERM-blocked on this host; junction-ancestor control covers the rule' };
+  if (!created) return { environmentBlocked: 'file symlink creation requires unavailable privileges (EPERM/EACCES); this mandatory case did not execute' };
 
   const child = runGateChild(gatePath, ['--tarball', seedPath, '--results', danglingPath], FAST_GATE_TIMEOUT_MS);
 
@@ -1806,25 +1964,33 @@ async function controlResultsConcurrentCreation(gatePath, seedPath) {
   const resultsPath = path.join(root, 'results.json');
   const sentinelBytes = '{"concurrent-creation-sentinel": true}\n';
 
-  spawnWatcher(root, 'write', resultsPath, sentinelBytes);
+  const watcher = await startWatcher(root, 'results-concurrent-creation', 'write', resultsPath, sentinelBytes);
 
-  const child = runGateChild(gatePath, ['--tarball', seedPath, '--results', resultsPath], GATE_TIMEOUT_MS);
-  const report = parseGateReport(child, 'results-concurrent-creation');
+  try {
+    const child = runGateChild(gatePath, ['--tarball', seedPath, '--results', resultsPath], GATE_TIMEOUT_MS, watcher.watchedRoot);
+    const report = parseGateReport(child, 'results-concurrent-creation');
 
-  if (child.status !== 1) {
-    throw new Error(`results-concurrent-creation: expected exit 1, got ${JSON.stringify(child.status)}`);
+    await requireWatcherMutation(watcher, 'results-concurrent-creation');
+
+    if (child.status !== 1) {
+      throw new Error(`results-concurrent-creation: expected exit 1, got ${JSON.stringify(child.status)}`);
+    }
+
+    expectEqual(report.status, 'fail', 'results concurrent creation status');
+    expectFindingKinds(report, 'results-concurrent-creation', ['results-write-failure']);
+
+    const writeError = boundedText(report.resultsWriteError ?? '');
+
+    if (!writeError.includes('EEXIST') && !writeError.includes('already exists')) {
+      throw new Error(`results-concurrent-creation: expected an EEXIST write error, got ${JSON.stringify(report.resultsWriteError)}`);
+    }
+
+    expectEqual(readFileSync(resultsPath, 'utf8'), sentinelBytes, 'results-concurrent-creation bytes preserved');
+  } finally {
+    await stopWatcher(watcher);
   }
 
-  expectEqual(report.status, 'fail', 'results concurrent creation status');
-  expectFindingKinds(report, 'results-concurrent-creation', ['results-write-failure']);
-
-  const writeError = boundedText(report.resultsWriteError ?? '');
-
-  if (!writeError.includes('EEXIST') && !writeError.includes('already exists')) {
-    throw new Error(`results-concurrent-creation: expected an EEXIST write error, got ${JSON.stringify(report.resultsWriteError)}`);
-  }
-
-  expectEqual(readFileSync(resultsPath, 'utf8'), sentinelBytes, 'results-concurrent-creation bytes preserved');
+  return watcherNote(watcher);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1832,14 +1998,19 @@ async function controlResultsConcurrentCreation(gatePath, seedPath) {
 /* -------------------------------------------------------------------------- */
 
 function usageText() {
-  return 'package-contract-controls: usage: node scripts/phase11/package-contract-controls.mjs --seed FILE [--only name1,name2] (--only is diagnostics-only: a partial selection can never report suite status pass)';
+  return 'package-contract-controls: usage: node scripts/phase11/package-contract-controls.mjs --seed FILE [--only name1,name2] | --self-test-aggregation (partial or environment-blocked coverage exits 3, never PASS)';
 }
 
 function parseArgs(argv) {
-  const parsed = { seed: null, only: null, error: null };
+  const parsed = { seed: null, only: null, selfTestAggregation: false, error: null };
 
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
+
+    if (flag === '--self-test-aggregation') {
+      parsed.selfTestAggregation = true;
+      continue;
+    }
 
     if (flag === '--seed') {
       if (index + 1 >= argv.length) {
@@ -1870,6 +2041,57 @@ function parseArgs(argv) {
   return parsed;
 }
 
+/** One aggregation path for the actual driver and its controls. */
+function summarizeControls(reports, expectedNames, cleanupVerified, partialSelection = false) {
+  const byName = new Map();
+  let invalidInventory = false;
+
+  for (const report of reports) {
+    if (!expectedNames.includes(report.name) || byName.has(report.name)) invalidInventory = true;
+
+    byName.set(report.name, report);
+  }
+
+  const complete = expectedNames.map((name) => byName.get(name) ?? {
+    name, verdict: 'not-run', reason: 'not selected by diagnostics-only --only', error: '', gateReport: null,
+  });
+
+  const count = (verdict) => complete.filter((entry) => entry.verdict === verdict).length;
+  const passed = count('pass');
+  const failed = count('fail');
+  const blocked = count('blocked');
+  const notRun = count('not-run');
+  const unknownVerdict = passed + failed + blocked + notRun !== complete.length;
+  const failure = failed > 0 || !cleanupVerified || invalidInventory || unknownVerdict;
+  const incomplete = blocked > 0 || notRun > 0 || partialSelection;
+  const status = failure ? 'fail' : (incomplete ? 'blocked' : 'pass');
+  const exit = failure ? EXIT.FAIL : (incomplete ? EXIT.BLOCKED : EXIT.PASS);
+
+  return { status, exit, controls: complete, passed, failed, blocked, notRun, invalidInventory, unknownVerdict };
+}
+
+function selfTestAggregation() {
+  const names = ['first', 'second'];
+
+  const cases = [
+    ['complete', [{ name: 'first', verdict: 'pass' }, { name: 'second', verdict: 'pass' }], true, false, [0, 2, 0, 0, 0]],
+    ['blocked-is-not-pass', [{ name: 'first', verdict: 'pass' }, { name: 'second', verdict: 'blocked' }], true, false, [3, 1, 0, 1, 0]],
+    ['failure-precedes-blocked', [{ name: 'first', verdict: 'fail' }, { name: 'second', verdict: 'blocked' }], true, false, [1, 0, 1, 1, 0]],
+    ['cleanup-failure', [{ name: 'first', verdict: 'pass' }, { name: 'second', verdict: 'pass' }], false, false, [1, 2, 0, 0, 0]],
+    ['missing-control', [{ name: 'first', verdict: 'pass' }], true, false, [3, 1, 0, 0, 1]],
+    ['duplicate-control', [{ name: 'first', verdict: 'pass' }, { name: 'first', verdict: 'pass' }], true, false, [1, 1, 0, 0, 1]],
+    ['partial-remains-incomplete', [{ name: 'first', verdict: 'pass' }, { name: 'second', verdict: 'pass' }], true, true, [3, 2, 0, 0, 0]],
+  ];
+
+  for (const [name, reports, cleaned, partial, expected] of cases) {
+    const actual = summarizeControls(reports, names, cleaned, partial);
+
+    expectEqual([actual.exit, actual.passed, actual.failed, actual.blocked, actual.notRun], expected, name);
+  }
+
+  return { controlsOnly: true, status: 'pass', exit: EXIT.PASS, controls: cases.map(([name]) => name) };
+}
+
 /* -------------------------------------------------------------------------- */
 /* driver                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -1878,6 +2100,9 @@ const CONTROLS = [
   ['pristine-seed-pass', (gatePath, seedPath) => controlPristineSeedPass(gatePath, seedPath)],
   ['gate-self-test', (gatePath) => controlGateSelfTest(gatePath)],
   ['missing-dcts-deleted', (gatePath, seedPath) => controlMissingDcts(gatePath, seedPath)],
+  ['internal-declaration-missing', (gatePath, seedPath) => controlInternalDeclarationMissing(gatePath, seedPath)],
+  ['transitive-declaration-missing', (gatePath, seedPath) => controlTransitiveDeclarationMissing(gatePath, seedPath)],
+  ['internal-runtime-missing', (gatePath, seedPath) => controlInternalRuntimeMissing(gatePath, seedPath)],
   ['swapped-condition-order', (gatePath, seedPath) => controlSwappedConditionOrder(gatePath, seedPath)],
   ['top-types-shadow', (gatePath, seedPath) => controlTopTypesShadow(gatePath, seedPath)],
   ['wrong-main', (gatePath, seedPath) => controlWrongMain(gatePath, seedPath)],
@@ -1914,6 +2139,9 @@ const CONTROLS = [
   ['ready-default-pack-hookless', (gatePath, seedPath) => controlReadyDefaultPackHookless(gatePath, seedPath)],
   ['integrity-additive-edit-midrun', (gatePath, seedPath) => controlIntegrityAdditiveEdit(gatePath, seedPath)],
   ['integrity-additive-delete-midrun', (gatePath, seedPath) => controlIntegrityAdditiveDelete(gatePath, seedPath)],
+  ['watcher-ignores-other-runs', () => controlWatcherIgnoresOtherRuns()],
+  ['watcher-early-blocked', (gatePath) => controlWatcherEarlyBlocked(gatePath)],
+  ['aggregation-blocked-is-not-pass', () => selfTestAggregation()],
   ['usage-unknown-flag', (gatePath) => controlUsageUnknownFlag(gatePath)],
   ['usage-missing-value', (gatePath) => controlUsageMissingValue(gatePath)],
   ['usage-results-exists', (gatePath, seedPath) => controlUsageResultsExists(gatePath, seedPath)],
@@ -1933,6 +2161,19 @@ async function main() {
 
   if (args.error !== null) {
     usage(args.error);
+
+    return;
+  }
+
+  if (args.selfTestAggregation) {
+    if (args.seed !== null || args.only !== null) {
+      usage('--self-test-aggregation is standalone');
+
+      return;
+    }
+
+    console.log(JSON.stringify(selfTestAggregation(), null, 2));
+    process.exitCode = EXIT.PASS;
 
     return;
   }
@@ -1989,14 +2230,13 @@ async function main() {
     try {
       const note = await control(gatePath, seedPath);
 
-      controlReports.push({ name, verdict: 'pass', error: '', note: note ?? '', gateReport: compactGateReport(lastGateReport) });
+      const blocked = note !== undefined && note.environmentBlocked !== undefined;
+
+      controlReports.push({ name, verdict: blocked ? 'blocked' : 'pass', reason: blocked ? note.environmentBlocked : '', error: '', note: note ?? '', gateReport: compactGateReport(lastGateReport) });
     } catch (error) {
       controlReports.push({ name, verdict: 'fail', error: String(error).slice(0, 600), gateReport: compactGateReport(lastGateReport) });
     }
   }
-
-  const passed = controlReports.filter((entry) => entry.verdict === 'pass').length;
-  const failedControls = controlReports.filter((entry) => entry.verdict === 'fail');
 
   /* ------------------------- cleanup phase ------------------------- */
 
@@ -2023,17 +2263,21 @@ async function main() {
     cleanupVerified = good && cleanupOutcomes.length === ledger.entries.length;
   }
 
-  const status = passed === CONTROLS.length && cleanupVerified ? 'pass' : 'fail';
+  const aggregate = summarizeControls(controlReports, CONTROLS.map(([name]) => name), cleanupVerified, args.only !== null);
+  const { status } = aggregate;
 
   console.log(JSON.stringify({
     schemaVersion: 1,
     phase: 'phase-11 package-contract controls',
     status,
-    exit: status === 'pass' ? EXIT.PASS : EXIT.FAIL,
+    exit: aggregate.exit,
     summary: {
-      controls: controlReports.length,
-      passed,
-      failed: failedControls.length,
+      controls: aggregate.controls.length,
+      selected: selected.length,
+      passed: aggregate.passed,
+      failed: aggregate.failed,
+      blocked: aggregate.blocked,
+      notRun: aggregate.notRun,
       cleanupVerified,
       ledger: {
         scratchRoots: ledger.entries.length,
@@ -2042,10 +2286,11 @@ async function main() {
       },
     },
     cleanupNote,
-    controls: controlReports,
+    watchers: watcherLedger,
+    controls: aggregate.controls,
   }, null, 2));
 
-  process.exitCode = status === 'pass' ? EXIT.PASS : EXIT.FAIL;
+  process.exitCode = aggregate.exit;
 }
 
 await main();
