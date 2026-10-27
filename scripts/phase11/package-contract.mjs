@@ -18,19 +18,26 @@
  *    against the policy in both directions (no silent additions/omissions).
  *
  * Static checks (no installation):
- *  - tarball listing shape (package/ prefix, no traversal/absolute/backslash);
+ *  - tarball listing shape (package/ prefix, no traversal/absolute/backslash)
+ *    AND member TYPES: `tar -tvf` is paired index-wise with `tar -tf` and any
+ *    symlink, hardlink, device or fifo member is rejected BEFORE extraction,
+ *    as are duplicate member names. Extraction is aborted when any member
+ *    shape/type finding exists, so a rejected archive is never written to
+ *    disk by this gate (npm is never handed it either);
  *  - forbidden member paths: src/, tests/, notes/, tasks/, node_modules/,
  *    .git/ top segments plus "credentials"/"source-temp" substrings anywhere;
  *  - manifest fields: type module, engines >=22 (exact policy value), main
- *    canonical CJS, root types, bin, zero runtime dependencies, optional
- *    peers exactly unchanged;
+ *    canonical CJS, root types, bin, zero runtime dependencies (nonempty
+ *    `dependencies`, `optionalDependencies` or `bundledDependencies` are all
+ *    rejected), optional peers exactly unchanged;
  *  - every referenced target (six entries x seven targets, main, types, bin)
  *    exists as a tarball member;
- *  - original ESM/CLI baseline pin: every tarball member under dist/ except
- *    the additive dist/cjs/** and dist/node/** trees must byte-match (SHA-256
- *    of extracted content) the host checkout's own freshly built dist/, and
- *    every checkout dist file outside those additive trees must appear in the
- *    tarball. A missing checkout dist is BLOCKED before temp allocation;
+ *  - original ESM/CLI baseline pin (SEPARATE check): every tarball member
+ *    under dist/ except the additive dist/cjs/** and dist/node/** trees must
+ *    byte-match (SHA-256 of extracted content) the host checkout's own
+ *    freshly built dist/, and every checkout dist file outside those additive
+ *    trees must appear in the tarball. A missing checkout dist is BLOCKED
+ *    before temp allocation;
  *  - every dist/cjs (*.cjs) file may contain only relative `.cjs`
  *    specifiers that resolve inside dist/cjs: a bare specifier is a
  *    dependency leak, a `.js` specifier is an unrewritten ESM edge, and a
@@ -39,10 +46,19 @@
  *    dist/cjs/<base>.cjs module and re-export exactly the policy names;
  *  - declarations (dist/node/*.d.ts, dist/cjs/*.d.cts) reference only dist/cjs
  *    members; their only allowed bare specifiers are the optional peers.
- *    `declare module` augmentations are not scanned (bounded scanner limit).
+ *    `declare module` augmentations are not scanned (bounded scanner limit);
+ *  - ALL runtime and declaration edges are collected with the pinned repo
+ *    TypeScript parser (real AST nodes, never regex over comments or string
+ *    payloads): static require calls, literal dynamic import() calls,
+ *    import/export declarations, declaration import-types and
+ *    `import x = require(...)` forms. Dynamic edges whose specifier is not a
+ *    string literal are REJECTED explicitly (unprovable), as are files with
+ *    parse diagnostics. A literal dynamic import() of an in-graph `.cjs`
+ *    specifier is validated like any other edge. ESM import/export syntax in
+ *    a dist/cjs runtime file is rejected (a .cjs member must be CommonJS).
  *
  * Installed checks (real offline install of the tarball into an isolated
- * OS-temp consumer with an isolated npm cache):
+ *  OS-temp consumer with an isolated npm cache):
  *  - import.meta.resolve versus require.resolve for all six entries (exact
  *    dist/node versus dist/cjs targets) and for thirteen forbidden deep
  *    specifiers (must fail ERR_PACKAGE_PATH_NOT_EXPORTED, not unrelated
@@ -61,6 +77,14 @@
  *    all six entries; deep imports stay unresolved. This is resolution only:
  *    full consumer type acceptance is a different owner's deliverable.
  *
+ * Candidate code NEVER executes in the gate parent process: the provider
+ * registry is imported inside a bounded child (exact report/status
+ * validation; a hanging candidate becomes an infrastructure failure with
+ * confirmed termination), and the runtime probe is a bounded child that must
+ * exit 0 with signal null and no output overflow before its phase report is
+ * accepted - a nonzero-exit child that emitted a good report is an
+ * infrastructure failure, never a passing semantic control.
+ *
  * Exit codes:
  *   0  PASS    - every check passed and cleanup/integrity verified
  *   1  RED     - one or more checks failed (or cleanup/integrity failed)
@@ -71,15 +95,23 @@
  *
  * Documented limits:
  *  - Content hashes are SHA-256 of extracted tarball content and of real
- *    checkout files; member names come from the system `tar` listing, so a
- *    member `tar` refuses to list fails the gate instead of being skipped.
- *  - The integrity snapshot covers tracked files (`git ls-files`) plus the
- *    built dist/ tree. node_modules (read-only junction by policy) is not
- *    hashed; hashing the whole dependency tree is out of scope.
+ *    checkout files; member names and member types come from system `tar`
+ *    listings (`-tf` paired index-wise with `-tvf`), so a member `tar`
+ *    refuses to list fails the gate instead of being skipped.
+ *  - The integrity snapshot is SYMMETRIC: tracked files (`git ls-files`)
+ *    plus the FULL built dist/ tree (original and additive) are captured
+ *    with identical rules before and after the run, so an unchanged additive
+ *    file can never be reported as an addition. node_modules (read-only
+ *    junction by policy) is not hashed; the bounded coverage is tracked
+ *    files + dist/, not whole-dependency-tree integrity.
  *  - The runtime probe runs on the host Node binary; separate floor runtime
  *    qualification is owned by another deliverable.
  *  - Adapter runtimes must not import express/hono (verified live in the
  *    probe); declarations may type-import the optional peer names.
+ *  - `--results` validation rejects existing destinations, symbolic-link
+ *    ancestors, tracked paths and claim-file paths, and creates the file
+ *    exclusively (`wx`) after final validation; this is a linear check, not
+ *    a race-free sandbox, and no hostile-TOCTOU guarantee is claimed.
  *
  * The CLI prints one machine-JSON report on stdout for exits 0/1/3; usage
  * errors print a single line on stderr with exit 2. PASS results are
@@ -105,6 +137,9 @@ const GIT_TIMEOUT_MS = 60_000;
 const MESSAGE_LIMIT = 400;
 
 class InfrastructureError extends Error {}
+
+/** Caller misuse detected after prerequisites were fine; exits 2. */
+class UsageError extends Error {}
 
 /* -------------------------------------------------------------------------- */
 /* embedded frozen policy (mirrors tasks/phase-11/exports-policy.json v1)     */
@@ -161,6 +196,10 @@ export const POLICY_MANIFEST_FIELDS = Object.freeze({
   bin: Object.freeze({ hooklatch: './dist/cli/index.js' }),
   /** Zero runtime dependencies: `dependencies` must be absent or empty. */
   dependencies: Object.freeze({}),
+  /** Zero runtime dependencies extends to optionalDependencies (absent/empty). */
+  optionalDependencies: Object.freeze({}),
+  /** No bundled runtime dependencies (absent, empty record or empty array). */
+  bundledDependencies: Object.freeze({}),
   peerDependencies: Object.freeze({ express: '^4.18.0 || ^5.0.0', hono: '^4.0.0' }),
   peerDependenciesMeta: Object.freeze({
     express: Object.freeze({ optional: true }),
@@ -412,6 +451,50 @@ export function runMemberChecks(memberNames) {
   return findings;
 }
 
+/**
+ * Validate member TYPES from the `tar -tvf` listing paired index-wise with
+ * the `tar -tf` names. Only plain files and directories are allowed;
+ * symlink, hardlink, device and fifo members are rejected (extraction is
+ * aborted before any write, so this gate never materializes such members),
+ * and textual link indicators are rejected regardless of the type character
+ * so a different tar flavor cannot hide a link entry.
+ */
+export function runMemberTypeChecks(pairs) {
+  const findings = [];
+
+  for (const { name, typeChar, linkText } of pairs) {
+    if (linkText === true) {
+      findings.push({ kind: 'tarball-member-link', path: name });
+      continue;
+    }
+
+    if (typeChar !== '-' && typeChar !== 'd') {
+      findings.push({ kind: 'tarball-member-type', path: name, typeChar });
+    }
+  }
+
+  return findings;
+}
+
+/**
+ * Duplicate member names in one archive: extraction is last-wins, so a
+ * duplicated member makes the effective content ambiguous. Returns one
+ * finding per duplicated name.
+ */
+export function runMemberDuplicateChecks(memberNames) {
+  const counts = new Map();
+
+  for (const name of memberNames) counts.set(name, (counts.get(name) ?? 0) + 1);
+
+  const duplicates = [];
+
+  for (const [name, count] of counts.entries()) {
+    if (count > 1) duplicates.push(name);
+  }
+
+  return duplicates.map((name) => ({ kind: 'tarball-member-duplicate', path: name }));
+}
+
 /* -------------------------------------------------------------------------- */
 /* manifest structure, entry shape, sync and field checks (pure)              */
 /* -------------------------------------------------------------------------- */
@@ -579,6 +662,42 @@ export function runManifestFieldChecks(manifest) {
     });
   }
 
+  /**
+   * Zero runtime dependencies includes optionalDependencies: npm silently
+   * omits a nonexistent optional dependency during offline install, so an
+   * empty-observing install is not evidence - the manifest itself must not
+   * declare one.
+   */
+  if (manifest.optionalDependencies !== undefined) {
+    const observed = manifest.optionalDependencies;
+
+    if (!(isPlainRecord(observed) && Object.keys(observed).length === 0)) {
+      findings.push({
+        kind: 'manifest-field',
+        field: 'optionalDependencies',
+        expected: 'absent or an empty record (zero runtime dependencies)',
+        observed,
+      });
+    }
+  }
+
+  /** No bundled runtime dependencies: absent, empty record or empty array. */
+  if (manifest.bundledDependencies !== undefined) {
+    const observed = manifest.bundledDependencies;
+
+    const empty = (isPlainRecord(observed) && Object.keys(observed).length === 0)
+      || (Array.isArray(observed) && observed.length === 0);
+
+    if (!empty) {
+      findings.push({
+        kind: 'manifest-field',
+        field: 'bundledDependencies',
+        expected: 'absent, an empty record, or an empty array (no bundled runtime dependencies)',
+        observed,
+      });
+    }
+  }
+
   if (JSON.stringify(manifest.peerDependencies) !== JSON.stringify(POLICY_MANIFEST_FIELDS.peerDependencies)) {
     findings.push({ kind: 'manifest-field', field: 'peerDependencies', expected: POLICY_MANIFEST_FIELDS.peerDependencies, observed: manifest.peerDependencies });
   }
@@ -691,6 +810,24 @@ export function runTargetPresenceChecks(memberNames) {
 /* graph edge checks (pure; input is [{rel, text}] of package-relative files) */
 /* -------------------------------------------------------------------------- */
 
+/** Lazily resolved repo-local TypeScript (pinned parser for edge scans). */
+let cachedTypeScript = null;
+
+/**
+ * Resolve the pinned repo-local typescript module from the gate's own
+ * location (never from the candidate). Pure edge scans parse CANDIDATE TEXT
+ * with it; the module itself is a tool dependency of the host checkout.
+ */
+export function getTypeScript() {
+  if (cachedTypeScript !== null) return cachedTypeScript;
+
+  const gateRequire = createRequire(import.meta.url);
+
+  cachedTypeScript = gateRequire('typescript');
+
+  return cachedTypeScript;
+}
+
 /**
  * Resolve one relative specifier against a package-relative containing file
  * and require the result to stay inside `rootPrefix` (for example "dist/cjs").
@@ -720,58 +857,155 @@ export function resolveRelativeWithinRoot(specifier, containingRel, rootPrefix, 
   return { ok: true, target: joined };
 }
 
-/** All quoted specifiers reached by require()/import() in one runtime file. */
-function runtimeSpecifiers(text) {
-  const specifiers = [];
+/**
+ * Parse candidate text with the pinned TypeScript parser. Returns the
+ * source file plus its parse diagnostics; whitespace, comments and ordinary
+ * string payloads can never masquerade as edges in the walked tree.
+ */
+function parseCandidate(ts, rel, text, isDeclaration) {
+  const scriptKind = isDeclaration ? ts.ScriptKind.TS : ts.ScriptKind.JS;
 
-  const requirePattern = /\brequire\(\s*(["'])([^"'\n]+)\1\s*\)/g;
-  const importPattern = /\bimport\(\s*(["'])([^"'\n]+)\1\s*\)/g;
-
-  for (const match of text.matchAll(requirePattern)) {
-    specifiers.push({ specifier: match[2], via: 'require' });
-  }
-
-  for (const match of text.matchAll(importPattern)) {
-    specifiers.push({ specifier: match[2], via: 'import' });
-  }
-
-  return specifiers;
+  return ts.createSourceFile(rel, text, ts.ScriptTarget.ES2022, /* setParentNodes */ true, scriptKind);
 }
 
-/** All `from "..."` and `import "..."` specifiers in one declaration file. */
-function declarationSpecifiers(text) {
-  const specifiers = [];
+const isStringLikeNode = (ts, node) => ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
 
-  const fromPattern = /\bfrom\s*(["'])([^"'\n]+)\1/g;
-  const sideEffectPattern = /\bimport\s*(["'])([^"'\n]+)\1/g;
+/**
+ * REAL runtime edges from one parsed file: identifier require() calls with a
+ * string-literal argument, dynamic import() calls, and static import/export
+ * module declarations. Dynamic calls with a non-literal argument are
+ * returned as unprovable so the caller can reject them explicitly; they are
+ * never silently skipped.
+ */
+function collectRuntimeEdges(ts, sourceFile) {
+  const edges = [];
 
-  for (const match of text.matchAll(fromPattern)) {
-    specifiers.push({ specifier: match[2], via: 'from' });
-  }
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const target = node.expression;
 
-  for (const match of text.matchAll(sideEffectPattern)) {
-    specifiers.push({ specifier: match[2], via: 'import' });
-  }
+      if (ts.isIdentifier(target) && target.escapedText === 'require' && node.arguments.length === 1) {
+        const argument = node.arguments[0];
 
-  return specifiers;
+        if (isStringLikeNode(ts, argument)) edges.push({ via: 'require', specifier: argument.text });
+        else edges.push({ via: 'require', specifier: null, unprovable: true });
+      } else if (target.kind === ts.SyntaxKind.ImportKeyword) {
+        if (node.arguments.length === 1 && isStringLikeNode(ts, node.arguments[0])) {
+          edges.push({ via: 'import', specifier: node.arguments[0].text });
+        } else {
+          edges.push({ via: 'import', specifier: null, unprovable: true });
+        }
+      }
+    } else if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      const moduleSpecifier = node.moduleSpecifier;
+      const via = ts.isImportDeclaration(node) ? 'static-import' : 'static-export';
+
+      if (moduleSpecifier === undefined) {
+        /* `export { a, b }` without a module clause carries no edge. */
+      } else if (ts.isStringLiteral(moduleSpecifier)) {
+        edges.push({ via, specifier: moduleSpecifier.text });
+      } else {
+        edges.push({ via, specifier: null, unprovable: true });
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(sourceFile, visit);
+
+  return edges;
+}
+
+/**
+ * REAL declaration edges from one parsed file: import/export declarations,
+ * import-type specifiers (`import("./x.cjs").T`, including under `typeof`)
+ * and `import x = require(...)` forms. Non-literal specifiers are surfaced
+ * as unprovable for explicit rejection.
+ */
+function collectDeclarationEdges(ts, sourceFile) {
+  const edges = [];
+
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      const moduleSpecifier = node.moduleSpecifier;
+
+      if (moduleSpecifier === undefined) {
+        /* `export { a, b }` without a module clause carries no edge. */
+      } else if (ts.isStringLiteral(moduleSpecifier)) {
+        edges.push({ via: ts.isImportDeclaration(node) ? 'import' : 'export', specifier: moduleSpecifier.text });
+      } else {
+        edges.push({ via: ts.isImportDeclaration(node) ? 'import' : 'export', specifier: null, unprovable: true });
+      }
+    } else if (ts.isImportTypeNode(node)) {
+      const argument = node.argument;
+
+      if (ts.isLiteralTypeNode(argument) && ts.isStringLiteral(argument.literal)) {
+        edges.push({ via: 'import-type', specifier: argument.literal.text });
+      } else {
+        edges.push({ via: 'import-type', specifier: null, unprovable: true });
+      }
+    } else if (ts.isExternalModuleReference(node)) {
+      const expression = node.expression;
+
+      if (ts.isStringLiteral(expression)) edges.push({ via: 'require-equals', specifier: expression.text });
+      else edges.push({ via: 'require-equals', specifier: null, unprovable: true });
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  ts.forEachChild(sourceFile, visit);
+
+  return edges;
+}
+
+/** Scan one additive-graph file; returns its edges plus parse diagnostics. */
+export function scanGraphFile(rel, text) {
+  const ts = getTypeScript();
+
+  const isDeclaration = (rel.startsWith('dist/cjs/') && rel.endsWith('.d.cts'))
+    || (rel.startsWith('dist/node/') && rel.endsWith('.d.ts'));
+
+  const sourceFile = parseCandidate(ts, rel, text, isDeclaration);
+
+  const diagnostics = sourceFile.parseDiagnostics
+    .map((diagnostic) => ({ message: ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '), line: rel }));
+
+  const edges = isDeclaration ? collectDeclarationEdges(ts, sourceFile) : collectRuntimeEdges(ts, sourceFile);
+
+  return { edges, diagnostics, isDeclaration };
 }
 
 /**
  * STRUCTURE edge scan over the ADDITIVE Node graphs (existence is checked
- * separately by runEdgeResolutionChecks). Runtime `.cjs` files under dist/cjs
- * and facade `.js` files under dist/node must reference only relative `.cjs`
- * specifiers that stay inside dist/cjs; declarations additionally allow the
- * optional peer names as bare specifiers.
+ * separately by runEdgeResolutionChecks). Edges come from the pinned
+ * TypeScript parser, so comments and ordinary string payloads can never be
+ * misread as edges. Runtime `.cjs` files under dist/cjs and facade `.js`
+ * files under dist/node must reference only relative `.cjs` specifiers that
+ * stay inside dist/cjs; a literal dynamic import() of an in-graph `.cjs`
+ * specifier is validated like any other edge, while non-literal/unprovable
+ * edges are rejected explicitly; declarations additionally allow the
+ * optional peer names as bare specifiers. ESM import/export module syntax
+ * inside a dist/cjs runtime file is rejected (that member must be CommonJS).
  */
 export function runGraphEdgeChecks(entries) {
   const findings = [];
 
   for (const { rel, text } of entries) {
-    const isDeclaration = (rel.startsWith('dist/cjs/') && rel.endsWith('.d.cts'))
-      || (rel.startsWith('dist/node/') && rel.endsWith('.d.ts'));
+    const scanned = scanGraphFile(rel, text);
 
-    if (isDeclaration) {
-      for (const { specifier, via } of declarationSpecifiers(text)) {
+    for (const diagnostic of scanned.diagnostics) {
+      findings.push({ kind: 'cjs-graph-syntax', file: rel, detail: boundedText(diagnostic.message) });
+    }
+
+    if (scanned.isDeclaration) {
+      for (const { specifier, via } of scanned.edges) {
+        if (specifier === null) {
+          findings.push({ kind: 'declaration-edge-unprovable', file: rel, via });
+          continue;
+        }
+
         if (specifier.startsWith('.')) {
           const resolved = resolveRelativeWithinRoot(specifier, rel, 'dist/cjs', new Set());
 
@@ -795,9 +1029,15 @@ export function runGraphEdgeChecks(entries) {
 
     const prefix = isFacadeRuntime ? 'facade' : 'cjs';
 
-    for (const { specifier, via } of runtimeSpecifiers(text)) {
-      if (via === 'import') {
-        findings.push({ kind: 'cjs-dynamic-import', file: rel, specifier });
+    for (const { specifier, via } of scanned.edges) {
+      if (isCjsRuntime && (via === 'static-import' || via === 'static-export')) {
+        findings.push({ kind: 'cjs-esm-syntax', file: rel, specifier, via });
+        continue;
+      }
+
+      if (specifier === null) {
+        findings.push({ kind: `${prefix}-edge-unprovable`, file: rel, via });
+        continue;
       }
 
       if (!specifier.startsWith('.')) {
@@ -822,26 +1062,25 @@ export function runGraphEdgeChecks(entries) {
  * EXISTENCE edge scan: every relative specifier in the additive graphs must
  * resolve to an actual member of the tarball. Runtime files report
  * `cjs-edge-unresolved`/`facade-edge-unresolved`; declarations report
- * `declaration-edge-unresolved`. Escapes are reported by the structure scan.
+ * `declaration-edge-unresolved`. Escapes are reported by the structure scan;
+ * unprovable (non-literal) edges are rejected there and carry no specifier
+ * to resolve here.
  */
 export function runEdgeResolutionChecks(entries, memberNames) {
   const findings = [];
   const memberSet = new Set(memberNames);
 
   for (const { rel, text } of entries) {
-    const isDeclaration = (rel.startsWith('dist/cjs/') && rel.endsWith('.d.cts'))
-      || (rel.startsWith('dist/node/') && rel.endsWith('.d.ts'));
+    const scanned = scanGraphFile(rel, text);
 
-    const specifiers = isDeclaration ? declarationSpecifiers(text) : runtimeSpecifiers(text);
-
-    for (const { specifier } of specifiers) {
-      if (!specifier.startsWith('.')) continue;
+    for (const { specifier } of scanned.edges) {
+      if (specifier === null || !specifier.startsWith('.')) continue;
 
       const resolved = resolveRelativeWithinRoot(specifier, rel, 'dist/cjs', memberSet);
 
       if (resolved.ok || resolved.reason !== 'unresolved') continue;
 
-      const kind = isDeclaration
+      const kind = scanned.isDeclaration
         ? 'declaration-edge-unresolved'
         : (rel.startsWith('dist/node/') ? 'facade-edge-unresolved' : 'cjs-edge-unresolved');
 
@@ -1027,9 +1266,27 @@ function runCapture(command, args, options) {
 
     let stdout = '';
     let stderr = '';
+    let outputOverflow = false;
     let timedOut = false;
     let terminationTimer;
     const limit = 16 * 1024 * 1024;
+
+    /** Accumulate output and TRACK overflow instead of silently truncating. */
+    const appendCapped = (current, chunk) => {
+      if (current.length >= limit) {
+        outputOverflow = true;
+
+        return current;
+      }
+
+      if (current.length + chunk.length > limit) {
+        outputOverflow = true;
+
+        return current + chunk.slice(0, limit - current.length);
+      }
+
+      return current + chunk;
+    };
 
     const timer = setTimeout(() => {
       timedOut = true;
@@ -1066,8 +1323,8 @@ function runCapture(command, args, options) {
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => { stdout += chunk.slice(0, Math.max(0, limit - stdout.length)); });
-    child.stderr.on('data', (chunk) => { stderr += chunk.slice(0, Math.max(0, limit - stderr.length)); });
+    child.stdout.on('data', (chunk) => { stdout = appendCapped(stdout, chunk); });
+    child.stderr.on('data', (chunk) => { stderr = appendCapped(stderr, chunk); });
     child.on('error', (spawnError) => {
       clearTimeout(timer);
       clearTimeout(terminationTimer);
@@ -1076,7 +1333,7 @@ function runCapture(command, args, options) {
     child.on('close', (code, signal) => {
       clearTimeout(timer);
       clearTimeout(terminationTimer);
-      resolve({ status: code, signal, stdout, stderr, timedOut });
+      resolve({ status: code, signal, stdout, stderr, timedOut, outputOverflow });
     });
   });
 }
@@ -1320,8 +1577,50 @@ const failed = Object.keys(phases).filter((name) => phases[name].verdict !== 'pa
 
 console.log(JSON.stringify({ phases, failed }, null, 2));
 
-process.exitCode = failed.length === 0 ? 0 : 1;
+/* The probe is a REPORTER: it always exits 0 once its complete phase report
+ * is on stdout, and the gate classifies the phase verdicts. The gate refuses
+ * to accept phases from any child that did not exit 0 cleanly, so a process
+ * whose exit code was hijacked (for example by a loaded module registering
+ * process.on('beforeExit', ...) with a nonzero code) can never smuggle a
+ * passing report through. */
+process.exitCode = 0;
 `;
+
+/* -------------------------------------------------------------------------- */
+/* bounded candidate-registry child (candidate code never runs in the parent) */
+/* -------------------------------------------------------------------------- */
+
+const REGISTRY_CHILD_TEMPLATE = `/* Phase11 registry probe child: imports ONE candidate registry module and
+ * prints a JSON report. This child ALWAYS exits 0 when its report is
+ * emitted (even for a candidate that threw); the gate classifies the report
+ * and refuses any child that did not exit cleanly. Candidate module code
+ * therefore never executes in the gate parent process. */
+import { pathToFileURL } from 'node:url';
+
+const REGISTRY_PATH = ${JSON.stringify('__REGISTRY_PATH__')};
+
+let report = { providers: null, error: null, shape: null };
+
+try {
+  const imported = await import(pathToFileURL(REGISTRY_PATH).href);
+  const candidates = [imported.SUPPORTED_PROVIDERS, imported.default?.SUPPORTED_PROVIDERS];
+  const providers = candidates.find((value) => value !== undefined) ?? null;
+
+  report = { providers, error: null, shape: providers === null ? 'no SUPPORTED_PROVIDERS export' : 'ok' };
+} catch (error) {
+  const message = Object.prototype.toString.call(error) === '[object Error]'
+    ? String(error.message)
+    : String(error);
+
+  report = { providers: null, error: message, shape: 'import-threw' };
+}
+
+console.log(JSON.stringify(report));
+
+process.exitCode = 0;
+`;
+
+const REGISTRY_TIMEOUT_MS = 60_000;
 
 /* -------------------------------------------------------------------------- */
 /* neutral bundler + declaration resolution (in-process, after install)       */
@@ -1503,11 +1802,27 @@ function diffSnapshots(before, after) {
   for (const [rel, sha] of before.entries()) {
     const observed = after.get(rel);
 
-    if (observed === undefined) {
-      changes.push({ path: rel, change: 'removed' });
-    } else if (observed !== sha) {
-      changes.push({ path: rel, change: 'modified' });
+    if (observed === sha) continue;
+
+    /* snapshotHashes records a listed file that vanished from disk as an
+     * '<absent>' marker, so a deletion of a tracked file arrives as
+     * '<absent>' (git ls-files still lists it) rather than as a missing
+     * key. Both forms are a REMOVAL, never a modification: the file no
+     * longer has the bytes it had. A file that APPEARS during the run
+     * (before '<absent>' or not listed) is an addition. */
+    if (observed === undefined || observed === '<absent>') {
+      if (sha !== '<absent>') changes.push({ path: rel, change: 'removed' });
+
+      continue;
     }
+
+    if (sha === '<absent>') {
+      changes.push({ path: rel, change: 'added' });
+
+      continue;
+    }
+
+    changes.push({ path: rel, change: 'modified' });
   }
 
   for (const rel of after.keys()) {
@@ -1532,19 +1847,25 @@ Usage:
 
 Flags:
   --help          print this message (exit 0)
-  --self-test     run embedded policy/helper controls only; no tarball, temp
-                  allocation, install or runtime dispatch (exit 0 on success;
-                  the output is labeled controls-only)
+  --self-test     run embedded policy/parser/shape controls only; no tarball,
+                  temp allocation, install or runtime dispatch (exit 0 on
+                  success; the output is labeled controls-only)
   --tarball FILE  qualify exactly that candidate tarball
-  --results FILE  additionally write the machine report to FILE (refuses to
-                  overwrite an existing file; written only for PASS results,
-                  after cleanup and integrity verification)
+  --results FILE  additionally write the machine report to FILE. Refused
+                  (exit 2) when the destination already exists, an ancestor
+                  is a symbolic link, the path is a tracked file, or it
+                  matches the session-claim pattern
+                  notes/**/*-session.json; the final write is exclusive (wx)
+                  and happens only for PASS results, after cleanup and
+                  integrity verification.
 
-Default (no --tarball): pack the ACTUAL built checkout and qualify that
-tarball; the seed candidate is never used implicitly. Missing canonical
-dist/cjs + dist/node graphs or missing conditional exports in package.json is
-BLOCKED (exit 3) before temp allocation, packing, installation or runtime
-dispatch. A BLOCKED result is never a pass.
+Default (no --tarball): pack the ACTUAL built checkout with
+npm pack --json --ignore-scripts --offline --cache <isolated-temp-cache>
+(pack lifecycle scripts cannot run) and qualify that tarball; the seed
+candidate is never used implicitly. Missing canonical dist/cjs + dist/node
+graphs or missing conditional exports in package.json is BLOCKED (exit 3)
+before temp allocation, packing, installation or runtime dispatch. A BLOCKED
+result is never a pass.
 
 Exit codes: 0 PASS, 1 RED (check findings), 2 USAGE, 3 BLOCKED prerequisites.
 
@@ -1921,14 +2242,150 @@ function runSelfTest() {
     }
   });
 
-  record('graph-edges-detects-unrewritten-dynamic-import', () => {
+  record('graph-edges-dynamic-import-js-specifier', () => {
+    /* The blanket cjs-dynamic-import kind is REMOVED: a literal dynamic
+     * import() of an in-graph-relative specifier is validated like any other
+     * edge; a .js specifier is still an unrewritten ESM edge. */
     const entries = [{ rel: 'dist/cjs/core.cjs', text: 'await import("./missing.js");\n' }];
     const findings = runGraphEdgeChecks(entries);
 
+    if (findings.length !== 1 || findings[0].kind !== 'cjs-edge-js-specifier') {
+      throw new Error(`expected cjs-edge-js-specifier for a literal dynamic import, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('graph-edges-spaced-require-detected', () => {
+    /* `require ( 'express' )` with whitespace must still be caught: the
+     * scanner walks real AST call nodes, not a `require\(` regex. */
+    const entries = [{ rel: 'dist/cjs/core.cjs', text: 'require ( \'express\' );\n' }];
+    const findings = runGraphEdgeChecks(entries);
+
+    if (findings.length !== 1 || findings[0].kind !== 'cjs-edge-bare') {
+      throw new Error(`expected cjs-edge-bare for spaced require, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('graph-edges-spaced-dynamic-import-detected', () => {
+    const entries = [{ rel: 'dist/cjs/core.cjs', text: 'await import ( "./core.js" );\n' }];
+    const findings = runGraphEdgeChecks(entries);
+
+    if (findings.length !== 1 || findings[0].kind !== 'cjs-edge-js-specifier') {
+      throw new Error(`expected cjs-edge-js-specifier for spaced dynamic import, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('graph-edges-detects-unprovable-dynamic-import', () => {
+    const entries = [{ rel: 'dist/cjs/core.cjs', text: 'const name = "./x.cjs";\nawait import(name);\n' }];
+    const findings = runGraphEdgeChecks(entries);
+
+    if (findings.length !== 1 || findings[0].kind !== 'cjs-edge-unprovable' || findings[0].specifier !== undefined) {
+      throw new Error(`expected one cjs-edge-unprovable finding without a specifier, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('graph-edges-no-comment-or-string-false-positives', () => {
+    const entries = [{
+      rel: 'dist/cjs/core.cjs',
+      text: '/* require("./absent.cjs"); */\nconst hint = "require(\\"./absent.cjs\\")";\n// await import("./absent.cjs")\nconst edge = `import("./absent.cjs")`;\nconst real = require("./core.cjs");\n',
+    }];
+
+    const findings = runGraphEdgeChecks(entries);
+
+    if (findings.length !== 0) {
+      throw new Error(`expected zero findings for commented/string payloads, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('graph-edges-detects-esm-syntax-in-cjs', () => {
+    const entries = [{ rel: 'dist/cjs/core.cjs', text: 'import extra from "./extra.cjs";\nmodule.exports = {};\n' }];
+    const findings = runGraphEdgeChecks(entries);
+
+    if (findings.length !== 1 || findings[0].kind !== 'cjs-esm-syntax') {
+      throw new Error(`expected cjs-esm-syntax for an import declaration in a .cjs file, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('edge-resolution-detects-missing-import-type', () => {
+    /* Declaration edges collected from real ImportTypeNodes: a dynamic
+     * import-type of an absent .cjs member must be unresolved. */
+    const members = ['dist/cjs/index.cjs', 'dist/cjs/internal/provider.cjs'];
+
+    const entries = [{
+      rel: 'dist/cjs/providers/demo.d.cts',
+      text: 'type P = import("../internal/provider.cjs").ProviderDescriptor;\ntype Q = import("../internal/absent.cjs").Other;\n',
+    }];
+
+    const findings = runEdgeResolutionChecks(entries, members);
+
+    if (findings.length !== 1 || findings[0].kind !== 'declaration-edge-unresolved' || findings[0].specifier !== '../internal/absent.cjs') {
+      throw new Error(`expected declaration-edge-unresolved for the absent import-type, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('member-type-checks-detect-links-devices-fifos', () => {
+    const pairs = [
+      { name: 'package/file.txt', typeChar: '-', linkText: false },
+      { name: 'package', typeChar: 'd', linkText: false },
+      { name: 'package/link.txt', typeChar: 'l', linkText: true },
+      { name: 'package/hard.txt', typeChar: 'h', linkText: true },
+      { name: 'package/quiet-link.txt', typeChar: '-', linkText: true },
+      { name: 'package/dev.txt', typeChar: 'c', linkText: false },
+      { name: 'package/fifo.txt', typeChar: 'p', linkText: false },
+    ];
+
+    const findings = runMemberTypeChecks(pairs);
     const kinds = findings.map((finding) => finding.kind).sort();
 
-    if (JSON.stringify(kinds) !== JSON.stringify(['cjs-dynamic-import', 'cjs-edge-js-specifier'])) {
-      throw new Error(`expected dynamic import plus js-specifier findings, got ${JSON.stringify(findings)}`);
+    if (JSON.stringify(kinds) !== JSON.stringify([
+      'tarball-member-link',
+      'tarball-member-link',
+      'tarball-member-link',
+      'tarball-member-type',
+      'tarball-member-type',
+    ])) {
+      throw new Error(`expected three link and two type findings, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('member-type-checks-green-plain-members', () => {
+    const pairs = [
+      { name: 'package/file.txt', typeChar: '-', linkText: false },
+      { name: 'package/sub', typeChar: 'd', linkText: false },
+    ];
+
+    const findings = runMemberTypeChecks(pairs);
+
+    if (findings.length !== 0) throw new Error(`expected zero findings, got ${JSON.stringify(findings)}`);
+  });
+
+  record('member-duplicate-checks-detect-duplicates', () => {
+    const findings = runMemberDuplicateChecks(['package/a.txt', 'package/b.txt', 'package/a.txt', 'package/a.txt']);
+
+    if (findings.length !== 1 || findings[0].path !== 'package/a.txt') {
+      throw new Error(`expected one duplicate finding for package/a.txt, got ${JSON.stringify(findings)}`);
+    }
+  });
+
+  record('manifest-fields-reject-optional-and-bundled-deps', () => {
+    const withOptional = { ...validManifest, optionalDependencies: { lodash: '^4.0.0' } };
+    const withBundled = { ...validManifest, bundledDependencies: ['lodash'] };
+    const emptyOptional = { ...validManifest, optionalDependencies: {} };
+    const emptyBundledArray = { ...validManifest, bundledDependencies: [] };
+
+    const optionalFindings = runManifestFieldChecks(withOptional);
+    const bundledFindings = runManifestFieldChecks(withBundled);
+    const emptyFindings = [...runManifestFieldChecks(emptyOptional), ...runManifestFieldChecks(emptyBundledArray)];
+
+    if (optionalFindings.length !== 1 || optionalFindings[0].field !== 'optionalDependencies') {
+      throw new Error(`expected one optionalDependencies finding, got ${JSON.stringify(optionalFindings)}`);
+    }
+
+    if (bundledFindings.length !== 1 || bundledFindings[0].field !== 'bundledDependencies') {
+      throw new Error(`expected one bundledDependencies finding, got ${JSON.stringify(bundledFindings)}`);
+    }
+
+    if (emptyFindings.length !== 0) {
+      throw new Error(`expected empty optional/bundled declarations to pass, got ${JSON.stringify(emptyFindings)}`);
     }
   });
 
@@ -2022,6 +2479,73 @@ function statOrNull(p) {
   }
 }
 
+/**
+ * Validate the --results destination BEFORE any measurement (caller misuse
+ * exits 2). The final entry must not exist; every existing ancestor must be
+ * a real directory, never a symbolic link (lstat walk, so a link ancestor
+ * cannot redirect the write); the destination must not be a tracked file;
+ * and it must not match the session-claim pattern notes/(...)-session.json
+ * (any depth under notes/ whose name ends with -session.json). Every
+ * rejection is a thrown UsageError. The final write is still created
+ * exclusively (`wx`), making this a linear check rather than a race-free
+ * sandbox; that limit is documented.
+ */
+function validateResultsDestination(rawResults, repoRoot) {
+  const dest = path.resolve(rawResults);
+  const finalStat = statOrNull(dest);
+
+  if (finalStat !== null) {
+    throw new UsageError(finalStat.isSymbolicLink()
+      ? `destination exists and is a symbolic link: ${dest}`
+      : `destination already exists: ${dest}`);
+  }
+
+  let ancestor = path.dirname(dest);
+
+  while (ancestor !== path.dirname(ancestor)) {
+    const ancestorStat = statOrNull(ancestor);
+
+    if (ancestorStat !== null) {
+      if (ancestorStat.isSymbolicLink()) {
+        throw new UsageError(`results ancestor is a symbolic link: ${ancestor}`);
+      }
+
+      if (!ancestorStat.isDirectory()) {
+        throw new UsageError(`results ancestor is not a directory: ${ancestor}`);
+      }
+    }
+
+    ancestor = path.dirname(ancestor);
+  }
+
+  let trackedNames;
+
+  try {
+    trackedNames = new Set(listTrackedFiles(repoRoot));
+  } catch (trackedError) {
+    throw new UsageError(`cannot verify tracked state (${boundedText(trackedError instanceof Error ? trackedError.message : trackedError)})`);
+  }
+
+  const repoPrefix = repoRoot.endsWith(path.sep) ? repoRoot : `${repoRoot}${path.sep}`;
+  const insideRepo = dest.startsWith(repoPrefix);
+
+  if (!insideRepo && path.dirname(dest) !== path.resolve(repoRoot)) return null;
+
+  const relative = insideRepo
+    ? dest.slice(repoPrefix.length).split(path.sep).join('/')
+    : path.basename(dest);
+
+  if (trackedNames.has(relative)) {
+    throw new UsageError(`results destination is a tracked file: ${relative}`);
+  }
+
+  if (relative.startsWith('notes/') && relative.endsWith('-session.json')) {
+    throw new UsageError(`results destination matches the session-claim pattern (notes/(...)-session.json): ${relative}`);
+  }
+
+  return null;
+}
+
 async function main() {
   const args = parseFlags(process.argv.slice(2));
 
@@ -2101,6 +2625,7 @@ async function main() {
 
   let tarballPath = args.tarball;
   let tarballIdentity = null;
+  const explicitTarballMode = tarballPath !== null;
 
   if (tarballPath !== null) {
     const tarballStat = statOrNull(tarballPath);
@@ -2150,8 +2675,12 @@ async function main() {
   }
 
   if (args.results !== null) {
-    if (statOrNull(args.results) !== null) {
-      process.stderr.write(`package-contract: --results file already exists; refusing to overwrite: ${args.results}\n`);
+    try {
+      validateResultsDestination(args.results, repoRoot);
+    } catch (resultsError) {
+      if (!(resultsError instanceof UsageError)) throw resultsError;
+
+      process.stderr.write(`package-contract: --results rejected: ${resultsError.message}\n`);
       process.exitCode = EXIT.USAGE;
 
       return;
@@ -2229,8 +2758,15 @@ async function main() {
   let infraError = null;
 
   try {
+    /* SYMMETRIC integrity scope (fix for the asymmetric presnapshot): the
+     * BEFORE snapshot covers tracked files plus the FULL built dist tree
+     * (original ESM and additive dist/cjs + dist/node) with exactly the
+     * same rules as the AFTER snapshot, so an unchanged additive file can
+     * never be misreported as an addition in a ready checkout. The
+     * original-ESM baseline comparison remains a SEPARATE check
+     * (original-esm-baseline-pin). */
     const trackedList = listTrackedFiles(repoRoot);
-    const distList = walkFiles(path.join(repoRoot, 'dist'), 'dist').filter((rel) => isOriginalDistPath(rel));
+    const distList = walkFiles(path.join(repoRoot, 'dist'), 'dist');
     before = snapshotHashes(repoRoot, [...new Set([...trackedList, ...distList])]);
   } catch (snapshotError) {
     infraError = `integrity presnapshot failed: ${boundedText(snapshotError instanceof Error ? snapshotError.message : snapshotError)}`;
@@ -2249,8 +2785,18 @@ async function main() {
       await mkdir(installRoot, { recursive: true });
 
       if (tarballPath === null) {
-        const packOutput = await runCapture(process.execPath, [npmCli, 'pack', '--json', '--pack-destination', tempRoot], {
+        /* Default mode packs the REAL checkout with the hardened command:
+         * lifecycle scripts (prepack/postpack/prepare) cannot run and the
+         * pack cache is isolated inside the run's own temp root, so a
+         * candidate cannot execute code or reuse a shared cache during
+         * packing. The command is recorded in report.environment. */
+        const packCacheDir = path.join(tempRoot, 'pack-cache');
+
+        await mkdir(packCacheDir, { recursive: true });
+
+        const packOutput = await runCapture(process.execPath, [npmCli, 'pack', '--json', '--ignore-scripts', '--offline', '--cache', packCacheDir, '--pack-destination', tempRoot], {
           cwd: repoRoot, timeout: NPM_TIMEOUT_MS, label: 'npm pack (default mode)',
+          env: { ...process.env, npm_config_cache: packCacheDir },
         });
 
         if (packOutput.status !== 0) {
@@ -2263,28 +2809,53 @@ async function main() {
       }
 
       let listing = null;
+      let memberPairs = [];
 
       await recordCheck('tarball-read', async () => {
         const listed = await runTar(['-tf', tarballPath], 'tar -tf');
+        const verbose = await runTar(['-tvf', tarballPath], 'tar -tvf');
 
         if (listed.status !== 0 || listed.timedOut) {
           throw Object.assign(new Error(`tar -tf failed (${listed.status})`), { finding: { kind: 'tarball-listing', detail: boundedText(listed.stderr) } });
         }
 
-        const lines = listed.stdout.split('\n')
+        if (verbose.status !== 0 || verbose.timedOut) {
+          throw Object.assign(new Error(`tar -tvf failed (${verbose.status})`), { finding: { kind: 'tarball-listing', detail: boundedText(verbose.stderr) } });
+        }
+
+        const cleanLines = (text) => text.split('\n')
           .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
           .filter((line) => line !== '');
+
+        const lines = cleanLines(listed.stdout);
+        const verboseLines = cleanLines(verbose.stdout);
 
         if (lines.length === 0) {
           throw Object.assign(new Error('tar -tf listed no members'), { finding: { kind: 'tarball-listing', detail: 'tarball contains no members' } });
         }
 
+        /* Member TYPES are only meaningful when the two listings can be
+         * paired index-wise; a disagreement is an infrastructure failure
+         * because member types could not be proven. */
+        if (lines.length !== verboseLines.length) {
+          throw new InfrastructureError(`tar -tf and tar -tvf disagree on member count (${lines.length} versus ${verboseLines.length}); member types cannot be paired`);
+        }
+
         listing = lines;
+        memberPairs = verboseLines.map((line, index) => ({
+          name: lines[index],
+          typeChar: line.length > 0 ? line[0] : ' ',
+          /* Link indicators are detected textually with surrounding spaces so
+           * a different tar flavor cannot hide a link entry behind an
+           * unrecognized type character. */
+          linkText: line.includes(' -> ') || line.includes(' link to '),
+        }));
 
         return { members: lines.length };
       });
 
       let memberNames = [];
+      let memberAbortFindings = null;
 
       await recordCheck('tarball-member-shape', () => {
         if (listing === null) {
@@ -2310,29 +2881,44 @@ async function main() {
         }
 
         findingsHere.push(...runMemberChecks(names));
+        findingsHere.push(...runMemberTypeChecks(memberPairs));
+        findingsHere.push(...runMemberDuplicateChecks(listing));
 
         memberNames = names;
+        memberAbortFindings = findingsHere;
 
         return findingsHere;
       });
 
+      /* Extraction (and therefore installation) is ABORTED when any member
+       * shape/type/link/duplicate finding exists: a rejected archive is never
+       * written to disk by this gate, and npm is never handed it. */
+      let extractionReady = false;
+      let extractionNotRunDetail = listing === null ? 'tar listing failed' : null;
+
       if (listing !== null) {
-        const extraction = await runTar(['-xf', tarballPath, '-C', extractDir], 'tar -xf');
+        if (memberAbortFindings !== null && memberAbortFindings.length === 0) {
+          const extraction = await runTar(['-xf', tarballPath, '-C', extractDir], 'tar -xf');
 
-        if (extraction.status !== 0) {
-          throw new InfrastructureError(`tar -xf failed (${extraction.status}): ${boundedText(extraction.stderr)}`);
-        }
+          if (extraction.status !== 0) {
+            throw new InfrastructureError(`tar -xf failed (${extraction.status}): ${boundedText(extraction.stderr)}`);
+          }
 
-        if (!existsSync(path.join(packageDir, 'package.json'))) {
-          throw new InfrastructureError('tarball extraction did not produce package/package.json');
+          if (!existsSync(path.join(packageDir, 'package.json'))) {
+            throw new InfrastructureError('tarball extraction did not produce package/package.json');
+          }
+
+          extractionReady = true;
+        } else {
+          extractionNotRunDetail = `extraction and install aborted: ${memberAbortFindings.length} tarball member shape/type/duplicate finding(s) exist; the archive was never written to disk and npm was never handed it`;
         }
       }
 
       let manifest = null;
 
       await recordCheck('manifest-load', () => {
-        if (listing === null) {
-          throw Object.assign(new Error('tar listing unavailable'), { notRun: true, finding: { kind: 'manifest-load', detail: 'tar listing failed' } });
+        if (!extractionReady) {
+          throw Object.assign(new Error('extraction not performed'), { notRun: true, finding: { kind: 'manifest-load', detail: `not run: ${extractionNotRunDetail ?? 'extraction unavailable'}` } });
         }
 
         const parsed = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
@@ -2350,17 +2936,23 @@ async function main() {
         assertPolicySelfConsistency();
       });
 
+      await recordCheck('tarball-target-presence', () => {
+        if (listing === null) {
+          throw Object.assign(new Error('tar listing unavailable'), { notRun: true, finding: { kind: 'tarball-target-presence', detail: 'tar listing failed' } });
+        }
+
+        /* Runs on the LISTING only: target presence never needs the
+         * extracted tree, so it still runs when extraction is blocked. */
+        const findingsHere = runTargetPresenceChecks(memberNames);
+
+        return findingsHere.length === 0 ? { referenced: referencedTargets().length } : findingsHere;
+      });
+
       if (manifest !== null) {
         await recordCheck('public-entries-sync', () => runPublicEntriesSyncChecks(manifest));
         await recordCheck('exports-structure-exact', () => runStructureExactChecks(manifest));
         await recordCheck('exports-entry-shape', () => runExportEntryChecks(manifest));
         await recordCheck('manifest-fields', () => runManifestFieldChecks(manifest));
-
-        await recordCheck('tarball-target-presence', () => {
-          const findingsHere = runTargetPresenceChecks(memberNames);
-
-          return findingsHere.length === 0 ? { referenced: referencedTargets().length } : findingsHere;
-        });
 
         await recordCheck('provider-registry-sync', async () => {
           const registryPath = path.join(packageDir, 'dist', 'providers', 'index.js');
@@ -2369,14 +2961,24 @@ async function main() {
             throw Object.assign(new Error('built provider registry missing from tarball'), { finding: { kind: 'provider-registry-import', detail: 'dist/providers/index.js absent' } });
           }
 
-          let registryIds = null;
+          /* Candidate registry code is evaluated ONLY inside the bounded
+           * child; the parent never imports candidate modules. */
+          let childReport = null;
 
           try {
-            const registryModule = await import(pathToFileURL(registryPath).href);
-            registryIds = registryModule.SUPPORTED_PROVIDERS;
-          } catch (importError) {
-            throw Object.assign(new Error(`built registry could not be imported: ${boundedText(importError instanceof Error ? importError.message : importError)}`), { finding: { kind: 'provider-registry-import', detail: boundedText(importError instanceof Error ? importError.message : importError) } });
+            childReport = await executeRegistryChild(tempRoot, registryPath);
+          } catch (childError) {
+            throw Object.assign(new Error(boundedText(childError instanceof Error ? childError.message : childError)), { notRun: true, finding: { kind: 'provider-registry-child', detail: `not run: candidate registry child infrastructure failure (${boundedText(childError instanceof Error ? childError.message : childError)})` } });
           }
+
+          if (childReport.error !== null || !Array.isArray(childReport.providers)) {
+            throw Object.assign(
+              new Error('built registry could not be evaluated'),
+              { finding: { kind: 'provider-registry-import', detail: boundedText(childReport.error ?? childReport.shape ?? 'no providers in child report') } },
+            );
+          }
+
+          const registryIds = childReport.providers;
 
           const findingsHere = runProviderRegistryChecks(registryIds);
 
@@ -2445,11 +3047,19 @@ async function main() {
 
           return runFacadeModuleChecks(texts);
         });
+      } else {
+        /* No silent skips: every manifest/extraction-dependent check is
+         * explicitly not-run when the manifest never loaded. */
+        for (const kind of ['public-entries-sync', 'exports-structure-exact', 'exports-entry-shape', 'manifest-fields', 'provider-registry-sync', 'cjs-graph-edges', 'facade-graph-edges', 'declaration-edges', 'facade-module-shape']) {
+          await recordCheck(kind, () => {
+            throw Object.assign(new Error('manifest unavailable'), { notRun: true, finding: { kind, detail: `not run: ${extractionNotRunDetail ?? 'manifest load did not produce a manifest'}` } });
+          });
+        }
       }
 
       await recordCheck('cli-shebang', () => {
-        if (listing === null) {
-          throw Object.assign(new Error('tar listing unavailable'), { notRun: true, finding: { kind: 'cli-shebang', detail: 'tar listing failed' } });
+        if (!extractionReady) {
+          throw Object.assign(new Error('extraction not performed'), { notRun: true, finding: { kind: 'cli-shebang', detail: `not run: ${extractionNotRunDetail ?? 'extraction unavailable'}` } });
         }
 
         const cliPath = path.join(packageDir, CLI_RELATIVE.split('/').join(path.sep));
@@ -2462,8 +3072,8 @@ async function main() {
       });
 
       await recordCheck('original-esm-baseline-pin', () => {
-        if (listing === null) {
-          throw Object.assign(new Error('tar listing unavailable'), { notRun: true, finding: { kind: 'original-esm-baseline-pin', detail: 'tar listing failed' } });
+        if (!extractionReady) {
+          throw Object.assign(new Error('extraction not performed'), { notRun: true, finding: { kind: 'original-esm-baseline-pin', detail: `not run: ${extractionNotRunDetail ?? 'extraction unavailable'}` } });
         }
 
         const tarballOriginal = [];
@@ -2494,6 +3104,10 @@ async function main() {
       let installRootReady = false;
 
       await recordCheck('install-offline', async () => {
+        if (!extractionReady) {
+          throw Object.assign(new Error('extraction not performed'), { notRun: true, finding: { kind: 'install-offline', detail: `not run: ${extractionNotRunDetail ?? 'extraction unavailable'}` } });
+        }
+
         const install = await runCapture(process.execPath, [npmCli, 'install', tarballPath, '--ignore-scripts', '--legacy-peer-deps', '--offline', '--no-audit', '--no-fund'], {
           cwd: installRoot,
           timeout: NPM_TIMEOUT_MS,
@@ -2639,7 +3253,7 @@ async function main() {
     const report = {
       schemaVersion: 1,
       gate: 'phase11-package-contract',
-      mode: 'tarball',
+      mode: explicitTarballMode ? 'tarball' : 'default',
       controlsOnly: false,
       status,
       exit: status === 'pass' ? EXIT.PASS : EXIT.RED,
@@ -2648,6 +3262,10 @@ async function main() {
         platform: process.platform,
         repoRoot,
         tarball: tarballIdentity,
+        packCommand: explicitTarballMode
+          ? 'not run (explicit --tarball mode; the named candidate was qualified as-is)'
+          : 'node <npm-cli> pack --json --ignore-scripts --offline --cache <tempRoot>/pack-cache --pack-destination <tempRoot> (env npm_config_cache=<tempRoot>/pack-cache; pack lifecycle scripts cannot execute)',
+        installCommand: 'node <npm-cli> install <candidate-tarball> --ignore-scripts --legacy-peer-deps --offline --no-audit --no-fund (cwd <tempRoot>/consumer, env npm_config_cache=<tempRoot>/npm-cache)',
       },
       summary: {
         checks: checks.length,
@@ -2681,8 +3299,11 @@ async function main() {
 
     if (args.results !== null && status === 'pass') {
       try {
+        /* Ancestors were validated as real directories before the run; the
+         * exclusive `wx` flag refuses to overwrite anything that appeared
+         * at the destination since validation. */
         await mkdir(path.dirname(path.resolve(args.results)), { recursive: true });
-        await writeFile(args.results, `${JSON.stringify(report, null, 2)}\n`, { encoding: 'utf8' });
+        await writeFile(args.results, `${JSON.stringify(report, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
         report.resultsWritten = args.results;
       } catch (writeError) {
         report.status = 'fail';
@@ -2750,7 +3371,18 @@ async function executeProbe(installRoot) {
   });
 
   if (probe.timedOut) {
-    throw new InfrastructureError('runtime probe timed out; temp root preserved');
+    throw new InfrastructureError('runtime probe timed out (termination confirmed via process-tree kill); phase report refused');
+  }
+
+  if (probe.outputOverflow) {
+    throw new InfrastructureError(`runtime probe output overflow (capture limit exceeded, status ${probe.status}); refusing to accept a partial report`);
+  }
+
+  /* Phases are accepted only from a child that exited cleanly: a nonzero
+   * status or a signal means the emitted report cannot be trusted even if
+   * it parses. This is an infrastructure failure, never a semantic pass. */
+  if (probe.status !== 0 || probe.signal !== null) {
+    throw new InfrastructureError(`runtime probe terminated abnormally (status ${JSON.stringify(probe.status)}, signal ${JSON.stringify(probe.signal)}); refusing phases from a nonzero-exit child`);
   }
 
   let probeReport = null;
@@ -2768,6 +3400,57 @@ async function executeProbe(installRoot) {
   }
 
   return probeReport.phases;
+}
+
+/**
+ * Evaluate ONE candidate provider registry inside a bounded child and
+ * return the parsed child report. The child always exits 0 when its report
+ * is emitted; anything else (timeout, overflow, signal, nonzero status,
+ * unparsable output) is an infrastructure failure with confirmed
+ * termination. A child that reports an import failure is a SEMANTIC
+ * candidate defect (returned as a report, not thrown).
+ */
+async function executeRegistryChild(tempRoot, registryPath) {
+  const childPath = path.join(tempRoot, 'hooklatch-registry-probe.mjs');
+
+  const childSource = REGISTRY_CHILD_TEMPLATE.replace('"__REGISTRY_PATH__"', JSON.stringify(registryPath));
+
+  await writeFile(childPath, childSource, { encoding: 'utf8' });
+
+  const child = await runCapture(process.execPath, [childPath], {
+    cwd: tempRoot, timeout: REGISTRY_TIMEOUT_MS, label: 'candidate registry child',
+  });
+
+  if (child.timedOut) {
+    throw new InfrastructureError('candidate registry child timed out (never-settling candidate evaluation; termination confirmed via process-tree kill); report refused');
+  }
+
+  if (child.outputOverflow) {
+    throw new InfrastructureError(`candidate registry child output overflow (status ${child.status}); refusing a partial report`);
+  }
+
+  if (child.status !== 0 || child.signal !== null) {
+    throw new InfrastructureError(`candidate registry child terminated abnormally (status ${JSON.stringify(child.status)}, signal ${JSON.stringify(child.signal)}); refusing its output`);
+  }
+
+  let childReport = null;
+
+  if (child.stdout !== '') {
+    try {
+      childReport = JSON.parse(child.stdout);
+    } catch {
+      childReport = null;
+    }
+  }
+
+  if (childReport === null || !isPlainRecord(childReport)
+    || !Object.hasOwn(childReport, 'providers')
+    || !Object.hasOwn(childReport, 'error')
+    || !(childReport.error === null || isString(childReport.error))) {
+    throw new InfrastructureError(`candidate registry child produced an invalid report (status ${child.status}): ${boundedText(child.stderr)}`);
+  }
+
+  return childReport;
 }
 
 if (invokedDirectly) {
