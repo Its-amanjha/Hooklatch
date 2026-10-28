@@ -187,7 +187,7 @@ async function run(args) {
     for (const format of ['import', 'require']) {
       const child = await runChild(args.node, ['phase11-framework-consumer.mjs', dataPath, format], { cwd: consumerDir, ledger });
 
-      assert.ok(child.ok, child.stderr);
+      assert.ok(child.ok, JSON.stringify({ exitCode: child.exitCode, signal: child.signal, spawnError: child.spawnError, timedOut: child.timedOut, closeConfirmed: child.closeConfirmed, stdout: child.stdout.slice(-2000), stderr: child.stderr.slice(-2000) }));
 
       const output = JSON.parse(child.stdout.trim().split('\n').pop());
       const expected = FRAMEWORKS.flatMap((framework) => entries.flatMap((entry) => STATES.map((state) => ({ framework, format, provider: entry.provider, state }))));
