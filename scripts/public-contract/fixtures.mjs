@@ -615,7 +615,7 @@ export const middleware = createWebhookMiddleware({ provider: 'github', secrets:
     externalDiagnostics: [
       {
         code: 2307,
-        fileSuffix: 'node_modules/hooklatch/dist/adapters/express.d.ts',
+        fileSuffix: 'node_modules/hooklatch/dist/cjs/adapters/express.d.cts',
         messageIncludes: "Cannot find module 'express'",
       },
     ],
@@ -636,7 +636,7 @@ export const middleware = createWebhookMiddleware({ provider: 'github', secrets:
     externalDiagnostics: [
       {
         code: 2307,
-        fileSuffix: 'node_modules/hooklatch/dist/adapters/hono.d.ts',
+        fileSuffix: 'node_modules/hooklatch/dist/cjs/adapters/hono.d.cts',
         messageIncludes: "Cannot find module 'hono'",
       },
     ],

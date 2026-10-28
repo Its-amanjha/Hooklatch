@@ -664,3 +664,41 @@ test('packed candidate resolves both .mts and .cts consumers with skipLibCheck f
     workspace.dispose();
   }
 });
+
+
+test('Node facade survives pinned esbuild CommonJS interop', async () => {
+  const { build } = await import('esbuild');
+
+  const result = await build({
+    stdin: {
+      contents: `import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
+import { HooklatchError, verify } from ${JSON.stringify(toPosix(path.join(NODE, 'index.js')))};
+assert.equal(typeof HooklatchError, 'function');
+assert.equal(typeof verify, 'function');
+const body = new Uint8Array([0,255,195,40]);
+const mac = createHmac('sha256','synthetic').update(body).digest('hex');
+const result = await verify({rawBody:body,headers:{'x-hub-signature-256':'sha256='+mac}}, {provider:'github',secrets:['synthetic']});
+assert.equal(result.ok,true);
+assert.deepEqual([...result.rawBody],[...body]);
+console.log('interop verified');`,
+      resolveDir: REPO_ROOT,
+    },
+    bundle: true, platform: 'node', format: 'esm', write: false, logLevel: 'silent',
+  });
+
+  const workspace = createWorkspace('bundler-interop');
+
+  try {
+    const output = path.join(workspace.root, 'bundle.mjs');
+
+    writeFileSync(output, result.outputFiles[0].text);
+
+    const run = spawnSync(process.execPath, [output], { encoding: 'utf8', timeout: 30000 });
+
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stdout, /interop verified/);
+  } finally {
+    workspace.dispose();
+  }
+});
