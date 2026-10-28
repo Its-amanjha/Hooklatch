@@ -10,17 +10,206 @@
  *                           declaration from the corresponding `.cjs` specifier,
  *                           which NodeNext resolves to the canonical `.d.cts`.
  *
- * The frozen export policy in tasks/phase-11/exports-policy.json is the single
+ * The tracked NODE_DISTRIBUTION_POLICY literal below is the single
  * source of truth for subpaths, entry modules, runtime export names and the
  * conditional export targets this output must satisfy. Nothing here edits
  * package.json; the coordinator installs the same policy.
  */
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { BuildFailure, PrerequisiteError, relativeFiles, sameStrings } from './node-emit.mjs';
+import { BuildFailure, relativeFiles, sameStrings } from './node-emit.mjs';
 
-export const POLICY_RELATIVE_PATH = 'tasks/phase-11/exports-policy.json';
+export const POLICY_RELATIVE_PATH = 'scripts/phase11/node-facades.mjs';
+
+/** Tracked build policy: private task files are authoring inputs only. */
+export const NODE_DISTRIBUTION_POLICY = {
+  "version": 1,
+  "publicEntries": [
+    [
+      ".",
+      "index",
+      [
+        "HooklatchError",
+        "createVerifier",
+        "verify",
+        "verifyRequest"
+      ]
+    ],
+    [
+      "./diagnostics",
+      "diagnostics/index",
+      [
+        "diagnose"
+      ]
+    ],
+    [
+      "./express",
+      "adapters/express",
+      [
+        "createWebhookMiddleware"
+      ]
+    ],
+    [
+      "./nextjs",
+      "adapters/nextjs",
+      [
+        "createWebhookHandler"
+      ]
+    ],
+    [
+      "./cloudflare",
+      "adapters/cloudflare",
+      [
+        "createWebhookHandler"
+      ]
+    ],
+    [
+      "./hono",
+      "adapters/hono",
+      [
+        "createWebhookMiddleware"
+      ]
+    ]
+  ],
+  "providers": [
+    "stripe",
+    "github",
+    "shopify",
+    "standard-webhooks",
+    "clerk",
+    "svix",
+    "razorpay",
+    "paddle",
+    "lemon-squeezy",
+    "dodo-payments",
+    "gitlab",
+    "replicate",
+    "workos",
+    "sentry",
+    "doppler",
+    "sanity",
+    "grafana",
+    "polar",
+    "linear",
+    "vercel",
+    "fal"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "main": "./dist/cjs/index.cjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "hooklatch": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "node": {
+        "import": {
+          "types": "./dist/node/index.d.ts",
+          "default": "./dist/node/index.js"
+        },
+        "require": {
+          "types": "./dist/cjs/index.d.cts",
+          "default": "./dist/cjs/index.cjs"
+        }
+      },
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./diagnostics": {
+      "node": {
+        "import": {
+          "types": "./dist/node/diagnostics/index.d.ts",
+          "default": "./dist/node/diagnostics/index.js"
+        },
+        "require": {
+          "types": "./dist/cjs/diagnostics/index.d.cts",
+          "default": "./dist/cjs/diagnostics/index.cjs"
+        }
+      },
+      "types": "./dist/diagnostics/index.d.ts",
+      "import": "./dist/diagnostics/index.js",
+      "default": "./dist/diagnostics/index.js"
+    },
+    "./express": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/express.d.ts",
+          "default": "./dist/node/adapters/express.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/express.d.cts",
+          "default": "./dist/cjs/adapters/express.cjs"
+        }
+      },
+      "types": "./dist/adapters/express.d.ts",
+      "import": "./dist/adapters/express.js",
+      "default": "./dist/adapters/express.js"
+    },
+    "./nextjs": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/nextjs.d.ts",
+          "default": "./dist/node/adapters/nextjs.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/nextjs.d.cts",
+          "default": "./dist/cjs/adapters/nextjs.cjs"
+        }
+      },
+      "types": "./dist/adapters/nextjs.d.ts",
+      "import": "./dist/adapters/nextjs.js",
+      "default": "./dist/adapters/nextjs.js"
+    },
+    "./cloudflare": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/cloudflare.d.ts",
+          "default": "./dist/node/adapters/cloudflare.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/cloudflare.d.cts",
+          "default": "./dist/cjs/adapters/cloudflare.cjs"
+        }
+      },
+      "types": "./dist/adapters/cloudflare.d.ts",
+      "import": "./dist/adapters/cloudflare.js",
+      "default": "./dist/adapters/cloudflare.js"
+    },
+    "./hono": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/hono.d.ts",
+          "default": "./dist/node/adapters/hono.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/hono.d.cts",
+          "default": "./dist/cjs/adapters/hono.cjs"
+        }
+      },
+      "types": "./dist/adapters/hono.d.ts",
+      "import": "./dist/adapters/hono.js",
+      "default": "./dist/adapters/hono.js"
+    }
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0",
+    "hono": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "hono": {
+      "optional": true
+    }
+  }
+};
 
 /** The exact conditional export object each public entry must have. */
 export function expectedEntryTargets(base) {
@@ -135,20 +324,10 @@ export function validateExportPolicy(policy) {
   return entries;
 }
 
-export function loadExportPolicy(repoRoot) {
-  const policyPath = path.join(repoRoot, POLICY_RELATIVE_PATH);
+export function loadExportPolicy() {
+  const policy = structuredClone(NODE_DISTRIBUTION_POLICY);
 
-  if (!existsSync(policyPath)) throw new PrerequisiteError(`Frozen export policy missing: ${POLICY_RELATIVE_PATH}`);
-
-  let policy;
-
-  try {
-    policy = JSON.parse(readFileSync(policyPath, 'utf8'));
-  } catch (error) {
-    throw new BuildFailure(`Export policy is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  return { policyPath, policy, entries: validateExportPolicy(policy) };
+  return { policyPath: fileURLToPath(import.meta.url), policy, entries: validateExportPolicy(policy) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -164,20 +343,18 @@ export function facadeCommonJsSpecifier(base) {
 
 export function facadeRuntimeSource(entry) {
   const lines = [
-    '/** Phase 11 Node ESM facade: re-exports the canonical CommonJS graph by identity. */',
-    `import commonjs from '${facadeCommonJsSpecifier(entry.base)}';`,
+    `import implementation from "${facadeCommonJsSpecifier(entry.base)}";`,
     '',
   ];
 
-  for (const name of entry.runtimeExports) lines.push(`export const ${name} = commonjs.${name};`);
+  for (const name of entry.runtimeExports) lines.push(`export const ${name} = implementation.${name};`);
 
   return `${lines.join('\n')}\n`;
 }
 
 export function facadeDeclarationSource(entry) {
   const lines = [
-    '/** Phase 11 Node ESM declaration facade: resolves to the canonical .d.cts graph. */',
-    `export * from '${facadeCommonJsSpecifier(entry.base)}';`,
+    `export * from "${facadeCommonJsSpecifier(entry.base)}";`,
   ];
 
   return `${lines.join('\n')}\n`;

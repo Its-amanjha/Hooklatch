@@ -15,7 +15,7 @@ with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Requirements
 
-- **Node.js >= 22** (ESM-only; no CommonJS build)
+- **Node.js >= 22** (ESM and CommonJS; [module compatibility](docs/compatibility.md))
 - Zero runtime dependencies in the core
 - Optional peers: `express`, `hono` (only needed for those adapters)
 

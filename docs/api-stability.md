@@ -31,7 +31,8 @@ live vendor interoperability.
 | `hooklatch/cloudflare` | `createWebhookHandler` | none (Web `Request`/`Response`) |
 | `hooklatch/hono` | `createWebhookMiddleware` | `hono` |
 
-The package is ESM-only and declares Node `>=22`. CJS is a Phase10 prototype,
+The package provides ESM and CommonJS on Node `>=22` (including 22.0.0).
+See [module compatibility](compatibility.md). The Phase10 CJS prototype was
 not shipped support. Internal `dist/` subpaths are not public.
 
 ## Credential arms
@@ -335,8 +336,8 @@ published guarantee.
    behavioral break and requires a major release or an explicit opt-in.
 6. Adapter option types follow the core union; an adapter may not widen or
    weaken it.
-7. CJS, lower Node runtimes and browser bundlers are not part of this candidate
-   policy until separately qualified.
+7. Node ESM and CommonJS share the public API through conditional exports.
+   Lower Node runtimes and arbitrary browser bundlers remain outside this policy.
 
 ## Compiler case index
 
@@ -392,5 +393,5 @@ diagnostic evidence.
 - The entrypoints and their reachable in-package declaration definitions are
   captured for review; they are not a hash lock over
   internal source files and do not prevent future reviewed changes.
-- No API compatibility, CJS or lower-Node support is promoted beyond what the
-  Phase10 evidence records.
+- CommonJS qualification is recorded separately in the compatibility guide.
+  No lower-Node support or universal bundler compatibility is claimed.

@@ -1,38 +1,30 @@
 # Node.js module compatibility
 
-> **Status: pending integration and qualification.** This page describes the
-> intended Node.js ESM and CommonJS behavior for the next release. It is not
-> shipped support at base `d96ce2c7b77fdac6ccd9979e0f5d5c840595fd67`. The
-> package at that base is ESM-only. Do not treat any CommonJS statement below
-> as available until the release status is updated after the gates in
-> [Promotion checklist](#promotion-checklist) pass.
+> **Status: locally qualified development build.** Node ESM and CommonJS use
+> one shared implementation. No npm publication is implied. Exact-commit CI
+> results are recorded separately after a push; local checks do not imply CI success.
 
 ## What the current package supports
 
-At this base, `package.json` declares `"type": "module"`, sets `"engines.node"`
-to `">=22"`, and defines six public subpaths whose `exports` entries provide
-`types` and `import` targets only. There is no `require` condition, no `.cjs`
-runtime file and no `.d.cts` declaration file. `require('hooklatch')` is not a supported
-entry point, and the README correctly describes the package as ESM-only in
-[Requirements](../README.md#requirements).
+The package declares `"type": "module"` and `"engines.node": ">=22"`. All six
+public subpaths provide separate Node `import` and `require` conditions.
+CommonJS loads real `.cjs` modules; ESM facades expose the same references.
 
 | Runtime | Loading form | State |
 | --- | --- | --- |
-| Node.js 22 or later | `import` | Supported today, unchanged |
-| Node.js 22 or later | `require` | Pending integration and qualification |
-| Workers-compatible runtime | ESM | Supported today, unchanged |
-| Node.js 18 and Node.js 20 | either | Not supported and not planned |
+| Node.js 22 or later | `import` | Qualified on 22.0.0, 22.x and 24.x |
+| Node.js 22 or later | `require` | Qualified on 22.0.0, 22.x and 24.x |
+| Workers-compatible runtime | ESM | Original graph retained and tested in workerd |
+| Node.js 18 and Node.js 20 | either | Not supported |
 | Browsers and other runtimes | either | Not claimed |
 
-The CommonJS work does not change the engine promise. `engines.node` stays
-`>=22`, which includes Node.js 22.0.0. The intended CommonJS entry is a real
-CommonJS graph, so it does not depend on `require(esm)`, `module-sync` or a
-runtime flag and does not raise the floor to a later 22.x release. Actual
-execution on the 22.0.0 floor is a pending gate, not a claim made by this page.
+The CommonJS graph does not depend on `require(esm)`, `module-sync` or runtime
+flags. The 22.0.0 floor was executed on Windows and Linux, including Ed25519,
+all six entrypoints and the installed ESM CLI.
 
 ## How Node selects an entry point
 
-After promotion, each of the six public subpaths is intended to resolve through
+Each of the six public subpaths resolves through
 conditional exports in this order:
 
 1. `node`, containing nested `import` and `require` branches. Each branch
@@ -57,14 +49,14 @@ and recommends placing it first, which is why the nested branches put `types`
 before their runtime target.
 
 `exports` remains the public contract. Consumers must not import internal
-`dist` paths or rely on `main` for legacy resolution. The intended distribution
+`dist` paths or rely on `main` for legacy resolution. The distribution
 keeps one Node implementation per module behind an ESM facade rather than two
 independent implementations.
 
 ## Same-process identity
 
 On one Node.js process, with one installed copy of the package and one realm,
-the `import` and `require` entries are intended to expose the same bindings:
+the `import` and `require` entries expose the same bindings:
 
 - `HooklatchError` is one class. An error created through one loading form
   satisfies `instanceof HooklatchError` when the class was obtained through the
@@ -114,7 +106,7 @@ void setupError;
 ### CommonJS JavaScript (`.cjs`)
 
 Use `require` in `.cjs` files, or in `.js` files inside a `"type": "commonjs"`
-package. This form is pending and does not work against the base package.
+package. This form resolves to the canonical Node CommonJS graph.
 
 <!-- doc-example: cjs-javascript -->
 ```js
@@ -155,9 +147,9 @@ const verifier = hooklatch.createVerifier(options);
 void verifier;
 ```
 
-During qualification, the `.mts` and `.cts` samples are intended to compile
+During qualification, the `.mts` and `.cts` samples compile
 against the installed package with strict NodeNext settings. The `.mjs` and
-`.cjs` samples are intended to run in the mixed-format runtime gate, which also
+`.cjs` samples run in the mixed-format runtime gate, which also
 checks exact raw body bytes, error ordering and same-process identity.
 
 ## TypeScript settings
@@ -309,8 +301,8 @@ The status at the top of this page changes only after the coordinator records:
 6. A serial `npm run verify` on the integrated commit and an exact-SHA Node 22
    and 24 CI run.
 
-Until those results exist, the base package remains ESM-only and this page
-remains a pending design.
+Local evidence does not replace an exact-SHA remote CI run or a publication
+decision. The checklist remains the acceptance policy for future changes.
 
 ## References
 

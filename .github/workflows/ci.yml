@@ -16,3 +16,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+
+  node-floor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Preserve host toolchain path
+        run: echo "HOST_NODE=$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.0.0
+      - name: Execute installed consumers on the exact floor
+        run: '"$HOST_NODE" scripts/phase11/runtime-floor.mjs --node22-floor "$(command -v node)"'

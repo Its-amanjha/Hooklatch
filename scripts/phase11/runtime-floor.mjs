@@ -29,6 +29,8 @@
  * never reported as a passing SDK result.
  */
 import { spawn, spawnSync } from 'node:child_process';
+import { validateResultsDestination } from './package-contract.mjs';
+import { snapshotCheckout, compareCheckout } from './mixed-format-runtime.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
@@ -1057,6 +1059,7 @@ async function runFloor(options) {
   };
 
   const integrityBefore = gitStatus();
+  const bytesBefore = snapshotCheckout();
 
   const base = {
     schemaVersion: 1,
@@ -1072,34 +1075,28 @@ async function runFloor(options) {
     integrity: { before: integrityBefore, after: null, unchanged: null },
     limitations: [
       'Local evidence only: this Windows host cannot replace the coordinator Linux Node 22.0.0 job.',
-      'The candidate seed is an explicit input, not shipped product support.',
+      'Evidence describes this installed artifact and these exact runtime executables.',
       'No network access is used; the install is offline from the provided tarball.',
     ],
   };
 
-  if (options.tarball === null) {
+  let tarballPath = options.tarball === null ? null : resolveInput(options.tarball);
+  let candidateResult = null;
+
+  if (tarballPath === null) {
     const checkout = inspectCandidateDirectory(REPO_ROOT);
-    const reason = checkout.ok ? 'checkout-run-requires-tarball' : 'checkout-not-cjs-candidate';
 
-    return blocked(reason, {
-      checkout: checkout.evidence,
-      detail: checkout.ok
-        ? 'This checkout has canonical CJS output but a directory candidate cannot prove installed packaging; pass --tarball.'
-        : 'This checkout does not export canonical CJS entries, so no SDK result may be claimed.',
-    }, { ...base, candidate: checkout.evidence });
-  }
+    if (!checkout.ok) {
+      return blocked('checkout-not-cjs-candidate', { checkout: checkout.evidence }, base);
+    }
+  } else {
+    candidateResult = inspectCandidateTarball(tarballPath);
+    base.inputs.tarball = { path: tarballPath, sha256: candidateResult.evidence.sha256, bytes: candidateResult.evidence.bytes };
+    base.candidate = candidateResult.evidence;
 
-  const tarballPath = resolveInput(options.tarball);
-  const candidateResult = inspectCandidateTarball(tarballPath);
-
-  base.inputs.tarball = { path: tarballPath, sha256: candidateResult.evidence.sha256, bytes: candidateResult.evidence.bytes };
-  base.candidate = candidateResult.evidence;
-
-  if (!candidateResult.ok) {
-    return blocked('candidate-tarball-not-cjs', {
-      detail: 'The provided tarball lacks the canonical CJS graph, ESM facades or frozen export map.',
-      problems: candidateResult.evidence.problems,
-    }, base);
+    if (!candidateResult.ok) {
+      return blocked('candidate-tarball-not-cjs', { problems: candidateResult.evidence.problems }, base);
+    }
   }
 
   const floor = options.node22Floor === null
@@ -1181,6 +1178,41 @@ async function runFloor(options) {
     return failed({ reason: 'consumer-copy-hash', cleanup }, { ...base, cleanup });
   }
 
+  if (tarballPath === null) {
+    const pack = await runChild(process.execPath, [
+      npmCli, 'pack', '--json', '--offline', '--ignore-scripts', '--cache', workspace.cache,
+      '--pack-destination', workspace.root,
+    ], { cwd: REPO_ROOT, timeoutMs: 300000, env: hostEnv() });
+
+    base.pack = summarizeChild(pack);
+
+    if (!pack.closeConfirmed) {
+      base.cleanup = { confirmed: false, preserved: workspace.root };
+
+      return failed({ reason: 'pack-termination-unconfirmed' }, base);
+    }
+
+    const packedFiles = readdirSync(workspace.root).filter((file) => file.endsWith('.tgz'));
+
+    if (pack.exitCode !== 0 || pack.signal !== null || pack.spawnError !== null
+      || pack.timedOut || pack.outputLimitExceeded || packedFiles.length !== 1) {
+      base.cleanup = removeWorkspace(workspace);
+
+      return failed({ reason: 'pack-failed' }, base);
+    }
+
+    tarballPath = path.join(workspace.root, packedFiles[0]);
+    candidateResult = inspectCandidateTarball(tarballPath);
+    base.inputs.tarball = { path: tarballPath, sha256: candidateResult.evidence.sha256, bytes: candidateResult.evidence.bytes };
+    base.candidate = candidateResult.evidence;
+
+    if (!candidateResult.ok) {
+      base.cleanup = removeWorkspace(workspace);
+
+      return failed({ reason: 'packed-checkout-not-cjs', problems: candidateResult.evidence.problems }, base);
+    }
+  }
+
   const install = await installCandidate(workspace, tarballPath, npmCli);
 
   const fileEvidence = install.ok
@@ -1203,7 +1235,7 @@ async function runFloor(options) {
 
     base.cleanup = cleanup;
     base.integrity.after = integrityAfter;
-    base.integrity.unchanged = integrityAfter.stdout === integrityBefore.stdout;
+    base.integrity.unchanged = integrityAfter.stdout === integrityBefore.stdout && compareCheckout(bytesBefore, snapshotCheckout()).length === 0;
 
     return failed({
       reason: install.ok ? 'installed-file-mismatch' : 'install-failed',
@@ -1244,7 +1276,7 @@ async function runFloor(options) {
 
   base.cleanup = cleanup;
   base.integrity.after = integrityAfter;
-  base.integrity.unchanged = integrityAfter.stdout === integrityBefore.stdout;
+  base.integrity.unchanged = integrityAfter.stdout === integrityBefore.stdout && compareCheckout(bytesBefore, snapshotCheckout()).length === 0;
 
   const tupleProblems = [];
 
@@ -1379,14 +1411,14 @@ async function runSelfTest(options) {
     return { problems: candidate.evidence.problems.length, files: workspaceUntouched };
   });
 
-  await control('control-checkout-blocked-without-tarball', async () => {
+  await control('control-missing-runtime-blocked-before-workspace', async () => {
     const result = await runFloor({ tarball: null, node22Floor: null, node22: null, results: null });
 
     if (result.exitCode !== EXIT_BLOCKED) {
       throw new Error(`a run without a tarball must be BLOCKED, observed exit ${String(result.exitCode)} (${String(result.summary.result)})`);
     }
 
-    if (!String(result.summary.reason).startsWith('checkout-')) {
+    if (!['checkout-not-cjs-candidate', 'node22-floor-missing'].includes(result.summary.reason)) {
       throw new Error(`expected a checkout classification, observed ${String(result.summary.reason)}`);
     }
 
@@ -1585,7 +1617,7 @@ function writeResults(resultsPath, value) {
   const target = resolveInput(resultsPath);
 
   mkdirSync(path.dirname(target), { recursive: true });
-  writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`);
+  writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
 
   return { path: target, written: existsSync(target), bytes: statSync(target).size };
 }
@@ -1595,6 +1627,8 @@ async function main() {
 
   try {
     options = parseArguments(process.argv.slice(2));
+
+    if (options.results !== null) validateResultsDestination(resolveInput(options.results), REPO_ROOT);
   } catch (error) {
     const reason = messageOf(error);
 

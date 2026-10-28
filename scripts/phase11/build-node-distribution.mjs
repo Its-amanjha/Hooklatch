@@ -12,7 +12,7 @@
  * 3 blocked prerequisite (missing original ESM output or toolchain).
  */
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -315,6 +315,21 @@ async function verifyRuntimeIdentity(stagingRoot, cjsRoot, nodeRoot, entries) {
  * ------------------------------------------------------------------ */
 
 /** Only dist/cjs and dist/node are ever removed or replaced. */
+function assertOwnedOutputPaths(repoRoot) {
+  const paths = [repoRoot, path.join(repoRoot, 'dist'), path.join(repoRoot, 'dist', 'cjs'), path.join(repoRoot, 'dist', 'node')];
+
+  for (const candidate of paths) {
+    const info = lstatSync(candidate, { throwIfNoEntry: false });
+
+    if (info === undefined) continue;
+
+    if (info.isSymbolicLink() || !info.isDirectory()
+      || path.relative(path.resolve(candidate), realpathSync(candidate)) !== '') {
+      throw new BuildFailure(`Refusing linked or non-directory output ancestor: ${candidate}`);
+    }
+  }
+}
+
 function installOutputs(repoRoot, stagingRoot) {
   const distRoot = path.join(repoRoot, 'dist');
   const stagedCjs = path.join(stagingRoot.root, 'cjs');
@@ -324,14 +339,18 @@ function installOutputs(repoRoot, stagingRoot) {
 
   assertInsideTemp(stagedCjs);
   assertInsideTemp(stagedNode);
+  assertOwnedOutputPaths(repoRoot);
 
   for (const target of [targetCjs, targetNode]) {
+    assertOwnedOutputPaths(repoRoot);
+
     if (path.dirname(target) !== distRoot) throw new BuildFailure(`Refusing to replace ${target}.`);
 
     rmSync(target, { recursive: true, force: true });
   }
 
   cpSync(stagedCjs, targetCjs, { recursive: true });
+  assertOwnedOutputPaths(repoRoot);
   cpSync(stagedNode, targetNode, { recursive: true });
 
   return { cjs: targetCjs, node: targetNode };
@@ -362,6 +381,7 @@ export async function buildNodeDistribution(options) {
   const startedAt = Date.now();
 
   if (!existsSync(path.join(repoRoot, 'package.json'))) throw new PrerequisiteError(`Not a checkout: ${repoRoot}`);
+  assertOwnedOutputPaths(repoRoot);
 
   const { policyPath, entries } = loadExportPolicy(repoRoot);
   const entryBases = entries.map((entry) => entry.base);

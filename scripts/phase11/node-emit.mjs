@@ -494,7 +494,8 @@ export function moduleSpecifierLiterals(typescript, sourceFile) {
       && typescript.isLiteralTypeNode(node.argument)
       && typescript.isStringLiteral(node.argument.literal)) {
       literals.push(node.argument.literal);
-    } else if (isRequireCall(typescript, node)
+    } else if ((isRequireCall(typescript, node)
+      || (typescript.isCallExpression(node) && node.expression.kind === typescript.SyntaxKind.ImportKeyword))
       && node.arguments.length === 1
       && typescript.isStringLiteral(node.arguments[0])) {
       literals.push(node.arguments[0]);
@@ -608,6 +609,18 @@ function inspectRuntimeModule(typescript, cjsRoot, file, relative, report) {
   const source = readFileSync(file, 'utf8');
   const sourceFile = typescript.createSourceFile(file, source, typescript.ScriptTarget.ES2022, true, typescript.ScriptKind.JS);
 
+  const inspectDynamic = (node) => {
+    if (typescript.isCallExpression(node)
+      && (isRequireCall(typescript, node) || node.expression.kind === typescript.SyntaxKind.ImportKeyword)
+      && (node.arguments.length !== 1 || !typescript.isStringLiteral(node.arguments[0]))) {
+      report.externalRuntimeSpecifiers.push({ file: relative, specifier: '<unprovable module edge>' });
+    }
+
+    typescript.forEachChild(node, inspectDynamic);
+  };
+
+  inspectDynamic(sourceFile);
+
   for (const statement of sourceFile.statements) {
     if (typescript.isImportDeclaration(statement) || typescript.isExportDeclaration(statement)) {
       report.esmSyntax.push(relative);
@@ -619,7 +632,7 @@ function inspectRuntimeModule(typescript, cjsRoot, file, relative, report) {
     const specifier = literal.text;
 
     if (!isRelativeSpecifier(specifier)) {
-      if (!specifier.startsWith('node:')) report.externalRuntimeSpecifiers.push({ file: relative, specifier });
+      report.externalRuntimeSpecifiers.push({ file: relative, specifier });
 
       continue;
     }

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
+  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,12 +22,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   BuildFailure, PrerequisiteError, rewriteModuleSpecifiers, validateCommonJsGraph, walkFiles,
 } from '../../scripts/phase11/node-emit.mjs';
-import { expectedFacadeFiles } from '../../scripts/phase11/node-facades.mjs';
+import { expectedFacadeFiles, loadExportPolicy, NODE_DISTRIBUTION_POLICY } from '../../scripts/phase11/node-facades.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BUILDER = path.join(REPO_ROOT, 'scripts', 'phase11', 'build-node-distribution.mjs');
-const POLICY_PATH = path.join(REPO_ROOT, 'tasks', 'phase-11', 'exports-policy.json');
-const POLICY = JSON.parse(readFileSync(POLICY_PATH, 'utf8'));
+const POLICY_PATH = path.join(REPO_ROOT, 'scripts', 'phase11', 'node-facades.mjs');
+const POLICY = NODE_DISTRIBUTION_POLICY;
 const ENTRIES = POLICY.publicEntries.map(([subpath, base, runtimeExports]) => ({ subpath, base, runtimeExports }));
 const DIST = path.join(REPO_ROOT, 'dist');
 const CJS = path.join(DIST, 'cjs');
@@ -36,6 +36,74 @@ const NODE = path.join(DIST, 'node');
 const toPosix = (value) => value.split(path.sep).join('/');
 
 const state = { builder: null, firstRun: null, secondRun: null, before: null };
+
+test('tracked policy loads without private task files', () => {
+  const workspace = createWorkspace('tracked-policy');
+
+  try {
+    const result = loadExportPolicy(workspace.root);
+
+    assert.equal(result.entries.length, 6);
+    assert.equal(existsSync(path.join(workspace.root, 'tasks')), false);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+test('dynamic import edges cannot bypass rewrite or graph validation', () => {
+  const workspace = createWorkspace('dynamic-edges');
+  const typescript = repoTypeScript();
+
+  try {
+    const file = path.join(workspace.root, 'index.cjs');
+
+    writeFileSync(file, "exports.load = () => import('../../outside.js');\n");
+    writeFileSync(path.join(workspace.root, 'index.d.cts'), 'export declare const load: unknown;\n');
+    assert.equal(validateCommonJsGraph(typescript, workspace.root).ok, false, 'escaping dynamic edge must reject');
+    writeFileSync(file, "exports.load = () => import('./target.js'); const literal='./never-rewrite.js';\n");
+    const rewritten = rewriteModuleSpecifiers(typescript, file, 'runtime');
+
+    assert.equal(rewritten.rewritten, 1);
+    assert.match(readFileSync(file, 'utf8'), /import\('\.\/target.cjs'\)/);
+    assert.match(readFileSync(file, 'utf8'), /never-rewrite.js/);
+    assert.equal(validateCommonJsGraph(typescript, workspace.root).ok, false, 'missing dynamic target must reject');
+    writeFileSync(path.join(workspace.root, 'target.cjs'), 'exports.value=1;\n');
+    writeFileSync(path.join(workspace.root, 'target.d.cts'), 'export declare const value: number;\n');
+    assert.equal(validateCommonJsGraph(typescript, workspace.root).ok, true);
+    writeFileSync(file, 'exports.load = (path) => import(path);\n');
+    assert.equal(validateCommonJsGraph(typescript, workspace.root).ok, false, 'nonliteral dynamic edge must reject');
+  } finally {
+    workspace.dispose();
+  }
+});
+
+for (const component of ['dist', 'cjs', 'node']) {
+  test(`builder rejects linked ${component} without touching outside sentinels`, async () => {
+    const workspace = createFixture(`linked-${component}`, { esm: true });
+    const build = (await import(pathToFileURL(BUILDER).href)).buildNodeDistribution;
+
+    try {
+      const outside = path.join(workspace.root, 'outside');
+
+      mkdirSync(outside);
+
+      if (component === 'dist') {
+        rmSync(outside, { recursive: true });
+        renameSync(path.join(workspace.root, 'dist'), outside);
+      }
+
+      const target = component === 'dist' ? 'dist' : `dist/${component}`;
+      const sentinel = path.join(outside, 'sentinel.cjs');
+
+      writeFileSync(sentinel, 'outside-owned-test-sentinel');
+      workspace.link(outside, target);
+      await assert.rejects(build({ repoRoot: workspace.root }), /linked|symbolic|junction/i);
+      assert.equal(readFileSync(sentinel, 'utf8'), 'outside-owned-test-sentinel');
+    } finally {
+      workspace.dispose();
+    }
+  });
+}
 
 function hashFile(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -140,8 +208,6 @@ function createFixture(label, settings) {
 
   cpSync(path.join(REPO_ROOT, 'src'), path.join(workspace.root, 'src'), { recursive: true });
   writeFileSync(path.join(workspace.root, 'package.json'), `${JSON.stringify({ name: `phase11-${label}`, version: '0.0.0', private: true, type: 'module' }, null, 2)}\n`);
-  mkdirSync(path.join(workspace.root, 'tasks', 'phase-11'), { recursive: true });
-  cpSync(POLICY_PATH, path.join(workspace.root, 'tasks', 'phase-11', 'exports-policy.json'));
   workspace.link(path.join(REPO_ROOT, 'node_modules'), 'node_modules');
 
   if (settings?.esm === true) writeEsmPlaceholders(workspace.root);

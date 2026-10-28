@@ -524,6 +524,15 @@ export function buildIndependentAnchors() {
       options: { provider: 'stripe', secrets: [secret], toleranceSeconds: 0, now: () => now },
       expectedIdentity: { deliveryId: null, eventId: null, timestamp: now, authenticatedFields: ['timestamp'] },
     });
+
+    for (const drift of [-1, 1]) {
+      pinned.push({
+        provider: 'stripe', name: `zero-drift-${drift}`, body,
+        headers: { 'stripe-signature': `t=${now},v1=${sig}` },
+        options: { provider: 'stripe', secrets: [secret], toleranceSeconds: 0, now: () => now + drift },
+        expectedFailure: drift > 0 ? 'timestamp-expired' : 'timestamp-future',
+      });
+    }
   }
 
   // Pinned: Multi-key rotation
@@ -631,7 +640,7 @@ export async function executeTriplet(hooklatch, testCase, isTampered, format) {
       assertFailure(result, provider, expectedReason, label);
     }
 
-    executedTuples.push({ format, provider, api: 'verify', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    executedTuples.push({ format, provider, caseId: testCase.name ?? 'primary', api: 'verify', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   // API 2: verifyRequest
@@ -652,7 +661,7 @@ export async function executeTriplet(hooklatch, testCase, isTampered, format) {
       assertFailure(result, provider, expectedReason, label);
     }
 
-    executedTuples.push({ format, provider, api: 'verifyRequest', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    executedTuples.push({ format, provider, caseId: testCase.name ?? 'primary', api: 'verifyRequest', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   // API 3: createVerifier
@@ -670,7 +679,7 @@ export async function executeTriplet(hooklatch, testCase, isTampered, format) {
       assertFailure(result, provider, expectedReason, label);
     }
 
-    executedTuples.push({ format, provider, api: 'createVerifier', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    executedTuples.push({ format, provider, caseId: testCase.name ?? 'primary', api: 'createVerifier', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   return executedTuples;
@@ -863,7 +872,7 @@ async function executeTriplet(testCase, isTampered) {
     const result = await hooklatch.verify({ rawBody, headers }, options);
     if (expectedOk) assertSuccess(result, provider, rawBody, expectedIdentity, label);
     else assertFailure(result, provider, expectedReason, label);
-    tuples.push({ format: 'require', provider, api: 'verify', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    tuples.push({ format: 'require', provider, caseId: testCase.name || 'primary', api: 'verify', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   // 2. verifyRequest
@@ -875,7 +884,7 @@ async function executeTriplet(testCase, isTampered) {
     const result = await hooklatch.verifyRequest(request, options);
     if (expectedOk) assertSuccess(result, provider, rawBody, expectedIdentity, label);
     else assertFailure(result, provider, expectedReason, label);
-    tuples.push({ format: 'require', provider, api: 'verifyRequest', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    tuples.push({ format: 'require', provider, caseId: testCase.name || 'primary', api: 'verifyRequest', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   // 3. createVerifier
@@ -886,7 +895,7 @@ async function executeTriplet(testCase, isTampered) {
     const result = await verifier({ rawBody, headers });
     if (expectedOk) assertSuccess(result, provider, rawBody, expectedIdentity, label);
     else assertFailure(result, provider, expectedReason, label);
-    tuples.push({ format: 'require', provider, api: 'createVerifier', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
+    tuples.push({ format: 'require', provider, caseId: testCase.name || 'primary', api: 'createVerifier', state: isTampered ? 'tampered' : 'valid', ok: result.ok });
   }
 
   return tuples;
@@ -1139,6 +1148,17 @@ async function main() {
     allTuples.push(...v);
   }
 
+  for (const drift of [-1, 1]) {
+    const b = Buffer.from('{"id":"zero-drift"}');
+    const s = crypto.createHmac('sha256', 'zero_sec').update(Buffer.concat([Buffer.from(now + '.'), b])).digest('hex');
+    allTuples.push(...await executeTriplet({
+      provider: 'stripe', name: 'zero-drift-' + drift, body: b,
+      headers: { 'stripe-signature': 't=' + now + ',v1=' + s },
+      options: { provider: 'stripe', secrets: ['zero_sec'], toleranceSeconds: 0, now: () => now + drift },
+      expectedFailure: drift > 0 ? 'timestamp-expired' : 'timestamp-future',
+    }, false));
+  }
+
   // Pinned: Multi-key rotation
   {
     const b = Buffer.from('{"id":"rot"}');
@@ -1152,7 +1172,7 @@ async function main() {
     allTuples.push(...v);
   }
 
-  console.log(JSON.stringify({ ok: true, format: 'require', totalTuples: allTuples.length }));
+  console.log(JSON.stringify({ ok: true, format: 'require', runtime: process.version, tuples: allTuples, totalTuples: allTuples.length }));
 }
 
 main().catch((err) => {
@@ -1200,12 +1220,12 @@ assert.equal(hono.createWebhookMiddleware, honoReq.createWebhookMiddleware, 'hon
 const esmErr = new hooklatch.HooklatchError('invalid-secret', 'Constructed via import');
 assert.ok(esmErr instanceof hooklatch.HooklatchError);
 assert.ok(esmErr instanceof hooklatchReq.HooklatchError);
-assert.deepEqual(diagnostics.diagnose(esmErr), diagReq.diagnose(esmErr));
+assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(esmErr), diagReq.diagnose(esmErr)));
 
 const cjsErr = new hooklatchReq.HooklatchError('invalid-options', 'Constructed via require');
 assert.ok(cjsErr instanceof hooklatchReq.HooklatchError);
 assert.ok(cjsErr instanceof hooklatch.HooklatchError);
-assert.deepEqual(diagnostics.diagnose(cjsErr), diagReq.diagnose(cjsErr));
+assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(cjsErr), diagReq.diagnose(cjsErr)));
 
 // 3. Setup errors thrown by each
 try {
@@ -1214,7 +1234,7 @@ try {
 } catch (e) {
   assert.ok(e instanceof hooklatch.HooklatchError);
   assert.ok(e instanceof hooklatchReq.HooklatchError);
-  assert.deepEqual(diagnostics.diagnose(e), diagReq.diagnose(e));
+  assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(e), diagReq.diagnose(e)));
 }
 
 try {
@@ -1223,7 +1243,7 @@ try {
 } catch (e) {
   assert.ok(e instanceof hooklatchReq.HooklatchError);
   assert.ok(e instanceof hooklatch.HooklatchError);
-  assert.deepEqual(diagnostics.diagnose(e), diagReq.diagnose(e));
+  assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(e), diagReq.diagnose(e)));
 }
 
 console.log(JSON.stringify({ ok: true, process: 'import-first', subpathsChecked: 6 }));
@@ -1268,12 +1288,12 @@ const honoReq = require('hooklatch/hono');
   const cjsErr = new hooklatchReq.HooklatchError('invalid-options', 'Constructed via require first');
   assert.ok(cjsErr instanceof hooklatchReq.HooklatchError);
   assert.ok(cjsErr instanceof hooklatch.HooklatchError);
-  assert.deepEqual(diagnostics.diagnose(cjsErr), diagReq.diagnose(cjsErr));
+  assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(cjsErr), diagReq.diagnose(cjsErr)));
 
   const esmErr = new hooklatch.HooklatchError('invalid-secret', 'Constructed via import second');
   assert.ok(esmErr instanceof hooklatch.HooklatchError);
   assert.ok(esmErr instanceof hooklatchReq.HooklatchError);
-  assert.deepEqual(diagnostics.diagnose(esmErr), diagReq.diagnose(esmErr));
+  assert.doesNotThrow(() => assert.deepEqual(diagnostics.diagnose(esmErr), diagReq.diagnose(esmErr)));
 
   console.log(JSON.stringify({ ok: true, process: 'require-first', subpathsChecked: 6 }));
 })().catch((err) => {
@@ -1338,6 +1358,9 @@ async function main() {
   console.log(JSON.stringify({
     ok: true,
     format: 'mixed-mjs',
+    runtime: process.version,
+    tuples: [...esmMatrix.tuples, ...cjsMatrix.tuples],
+    pinned: [...esmMatrix.pinnedResults, ...cjsMatrix.pinnedResults],
     esmTuples: esmMatrix.tuples.length,
     cjsTuples: cjsMatrix.tuples.length,
     totalTuples: esmMatrix.tuples.length + cjsMatrix.tuples.length,

@@ -21,8 +21,9 @@ This entry describes the development tree. No npm release or Git tag is recorded
 
 ### Support boundaries
 
-The package remains ESM-only, with Node.js 22 and 24 qualification. CommonJS is
-an unshipped prototype. Verification preserves raw bytes and authenticates before
+Node.js supports ESM and CommonJS through one shared implementation, with
+Node.js 22.0.0, later 22.x and 24.x qualification. Workers retain the original
+ESM graph. Verification preserves raw bytes and authenticates before
 payload parsing. Linear authentication does not enforce freshness. Grafana needs
 an explicit mode; Polar uses one key interpretation per verifier; fal uses
 caller-trusted public keys and an expected account. SDK comparisons and local

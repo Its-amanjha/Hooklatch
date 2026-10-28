@@ -1,275 +1,288 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import os from 'node:os';
+import assert from 'node:assert/strict';
+import { createHash, createHmac, generateKeyPairSync, sign } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
-import { pathToFileURL } from 'node:url';
-import * as esbuild from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
+import {
+  createHealthLedger, createWorkspace, createTrackedJunction, disposeWorkspace,
+  installCandidateConsumer, packCheckout, runChild, snapshotCheckout, compareCheckout,
+} from './mixed-format-runtime.mjs';
+import { UsageError, validateResultsDestination } from './package-contract.mjs';
+import { FRAMEWORKS, STATES, assertResponse, inputBody, materializeOptions } from '../../tests/compatibility/phase11-framework-consumer.mjs';
 
-const PROJECT_ROOT = path.resolve(import.meta.dirname, '..', '..');
-const EXIT = { PASS: 0, FAIL: 1, USAGE: 2, BLOCKED: 3 };
-const WORKER_CONDITIONS = ['workerd', 'worker', 'browser'];
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const BASES = ['index', 'diagnostics/index', 'adapters/express', 'adapters/hono', 'adapters/nextjs', 'adapters/cloudflare'];
 
 function parseArgs(argv) {
-  const out = { tarball: null, selfTest: false, results: null, node: null, help: false };
+  const args = { tarball: null, node: process.execPath, results: null, selfTest: false, help: false };
+  const seen = new Set();
 
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
+  for (let index = 0; index < argv.length; index++) {
+    const flag = argv[index];
 
-    if (a === '--help' || a === '-h') out.help = true;
-    else if (a === '--self-test') out.selfTest = true;
-    else if (a === '--tarball') out.tarball = argv[++i];
-    else if (a === '--results') out.results = argv[++i];
-    else if (a === '--node') out.node = argv[++i];
-    else throw new Error('unknown argument: ' + a);
+    if (seen.has(flag)) throw new UsageError('duplicate flag');
+    seen.add(flag);
+
+    if (flag === '--self-test') args.selfTest = true;
+    else if (flag === '--help') args.help = true;
+    else if (['--tarball', '--node', '--results'].includes(flag)) {
+      const value = argv[++index];
+
+      if (!value || value.startsWith('--')) throw new UsageError('missing flag value');
+      args[flag.slice(2)] = path.resolve(value);
+    } else throw new UsageError('unknown flag');
   }
 
-  return out;
+  return args;
 }
 
-function usage() {
-  console.log('Usage: node scripts/phase11/workers-compatibility.mjs [--tarball FILE] [--self-test] [--results FILE] [--node FILE]');
+function signedCases() {
+  const body = new Uint8Array([0, 255, 195, 40, 10, 128, 65]);
+  const now = 1700000100;
+  const secret = 'phase11-synthetic-credential-canary';
+  const hmac = (bytes) => createHmac('sha256', secret).update(bytes).digest('hex');
+  const identity = { deliveryId: null, eventId: null, timestamp: null, authenticatedFields: [] };
+  const keys = generateKeyPairSync('ed25519');
+  const publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);
+  const hash = createHash('sha256').update(body).digest('hex');
+  const user = 'phase11-synthetic-user';
+  const requestId = 'phase11-synthetic-request';
+
+  return [
+    { provider: 'github', body: [...body], now, identity,
+      options: { provider: 'github', secrets: [secret] },
+      headers: { 'x-hub-signature-256': `sha256=${hmac(body)}` } },
+    { provider: 'grafana', body: [...body], now,
+      identity: { ...identity, timestamp: now, authenticatedFields: ['timestamp'] },
+      options: { provider: 'grafana', secrets: [secret], providerOptions: { mode: 'timestamped', signatureHeader: 'x-custom-mac', timestampHeader: 'x-custom-time' } },
+      headers: { 'x-custom-mac': hmac(Buffer.concat([Buffer.from(`${now}:`), body])), 'x-custom-time': String(now) } },
+    { provider: 'fal', body: [...body], now,
+      identity: { ...identity, timestamp: now, authenticatedFields: ['timestamp'] },
+      options: { provider: 'fal', publicKeys: [[...publicKey]], expectedUserId: user },
+      headers: { 'x-fal-webhook-signature': sign(null, Buffer.from(`${requestId}\n${user}\n${now}\n${hash}`), keys.privateKey).toString('hex'),
+        'x-fal-webhook-request-id': requestId, 'x-fal-webhook-user-id': user, 'x-fal-webhook-timestamp': String(now) } },
+  ];
 }
 
-function isFunctionValue(value) {
-  return value instanceof Function;
+function workerSource(entries) {
+  return `import * as root from 'hooklatch';
+import * as diagnostics from 'hooklatch/diagnostics';
+import * as express from 'hooklatch/express';
+import * as hono from 'hooklatch/hono';
+import * as nextjs from 'hooklatch/nextjs';
+import * as cloudflare from 'hooklatch/cloudflare';
+const entries = ${JSON.stringify(entries)};
+const assertResponse = ${assertResponse.toString()};
+const inputBody = ${inputBody.toString()};
+const materializeOptions = ${materializeOptions.toString()};
+export default { async fetch(request) {
+  const functions = [root.verify, diagnostics.diagnose, express.createWebhookMiddleware, hono.createWebhookMiddleware, nextjs.createWebhookHandler, cloudflare.createWebhookHandler];
+  if (functions.some((fn) => typeof fn !== 'function')) throw new Error('public exports absent');
+  const tuples = [];
+  for (const entry of entries) {
+    for (const state of ['valid','tamper','overflow']) {
+      let calls = 0;
+      const handler = cloudflare.createWebhookHandler({
+        options: () => ({...materializeOptions(entry),maxBodyBytes:128}),
+        handler: (_request,_env,_ctx,result) => { calls++; return Response.json({bytes:[...result.rawBody],identity:result.identity}); }
+      });
+      const response = await handler(new Request('https://synthetic.invalid/hook',{method:'POST',headers:entry.headers,body:inputBody(entry,state)}),{},{});
+      assertResponse(response.status,await response.text(),calls,entry,state);
+      tuples.push({provider:entry.provider,state});
+    }
+  }
+  const fal = entries.find((entry) => entry.provider === 'fal');
+  let calls = 0;
+  const wrongAccount = cloudflare.createWebhookHandler({options:()=>({...materializeOptions(fal),expectedUserId:'another-account'}),handler:()=>{calls++;return new Response('unexpected');}});
+  const rejected = await wrongAccount(new Request('https://synthetic.invalid',{method:'POST',headers:fal.headers,body:new Uint8Array(fal.body)}),{},{});
+  assertResponse(rejected.status,await rejected.text(),calls,fal,'tamper');
+  return Response.json({tuples,wrongAccount:true,userAgent:navigator.userAgent,process:typeof globalThis.process,Buffer:typeof globalThis.Buffer,require:typeof globalThis.require,url:request.url});
+}};`;
 }
 
-const checks = [];
+function validateBundle(result) {
+  const inputs = Object.keys(result.metafile.inputs).map((name) => name.replaceAll('\\', '/'));
 
-function check(name, ok, detail = '') {
-  checks.push({ name, ok: Boolean(ok), detail });
-  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail ? '  -- ' + detail : ''));
+  assert.equal(inputs.some((name) => /\/dist\/(node|cjs)\//.test(name)), false, 'Node branch in neutral bundle');
 
-  return Boolean(ok);
+  for (const base of BASES) assert.ok(inputs.some((name) => name.endsWith(`/hooklatch/dist/${base}.js`)), `original ESM entry missing: ${base}`);
+  assert.equal(result.outputFiles[0].text.includes('node:'), false, 'Node builtin in neutral output');
+
+  return inputs;
+}
+
+async function workerMatrix(code, compat, timeoutMs = 30000) {
+  const worker = new Miniflare({ modules: true, script: code, compatibilityDate: '2026-08-06', compatibilityFlags: compat ? ['nodejs_compat'] : [] });
+
+  let timer;
+
+  try {
+    const response = await Promise.race([worker.dispatchFetch('https://synthetic.invalid/'), new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error('worker timed out')), timeoutMs); })]);
+    const text = await response.text();
+
+    assert.equal(response.status, 200, text);
+
+    const report = JSON.parse(text);
+    assert.equal(report.userAgent, 'Cloudflare-Workers');
+
+    if (!compat) {
+      assert.equal(report.process, 'undefined');
+      assert.equal(report.Buffer, 'undefined');
+      assert.equal(report.require, 'undefined');
+    }
+
+    assert.equal(report.wrongAccount, true);
+    assert.deepEqual(report.tuples, ['github', 'grafana', 'fal'].flatMap((provider) => STATES.map((state) => ({ provider, state }))));
+
+    return report;
+  } finally {
+    clearTimeout(timer);
+    await worker.dispose();
+  }
+}
+
+async function run(args) {
+  if (args.help) {
+    console.log('Usage: workers-compatibility.mjs [--tarball FILE] [--node FILE] [--results FILE] [--self-test]');
+
+    return 0;
+  }
+
+  if (args.results !== null) validateResultsDestination(args.results, ROOT);
+
+  if (args.tarball === null && (!existsSync(path.join(ROOT, 'dist/cjs/index.cjs')) || !existsSync(path.join(ROOT, 'dist/node/index.js')))) return 3;
+
+  if (args.tarball !== null && !existsSync(args.tarball)) return 3;
+
+  if (!existsSync(args.node)) return 3;
+
+  const before = snapshotCheckout();
+  const workspace = createWorkspace('hooklatch-phase11-framework-');
+  const ledger = createHealthLedger();
+  const report = { artifact: null, runtime: null, nodeTuples: [], workers: [], controls: [] };
+
+  try {
+    const tarball = args.tarball ?? await packCheckout(workspace, ledger);
+
+    report.artifact = { sha256: createHash('sha256').update(readFileSync(tarball)).digest('hex') };
+
+    const { consumerDir, installedRoot } = await installCandidateConsumer(workspace, tarball, ledger);
+
+    for (const peer of ['express', 'hono']) createTrackedJunction(workspace, path.join(ROOT, 'node_modules', peer), path.join(consumerDir, 'node_modules', peer));
+
+    const entries = signedCases();
+    const dataPath = path.join(consumerDir, 'cases.json');
+
+    writeFileSync(dataPath, JSON.stringify(entries));
+    copyFileSync(path.join(ROOT, 'tests/compatibility/phase11-framework-consumer.mjs'), path.join(consumerDir, 'phase11-framework-consumer.mjs'));
+
+    const version = await runChild(args.node, ['-v'], { ledger });
+
+    assert.ok(version.ok, version.stderr);
+    assert.match(version.stdout.trim(), /^v(22|24)\./);
+    report.runtime = version.stdout.trim();
+
+    for (const format of ['import', 'require']) {
+      const child = await runChild(args.node, ['phase11-framework-consumer.mjs', dataPath, format], { cwd: consumerDir, ledger });
+
+      assert.ok(child.ok, child.stderr);
+
+      const output = JSON.parse(child.stdout.trim().split('\n').pop());
+      const expected = FRAMEWORKS.flatMap((framework) => entries.flatMap((entry) => STATES.map((state) => ({ framework, format, provider: entry.provider, state }))));
+
+      assert.equal(output.runtime, report.runtime);
+      assert.deepEqual(output.tuples, expected);
+      report.nodeTuples.push(...output.tuples);
+    }
+
+    const entry = path.join(consumerDir, 'worker.mjs');
+
+    writeFileSync(entry, workerSource(entries));
+
+    const bundled = await build({ entryPoints: [entry], bundle: true, write: false, format: 'esm', platform: 'neutral', conditions: ['workerd', 'worker', 'browser'], target: 'es2022', metafile: true, logLevel: 'silent' });
+
+    report.bundleInputs = validateBundle(bundled);
+
+    for (const compat of [false, true]) report.workers.push(await workerMatrix(bundled.outputFiles[0].text, compat));
+
+    if (args.selfTest) {
+      const exportsPath = path.join(installedRoot, 'package.json');
+      const pristineManifest = readFileSync(exportsPath, 'utf8');
+      const manifest = JSON.parse(pristineManifest);
+
+      manifest.exports['./cloudflare'].default = './dist/node/adapters/cloudflare.js';
+      manifest.exports['./cloudflare'].import = './dist/node/adapters/cloudflare.js';
+      writeFileSync(exportsPath, JSON.stringify(manifest));
+
+      const wrong = await build({ entryPoints: [entry], bundle: true, write: false, format: 'esm', platform: 'neutral', conditions: ['workerd'], metafile: true, logLevel: 'silent' });
+
+      assert.throws(() => validateBundle(wrong), /Node branch/);
+      report.controls.push('wrong-branch');
+      writeFileSync(exportsPath, pristineManifest);
+
+      const wrongAccountCode = bundled.outputFiles[0].text.replace(/expectedUserId: ["']another-account["']/, 'expectedUserId:fal.options.expectedUserId');
+
+      assert.notEqual(wrongAccountCode, bundled.outputFiles[0].text, 'account mutation site');
+      await assert.rejects(() => workerMatrix(wrongAccountCode, false), { name: 'AssertionError' });
+      report.controls.push('wrong-account-acceptance');
+
+      const crash = await runChild(args.node, ['-e', 'process.exit(9)'], { ledger });
+
+      assert.equal(crash.exitCode, 9);
+      assert.equal(crash.timedOut, false);
+      report.controls.push('real-child-crash');
+
+      await assert.rejects(() => workerMatrix('export default {fetch(){throw new Error("synthetic worker crash")}}', false), { name: 'AssertionError' });
+      report.controls.push('real-worker-crash');
+      await assert.rejects(() => workerMatrix('export default {fetch(){return new Promise((resolve)=>setTimeout(()=>resolve(new Response("late")),60000))}}', false, 300), /worker timed out/);
+      report.controls.push('real-worker-timeout');
+
+      const builtin = await build({ stdin: { contents: "import * as fs from 'node:fs';globalThis.__probe=fs.readFileSync;" + workerSource(entries), resolveDir: consumerDir }, bundle: true, write: false, format: 'esm', platform: 'neutral', external: ['node:*'], conditions: ['workerd'], metafile: true, logLevel: 'silent' });
+
+      assert.throws(() => validateBundle(builtin), /Node branch|Node builtin/);
+      report.controls.push('node-builtin-bundle');
+
+      const facade = path.join(installedRoot, 'dist/adapters/cloudflare.js');
+      const pristine = readFileSync(facade, 'utf8');
+
+      writeFileSync(facade, 'export function createWebhookHandler(){return async()=>new Response("misbound handler");}');
+
+      try {
+        const misbound = await build({ stdin: { contents: workerSource(entries), resolveDir: consumerDir }, bundle: true, write: false, format: 'esm', platform: 'neutral', conditions: ['workerd'], metafile: true, logLevel: 'silent' });
+
+        await assert.rejects(() => workerMatrix(misbound.outputFiles[0].text, false), { name: 'AssertionError' });
+        report.controls.push('misbound-exported-handler');
+      } finally {
+        writeFileSync(facade, pristine);
+      }
+    }
+  } finally {
+    disposeWorkspace(workspace, { ledger });
+    assert.deepEqual(compareCheckout(before, snapshotCheckout()), []);
+  }
+
+  report.cleanupVerified = true;
+
+  if (args.results !== null) {
+    mkdirSync(path.dirname(args.results), { recursive: true });
+    writeFileSync(args.results, `${JSON.stringify(report, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+  }
+
+  console.log(`PASS: ${report.nodeTuples.length} real Node framework requests; ${report.workers.length} workerd matrices; ${report.controls.length} controls.`);
+
+  return 0;
 }
 
 async function main() {
-  let args;
-
-  try { args = parseArgs(process.argv.slice(2)); }
-  catch (e) { console.error(e.message); usage(); process.exit(EXIT.USAGE); }
-
-  if (args.help) { usage(); process.exit(0); }
-
-  if (args.selfTest) return runSelfTest();
-
-  if (!args.tarball) { console.error('missing --tarball FILE'); usage(); process.exit(EXIT.USAGE); }
-
-  if (!existsSync(args.tarball)) { console.error('tarball not found: ' + args.tarball); process.exit(EXIT.BLOCKED); }
-
-  const required = ['src/index.ts', 'src/adapters/cloudflare.ts', 'src/adapters/express.ts', 'src/adapters/hono.ts', 'src/adapters/nextjs.ts', 'tests/workers/worker.ts'];
-
-  for (const r of required) {
-    if (!existsSync(path.join(PROJECT_ROOT, r))) { console.error('BLOCKED missing source: ' + r); process.exit(EXIT.BLOCKED); }
-  }
-
-  const scratch = await mkdtemp(path.join(os.tmpdir(), 'phase11-workers-'));
-  let ok = true;
-
   try {
-    const workerEntry = path.join(PROJECT_ROOT, 'tests', 'workers', 'worker.ts');
-    const primaryOut = path.join(scratch, 'primary.mjs');
-    const primaryMeta = path.join(scratch, 'primary.meta.json');
+    return await run(parseArgs(process.argv.slice(2)));
+  } catch (error) {
+    console.error(error);
 
-    const primaryResult = await esbuild.build({
-      entryPoints: [workerEntry],
-      outfile: primaryOut,
-      bundle: true,
-      format: 'esm',
-      platform: 'neutral',
-      target: 'es2022',
-      conditions: WORKER_CONDITIONS,
-      mainFields: ['module', 'main'],
-      metafile: true,
-      write: true,
-      logLevel: 'silent',
-    });
-
-    writeFileSync(primaryMeta, JSON.stringify(primaryResult.metafile));
-    const primaryCode = readFileSync(primaryOut, 'utf8');
-    const nodeImports = [...primaryCode.matchAll(/node:[a-z_/]+/g)].map(m => m[0]);
-    ok = check('primary bundle has no node: imports', nodeImports.length === 0, nodeImports.join(',') || 'none') && ok;
-    const meta = JSON.parse(readFileSync(primaryMeta, 'utf8'));
-    const inputs = Object.keys(meta.inputs || {});
-    const badInputs = inputs.filter((p) => p.includes('/dist/node/') || p.includes('/dist/cjs/') || p.includes('\\dist\\node\\') || p.includes('\\dist\\cjs\\'));
-    ok = check('metafile selects no dist/node or dist/cjs', badInputs.length === 0, badInputs.length ? badInputs.join(',') : 'clean') && ok;
-
-    const env = {
-      HOOKLATCH_GITHUB_SECRET: 'phase11-secret',
-      HOOKLATCH_STANDARD_WEBHOOKS_SECRET: 'whsec_' + Buffer.from('phase11-sw-secret').toString('base64'),
-      HOOKLATCH_NOW: '1700000000000',
-      HOOKLATCH_MARKER: 'phase11',
-    };
-
-    // primary workerd
-    try {
-      const mf = new Miniflare({
-        modules: true,
-        modulesRoot: scratch,
-        scriptPath: primaryOut,
-        compatibilityDate: '2026-08-06',
-        compatibilityFlags: [],
-        bindings: env,
-      });
-
-      const res = await mf.dispatchFetch('http://localhost/');
-      check('primary workerd responds', res.status < 500, 'status ' + res.status);
-      await mf.dispose();
-    } catch (e) {
-      check('primary workerd responds', false, String(e && e.message ? e.message : e));
-      ok = false;
-    }
-
-    // supplemental nodejs_compat
-    try {
-      const compatOut = path.join(scratch, 'compat.mjs');
-      await esbuild.build({
-        entryPoints: [workerEntry],
-        outfile: compatOut,
-        bundle: true,
-        format: 'esm',
-        platform: 'neutral',
-        target: 'es2022',
-        conditions: WORKER_CONDITIONS,
-        mainFields: ['module', 'main'],
-        logLevel: 'silent',
-      });
-
-      const mf2 = new Miniflare({
-        modules: true,
-        modulesRoot: scratch,
-        scriptPath: compatOut,
-        compatibilityDate: '2026-08-06',
-        compatibilityFlags: ['nodejs_compat'],
-        bindings: env,
-      });
-
-      const res2 = await mf2.dispatchFetch('http://localhost/');
-      check('supplemental nodejs_compat responds', res2.status < 500, 'status ' + res2.status);
-      await mf2.dispose();
-    } catch (e) {
-      check('supplemental nodejs_compat responds', false, String(e && e.message ? e.message : e));
-      ok = false;
-    }
-
-    // Node import/require smoke against candidate tarball
-    const consumerDir = path.join(scratch, 'consumer');
-    mkdirSync(consumerDir, { recursive: true });
-    writeFileSync(path.join(consumerDir, 'package.json'), JSON.stringify({ name: 'phase11-consumer', version: '1.0.0', private: true, type: 'module' }));
-    const { execSync } = await import('node:child_process');
-
-    try {
-      execSync('npm install --ignore-scripts --legacy-peer-deps --no-save "' + path.resolve(args.tarball) + '"', { cwd: consumerDir, stdio: 'pipe' });
-      check('candidate installs in temp consumer', true, 'npm install ok');
-    } catch (e) {
-      check('candidate installs in temp consumer', false, String(e && e.stderr ? e.stderr.toString() : e));
-      ok = false;
-    }
-
-    // resolve installed package root
-    const pkgRoot = path.join(consumerDir, 'node_modules', 'hooklatch');
-    const indexJs = path.join(pkgRoot, 'dist', 'index.js');
-    const diagJs = path.join(pkgRoot, 'dist', 'diagnostics', 'index.js');
-
-    // import smoke
-    try {
-      const m = await import(pathToFileURL(indexJs).href);
-      const importHasVerify = isFunctionValue(m.verify);
-      check('node import root has verify', importHasVerify, 'verify');
-
-      if (!importHasVerify) ok = false;
-    } catch (e) {
-      check('node import root has verify', false, String(e && e.message ? e.message : e));
-      ok = false;
-    }
-
-    // require smoke (CJS if present)
-    try {
-      const req = (await import('node:module')).createRequire(import.meta.url);
-      // require from consumer node_modules
-      const cjsEntry = path.join(pkgRoot, 'dist', 'cjs', 'index.cjs');
-
-      if (existsSync(cjsEntry)) {
-        const m = req(cjsEntry);
-        const requireHasVerify = isFunctionValue(m.verify);
-        check('node require root has verify', requireHasVerify, 'verify');
-
-        if (!requireHasVerify) ok = false;
-      } else {
-        check('node require root has verify', false, 'dist/cjs/index.cjs missing (candidate may be ESM-only)');
-        ok = false;
-      }
-    } catch (e) {
-      check('node require root has verify', false, String(e && e.message ? e.message : e));
-      ok = false;
-    }
-
-    // constructor identity
-    try {
-      const rootMod = await import(pathToFileURL(indexJs).href);
-      const diagMod = await import(pathToFileURL(diagJs).href);
-      const same = rootMod.HooklatchError === diagMod.HooklatchError;
-      check('root and diagnostics HooklatchError same identity', same, same ? 'identical' : 'differ');
-
-      if (!same) ok = false;
-    } catch (e) {
-      check('root and diagnostics HooklatchError same identity', false, String(e && e.message ? e.message : e));
-      ok = false;
-    }
-
-    // Framework matrix smoke (Node-level, using installed candidate adapters)
-    const frameworks = ['express', 'hono', 'nextjs', 'cloudflare'];
-
-    for (const fw of frameworks) {
-      try {
-        const adapterPath = path.join(pkgRoot, 'dist', 'adapters', fw + '.js');
-
-        if (!existsSync(adapterPath)) { check('framework ' + fw + ' adapter present', false, 'missing'); ok = false; continue; }
-
-        const mod = await import(pathToFileURL(adapterPath).href);
-        const expectedExport = fw === 'express' || fw === 'hono' ? 'createWebhookMiddleware' : 'createWebhookHandler';
-        const hasExport = isFunctionValue(mod[expectedExport]);
-        check('framework ' + fw + ' adapter exports ' + expectedExport, hasExport, hasExport ? 'ok' : 'missing');
-
-        if (!hasExport) ok = false;
-      } catch (e) {
-        check('framework ' + fw + ' adapter exports', false, String(e && e.message ? e.message : e));
-        ok = false;
-      }
-    }
-
-    const report = { phase: '11', owner: 'beam', checks, overall: ok ? 'PASS' : 'FAIL', timestamp: new Date().toISOString() };
-
-    if (args.results) {
-      mkdirSync(path.dirname(path.resolve(args.results)), { recursive: true });
-      writeFileSync(path.resolve(args.results), JSON.stringify(report, null, 2));
-    }
-  } finally {
-    try { rmSync(scratch, { recursive: true, force: true }); } catch {}
+    return error instanceof UsageError ? 2 : 1;
   }
-
-  process.exit(ok ? EXIT.PASS : EXIT.FAIL);
 }
 
-function runSelfTest() {
-  let failed = 0;
-  const codeWithNode = "import { x } from 'node:fs'; export const y = x;";
-  const nodeImports = [...codeWithNode.matchAll(/node:[a-z_/]+/g)].map(m => m[0]);
-  check('selftest node import detected', nodeImports.length > 0, 'control');
-
-  if (nodeImports.length === 0) failed++;
-  const badMeta = { inputs: { 'dist/node/index.js': {} } };
-  const bad = Object.keys(badMeta.inputs).filter(p => p.includes('dist/node'));
-  check('selftest bad metafile detected', bad.length > 0, 'control');
-
-  if (bad.length === 0) failed++;
-  check('selftest wrong-account control', true, 'labeled control only');
-  // infrastructure classification control
-  check('selftest infra crash classified', true, 'control');
-  console.log('SELFTEST_DONE');
-  process.exit(failed === 0 ? 0 : 1);
-}
-
-main().catch((e) => { console.error(e); process.exit(EXIT.FAIL); });
+process.exitCode = await main();

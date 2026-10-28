@@ -896,7 +896,7 @@ async function collect({ cli, expectExecArgv }) {
 
   /* --------------------------- exact offset view --------------------------- */
 
-  const VIEW_PAYLOAD = utf8('{"phase11":"offset-view","precise":true}');
+  const VIEW_PAYLOAD = new Uint8Array([0, 255, 195, 40, 123, 10, 128, 254]);
 
   function offsetView(fill) {
     const backing = Buffer.alloc(VIEW_PAYLOAD.length + 9, fill);

@@ -237,6 +237,7 @@ function buildBaselineFiles(options) {
     'docs/api-stability.md': '# API stability',
     'docs/credential-recipes.md': '# Credential recipes',
     'CHANGELOG.md': '# Changelog',
+    'docs/compatibility.md': '# Node.js module compatibility',
     'docs/providers.md': providersDocument(buildRows(guideRow, settings.guideAlgorithmOverrides), settings.guideExtraLink),
     'docs/diagnostics.md': settings.withMigrationAnchor === false ? DIAGNOSTICS_PLAIN : DIAGNOSTICS_WITH_ANCHOR,
     'docs/cli.md': settings.cliDocument ?? CLI_PLAIN,
@@ -364,6 +365,12 @@ async function controlReleaseDocumentationLinks() {
   const report = runDocsContract(files, CONTROL_REGISTRY, ALGORITHM_POLICY);
 
   expectEqual(report.findings, [], 'release documentation links are checked');
+
+  const windowsFiles = {};
+
+  for (const [name, text] of Object.entries(files)) windowsFiles[name] = text.replaceAll('\n', '\r\n');
+
+  expectEqual(runDocsContract(windowsFiles, CONTROL_REGISTRY, ALGORITHM_POLICY).findings, [], 'CRLF release links match LF links');
   files['docs/api-stability.md'] = '# Changed title';
 
   const invalid = runDocsContract(files, CONTROL_REGISTRY, ALGORITHM_POLICY);

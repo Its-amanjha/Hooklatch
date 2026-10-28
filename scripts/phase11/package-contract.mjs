@@ -143,7 +143,7 @@ const MESSAGE_LIMIT = 400;
 class InfrastructureError extends Error {}
 
 /** Caller misuse detected after prerequisites were fine; exits 2. */
-class UsageError extends Error {}
+export class UsageError extends Error {}
 
 /* -------------------------------------------------------------------------- */
 /* embedded frozen policy (mirrors tasks/phase-11/exports-policy.json v1)     */
@@ -2576,7 +2576,7 @@ function statOrNull(p) {
  * exclusively (`wx`), making this a linear check rather than a race-free
  * sandbox; that limit is documented.
  */
-function validateResultsDestination(rawResults, repoRoot) {
+export function validateResultsDestination(rawResults, repoRoot) {
   const dest = path.resolve(rawResults);
   const finalStat = statOrNull(dest);
 

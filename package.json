@@ -11,35 +11,101 @@
   "engines": {
     "node": ">=22"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/cjs/index.cjs",
   "types": "./dist/index.d.ts",
   "bin": {
     "hooklatch": "./dist/cli/index.js"
   },
   "exports": {
     ".": {
+      "node": {
+        "import": {
+          "types": "./dist/node/index.d.ts",
+          "default": "./dist/node/index.js"
+        },
+        "require": {
+          "types": "./dist/cjs/index.d.cts",
+          "default": "./dist/cjs/index.cjs"
+        }
+      },
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./diagnostics": {
+      "node": {
+        "import": {
+          "types": "./dist/node/diagnostics/index.d.ts",
+          "default": "./dist/node/diagnostics/index.js"
+        },
+        "require": {
+          "types": "./dist/cjs/diagnostics/index.d.cts",
+          "default": "./dist/cjs/diagnostics/index.cjs"
+        }
+      },
       "types": "./dist/diagnostics/index.d.ts",
-      "import": "./dist/diagnostics/index.js"
+      "import": "./dist/diagnostics/index.js",
+      "default": "./dist/diagnostics/index.js"
     },
     "./express": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/express.d.ts",
+          "default": "./dist/node/adapters/express.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/express.d.cts",
+          "default": "./dist/cjs/adapters/express.cjs"
+        }
+      },
       "types": "./dist/adapters/express.d.ts",
-      "import": "./dist/adapters/express.js"
+      "import": "./dist/adapters/express.js",
+      "default": "./dist/adapters/express.js"
     },
     "./nextjs": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/nextjs.d.ts",
+          "default": "./dist/node/adapters/nextjs.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/nextjs.d.cts",
+          "default": "./dist/cjs/adapters/nextjs.cjs"
+        }
+      },
       "types": "./dist/adapters/nextjs.d.ts",
-      "import": "./dist/adapters/nextjs.js"
+      "import": "./dist/adapters/nextjs.js",
+      "default": "./dist/adapters/nextjs.js"
     },
     "./cloudflare": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/cloudflare.d.ts",
+          "default": "./dist/node/adapters/cloudflare.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/cloudflare.d.cts",
+          "default": "./dist/cjs/adapters/cloudflare.cjs"
+        }
+      },
       "types": "./dist/adapters/cloudflare.d.ts",
-      "import": "./dist/adapters/cloudflare.js"
+      "import": "./dist/adapters/cloudflare.js",
+      "default": "./dist/adapters/cloudflare.js"
     },
     "./hono": {
+      "node": {
+        "import": {
+          "types": "./dist/node/adapters/hono.d.ts",
+          "default": "./dist/node/adapters/hono.js"
+        },
+        "require": {
+          "types": "./dist/cjs/adapters/hono.d.cts",
+          "default": "./dist/cjs/adapters/hono.cjs"
+        }
+      },
       "types": "./dist/adapters/hono.d.ts",
-      "import": "./dist/adapters/hono.js"
+      "import": "./dist/adapters/hono.js",
+      "default": "./dist/adapters/hono.js"
     }
   },
   "files": [
@@ -49,7 +115,7 @@
   ],
   "scripts": {
     "verify": "node scripts/verify.mjs",
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cli.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.cli.json && node scripts/phase11/build-node-distribution.mjs",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "typecheck:workers": "tsc -p tsconfig.workers.json --noEmit",
@@ -71,7 +137,12 @@
     "test:api-freeze": "node scripts/phase10/api-freeze.mjs --self-test && node scripts/phase10/api-freeze.mjs --results notes/phase-10/coordinator-api-freeze-results.json",
     "test:generated-runtime": "node scripts/phase10/generated-handlers-runtime.mjs --controls && node scripts/phase10/generated-handlers-runtime.mjs --runtime current",
     "test:conformance": "node scripts/phase10/provider-conformance-controls.mjs && node scripts/phase10/provider-conformance.mjs --controls",
-    "test:cjs-prototype": "node scripts/phase10/cjs-consumers.mjs"
+    "test:cjs-prototype": "node scripts/phase10/cjs-consumers.mjs",
+    "test:node-distribution": "node --test tests/build/phase11-node-distribution.test.mjs",
+    "test:compat-package": "node scripts/phase11/package-contract.mjs --self-test && node scripts/phase11/package-contract.mjs",
+    "test:compat-types": "node scripts/phase11/types-compatibility.mjs --self-test && node scripts/phase11/types-compatibility.mjs",
+    "test:compat-runtime": "node scripts/phase11/mixed-format-runtime.mjs --self-test && node scripts/phase11/mixed-format-runtime.mjs --current",
+    "test:compat-frameworks": "node scripts/phase11/workers-compatibility.mjs --self-test"
   },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",

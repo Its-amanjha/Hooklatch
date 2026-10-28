@@ -31,11 +31,12 @@
  *   3: prerequisite blocked
  */
 import assert from 'node:assert/strict';
+import { UsageError, validateResultsDestination } from './package-contract.mjs';
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
-  realpathSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync,
+  realpathSync, readdirSync, rmSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync,
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,7 +45,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   FORBIDDEN_SUBPATHS, PROVIDERS, SUBPATHS,
-  generateCjsConsumerScript, generateImportFirstScript,
+  buildIndependentAnchors, generateCjsConsumerScript, generateImportFirstScript,
   generateNegativeSubpathsScript, generateRequireFirstScript,
 } from './mixed-format-consumer.mjs';
 
@@ -396,7 +397,24 @@ export function snapshotCheckout() {
   const listed = runSync('git', ['ls-files', '-z']);
   assert.equal(listed.status, 0, `git ls-files failed: ${listed.stderr}`);
 
-  const files = listed.stdout.split('\0').filter((f) => f.length > 0).sort();
+  const distFiles = [];
+
+  const visit = (directory) => {
+    if (!existsSync(directory)) return;
+
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const target = path.join(directory, entry.name);
+
+      assert.equal(entry.isSymbolicLink(), false, 'dist link refused');
+
+      if (entry.isDirectory()) visit(target);
+      else distFiles.push(path.relative(REPO_ROOT, target).split(path.sep).join('/'));
+    }
+  };
+
+  visit(path.join(REPO_ROOT, 'dist'));
+
+  const files = [...new Set([...listed.stdout.split('\0').filter((f) => f.length > 0), ...distFiles])].sort();
   const hash = createHash('sha256');
 
   for (const file of files) {
@@ -481,8 +499,8 @@ export async function installCandidateConsumer(workspace, tarballPath, ledger) {
   const npmExecutable = npmCli.endsWith('.js') ? process.execPath : npmCli;
 
   const npmArgs = npmCli.endsWith('.js')
-    ? [npmCli, 'install', tarballPath, '--no-save', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--legacy-peer-deps']
-    : ['install', tarballPath, '--no-save', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--legacy-peer-deps'];
+    ? [npmCli, 'install', tarballPath, '--no-save', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--legacy-peer-deps', '--cache', path.join(workspace.root, 'cache')]
+    : ['install', tarballPath, '--no-save', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--legacy-peer-deps', '--cache', path.join(workspace.root, 'cache')];
 
   const installRes = await runChild(npmExecutable, npmArgs, {
     cwd: consumerDir,
@@ -524,76 +542,66 @@ export async function runSelfTestControls() {
   console.log('Running Phase 11 harness self-test controls...');
   const results = [];
 
-  // 1. Control: Wrong CJS branch detection
-  {
-    let caught = false;
+  const workspace = createWorkspace();
+  const ledger = createHealthLedger();
 
-    try {
-      const mockBranch = { ext: '.js', condition: 'node.require' };
-      assert.equal(mockBranch.ext, '.cjs', 'Require must target canonical .cjs');
-    } catch {
-      caught = true;
+  try {
+    const tarball = await packCheckout(workspace, ledger);
+    const { consumerDir, installedRoot } = await installCandidateConsumer(workspace, tarball, ledger);
+
+    const mutations = [
+      { id: 'wrong-cjs-branch', file: 'package.json', script: 'probe-import-first.mjs',
+        change: (text) => {
+          const manifest = JSON.parse(text);
+          manifest.exports['.'].node.require.default = './dist/index.js';
+
+          return JSON.stringify(manifest);
+        } },
+      { id: 'duplicate-error-class', file: 'dist/cjs/index.cjs', script: 'probe-import-first.mjs',
+        change: (text) => text.replace('require("./errors.cjs")', 'require("./errors-copy.cjs")') },
+      { id: 'wrong-mac-acceptance', file: 'dist/cjs/internal/verification.cjs', script: 'mixed-format-consumer.mjs',
+        change: (text) => text.replace('if (!valid', 'if (false') },
+      { id: 'ignored-api-result', file: 'dist/cjs/core.cjs', script: 'mixed-format-consumer.mjs',
+        change: (text) => text + '\nexports.createVerifier = () => async () => ({ok:false,provider:"github",reason:"invalid-signature",message:"Synthetic control"});\n' },
+      { id: 'zero-tolerance-ignored', file: 'dist/cjs/internal/verification.cjs', script: 'mixed-format-consumer.mjs',
+        change: (text) => text.replaceAll('prepared.options.toleranceSeconds', '(prepared.options.toleranceSeconds || 300)') },
+    ];
+
+    cpSync(path.join(installedRoot, 'dist/cjs/errors.cjs'), path.join(installedRoot, 'dist/cjs/errors-copy.cjs'));
+
+    for (const mutation of mutations) {
+      const target = path.join(installedRoot, mutation.file);
+      const pristine = readFileSync(target, 'utf8');
+      const changed = mutation.change(pristine);
+
+      assert.notEqual(changed, pristine, `${mutation.id}: mutation site absent`);
+      writeFileSync(target, changed);
+
+      try {
+        const run = await runChild(process.execPath, [mutation.script], { cwd: consumerDir, ledger, timeoutMs: 60000 });
+
+        assert.equal(run.exitCode, 1, `${mutation.id}: must fail through an assertion`);
+        assert.equal(run.timedOut, false);
+        assert.equal(run.signal, null);
+        assert.match(run.stderr, /AssertionError/);
+        results.push({ id: mutation.id, status: 'pass', assertion: run.stderr.slice(-1500) });
+      } finally {
+        writeFileSync(target, pristine);
+      }
     }
 
-    assert.ok(caught, 'Wrong CJS branch was not detected');
-    results.push({ id: 'wrong-cjs-branch', status: 'pass' });
-  }
+    const pristine = await runChild(process.execPath, ['mixed-format-consumer.mjs'], { cwd: consumerDir, ledger });
 
-  // 2. Control: Duplicate error class detection
-  {
-    class ErrorClassA extends Error {}
+    assert.ok(pristine.ok, pristine.stderr);
 
-    class ErrorClassB extends Error {}
+    const report = JSON.parse(pristine.stdout.trim().split('\n').pop());
 
-    const instanceA = new ErrorClassA('test');
-
-    assert.equal(instanceA instanceof ErrorClassB, false, 'Distinct error classes must not share instanceof');
-    results.push({ id: 'duplicate-error-class', status: 'pass' });
-  }
-
-  // 3. Control: Wrong MAC acceptance detection
-  {
-    let detected = false;
-    const faultyResult = { ok: true, provider: 'stripe' }; // Falsely claims ok: true on tampered MAC
-
-    try {
-      assert.equal(faultyResult.ok, false, 'Tampered MAC must not be accepted');
-    } catch {
-      detected = true;
-    }
-
-    assert.ok(detected, 'Acceptance of wrong MAC was not detected');
-    results.push({ id: 'wrong-mac-acceptance', status: 'pass' });
-  }
-
-  // 4. Control: Ignored API result detection
-  {
-    let detected = false;
-    const failureResult = { ok: false, provider: 'github', reason: 'invalid-signature' };
-
-    try {
-      assert.equal(failureResult.ok, true, 'Unexpected failure result was ignored');
-    } catch {
-      detected = true;
-    }
-
-    assert.ok(detected, 'Ignored API failure result was not detected');
-    results.push({ id: 'ignored-api-result', status: 'pass' });
-  }
-
-  // 5. Control: Missing provider tuple detection
-  {
-    let detected = false;
-    const incompleteProviders = PROVIDERS.slice(0, 20); // Missing 21st provider
-
-    try {
-      assert.equal(incompleteProviders.length, 21, 'Must include all 21 providers');
-    } catch {
-      detected = true;
-    }
-
-    assert.ok(detected, 'Missing provider in tuple inventory was not detected');
+    validateMatrixReport(report, process.version);
+    report.tuples.pop();
+    assert.throws(() => validateMatrixReport(report, process.version), /inventory/);
     results.push({ id: 'missing-provider-tuple', status: 'pass' });
+  } finally {
+    disposeWorkspace(workspace, { ledger });
   }
 
   // 6. Control: Real child crash distinctly
@@ -636,6 +644,58 @@ export async function runSelfTestControls() {
  * Full Two-Runtime Qualification Matrix
  * ------------------------------------------------------------------ */
 
+export function validateMatrixReport(report, runtime) {
+  assert.equal(report.runtime, runtime, 'consumer runtime differs from runtime probe');
+  assert.equal(report.ok, true);
+
+  const expected = [];
+
+  for (const format of ['import', 'require']) {
+    for (const provider of PROVIDERS) {
+      for (const state of ['valid', 'tampered']) {
+        for (const api of ['verify', 'verifyRequest', 'createVerifier']) {
+          expected.push(`${format}:${provider}:${api}:${state}`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(report.tuples.map((tuple) => `${tuple.format}:${tuple.provider}:${tuple.api}:${tuple.state}`), expected, 'exact tuple inventory');
+
+  const { pinned } = buildIndependentAnchors();
+
+  assert.equal(report.pinned.length, pinned.length * 2, 'pinned inventory');
+
+  for (const [index, entry] of report.pinned.entries()) {
+    assert.equal(entry.name, pinned[index % pinned.length].name, 'pinned case order');
+    assert.equal(entry.tuples.length, 3, 'pinned API inventory');
+  }
+}
+
+export async function packCheckout(workspace, ledger) {
+  const run = await runChild(process.execPath, [
+    locateNpmCli(), 'pack', '--offline', '--ignore-scripts', '--json',
+    '--cache', path.join(workspace.root, 'cache'), '--pack-destination', workspace.root,
+  ], { cwd: REPO_ROOT, ledger, timeoutMs: 180000 });
+
+  assert.ok(run.ok, `pack failed: ${run.stderr}`);
+
+  const packed = JSON.parse(run.stdout);
+
+  assert.equal(packed.length, 1);
+
+  return path.join(workspace.root, packed[0].filename);
+}
+
+async function probeRole(executable, major, ledger) {
+  const run = await runChild(executable, ['-v'], { ledger, timeoutMs: 10000 });
+
+  assert.ok(run.ok, `runtime probe failed: ${run.stderr}`);
+  assert.match(run.stdout.trim(), new RegExp(`^v${major}\\.\\d+\\.\\d+$`), `Expected Node ${major}`);
+
+  return run.stdout.trim();
+}
+
 export async function runMatrixOnRuntime(nodeExecutable, consumerDir, ledger) {
   const versionRes = await runChild(nodeExecutable, ['-v'], { ledger, timeoutMs: 10000 });
   assert.ok(versionRes.ok, `Failed to query Node version from ${nodeExecutable}`);
@@ -650,7 +710,7 @@ export async function runMatrixOnRuntime(nodeExecutable, consumerDir, ledger) {
 
   assert.ok(mjsRes.ok, `mixed-format-consumer.mjs failed on ${runtimeVersion}: ${mjsRes.stderr}`);
   const mjsOutput = JSON.parse(mjsRes.stdout.trim().split('\n').pop());
-  assert.equal(mjsOutput.ok, true, 'mjs consumer output ok: true');
+  validateMatrixReport(mjsOutput, runtimeVersion);
   assert.equal(mjsOutput.totalTuples, 252, `Expected 252 tuples from mjs consumer, got ${mjsOutput.totalTuples}`);
 
   // 2. Real .cjs require consumer
@@ -663,7 +723,9 @@ export async function runMatrixOnRuntime(nodeExecutable, consumerDir, ledger) {
   assert.ok(cjsRes.ok, `consumer.cjs failed on ${runtimeVersion}: ${cjsRes.stderr}`);
   const cjsOutput = JSON.parse(cjsRes.stdout.trim().split('\n').pop());
   assert.equal(cjsOutput.ok, true, 'cjs consumer output ok: true');
-  assert.equal(cjsOutput.totalTuples, 144, `Expected 144 tuples from cjs consumer, got ${cjsOutput.totalTuples}`);
+  assert.equal(cjsOutput.runtime, runtimeVersion);
+  assert.equal(cjsOutput.tuples.length, 150);
+  assert.equal(cjsOutput.totalTuples, 150, `Expected 150 tuples from cjs consumer, got ${cjsOutput.totalTuples}`);
 
   // 3. Import-first reference equality subprocess
   const importFirstRes = await runChild(nodeExecutable, ['probe-import-first.mjs'], {
@@ -721,6 +783,7 @@ export function parseArgs(argv) {
     node22: null,
     node24: null,
     selfTest: false,
+    current: false,
     results: null,
     help: false,
   };
@@ -730,6 +793,8 @@ export function parseArgs(argv) {
 
     if (item === '--help' || item === '-h') {
       args.help = true;
+    } else if (item === '--current') {
+      args.current = true;
     } else if (item === '--self-test') {
       args.selfTest = true;
     } else if (item === '--tarball') {
@@ -767,12 +832,23 @@ Options:
   --tarball FILE       explicit candidate tarball to qualify
   --node22 FILE        path to Node 22 executable
   --node24 FILE        path to Node 24 executable
+  --current            qualify this exact Node 22/24 runtime only
   --self-test          run regression controls (exit 0 controls-only)
   --results FILE       path to write JSON evidence report
   --help               show this help message
 `);
 
     return EXIT.PASS;
+  }
+
+  try {
+    if (args.results !== null) validateResultsDestination(path.resolve(REPO_ROOT, args.results), REPO_ROOT);
+  } catch (error) {
+    if (!(error instanceof UsageError)) throw error;
+
+    console.error(error.message);
+
+    return EXIT.USAGE;
   }
 
   if (args.selfTest) {
@@ -797,19 +873,19 @@ Options:
   }
 
   // Complete matrix requires both runtimes
-  if (args.node22 === null || args.node24 === null) {
+  if (!args.current && (args.node22 === null || args.node24 === null)) {
     console.error('BLOCKED: Complete two-runtime matrix requires both --node22 and --node24 executables.');
 
     return EXIT.BLOCKED;
   }
 
-  if (!existsSync(args.node22)) {
+  if (!args.current && !existsSync(args.node22)) {
     console.error(`BLOCKED: Node 22 executable not found at: ${args.node22}`);
 
     return EXIT.BLOCKED;
   }
 
-  if (!existsSync(args.node24)) {
+  if (!args.current && !existsSync(args.node24)) {
     console.error(`BLOCKED: Node 24 executable not found at: ${args.node24}`);
 
     return EXIT.BLOCKED;
@@ -821,8 +897,19 @@ Options:
     return EXIT.BLOCKED;
   }
 
-  const tarballPath = path.resolve(args.tarball);
-  const tarballSha256 = computeSha256(tarballPath);
+  const roleLedger = createHealthLedger();
+
+  const targets = args.current
+    ? [{ label: `node${process.versions.node.split('.')[0]}`, executable: process.execPath, major: Number(process.versions.node.split('.')[0]) }]
+    : [{ label: 'node22', executable: args.node22, major: 22 }, { label: 'node24', executable: args.node24, major: 24 }];
+
+  for (const target of targets) {
+    assert.ok([22, 24].includes(target.major), 'qualified runtime majors are 22 and 24');
+    await probeRole(target.executable, target.major, roleLedger);
+  }
+
+  let tarballPath = args.tarball === null ? null : path.resolve(args.tarball);
+  let tarballSha256 = tarballPath === null ? null : computeSha256(tarballPath);
 
   console.log(`Qualifying candidate tarball: ${tarballPath}`);
   console.log(`Candidate SHA256: ${tarballSha256}`);
@@ -850,38 +937,42 @@ Options:
   };
 
   try {
+    if (tarballPath === null) {
+      tarballPath = await packCheckout(workspace, ledger);
+      tarballSha256 = computeSha256(tarballPath);
+      report.candidate = { path: tarballPath, sha256: tarballSha256 };
+    }
+
     const { consumerDir } = await installCandidateConsumer(workspace, tarballPath, ledger);
 
     // Run pristine ready matrix twice for absolute repeatability
     for (const runIndex of [1, 2]) {
       console.log(`\n=== Running Matrix Pass ${runIndex} ===`);
 
-      const passResults = {
-        pass: runIndex,
-        node22: await runMatrixOnRuntime(args.node22, consumerDir, ledger),
-        node24: await runMatrixOnRuntime(args.node24, consumerDir, ledger),
-      };
+      const passResults = { pass: runIndex };
+
+      for (const target of targets) passResults[target.label] = await runMatrixOnRuntime(target.executable, consumerDir, ledger);
 
       report.runs.push(passResults);
 
       if (runIndex === 1) {
-        report.runtimesChecked.push(passResults.node22.runtime, passResults.node24.runtime);
+        for (const target of targets) report.runtimesChecked.push(passResults[target.label].runtime);
       }
     }
 
     const firstRun = report.runs[0];
-    const totalTuplesAcrossRuntimes = firstRun.node22.totalTuplesPerRuntime + firstRun.node24.totalTuplesPerRuntime;
+    const totalTuplesAcrossRuntimes = targets.reduce((total, target) => total + firstRun[target.label].totalTuplesPerRuntime, 0);
 
     assert.ok(
-      totalTuplesAcrossRuntimes >= 504,
-      `Minimum 504 tuples required across runtimes, got ${totalTuplesAcrossRuntimes}`,
+      totalTuplesAcrossRuntimes === 252 * targets.length,
+      `Exact primary inventory required across selected runtimes, got ${totalTuplesAcrossRuntimes}`,
     );
 
     report.allTuplesMinimumMet = true;
     report.totalTuplesCount = totalTuplesAcrossRuntimes;
     report.status = 'pass';
 
-    console.log(`\nMatrix Execution Succeeded: ${totalTuplesAcrossRuntimes} tuples verified across Node 22 and Node 24.`);
+    console.log(`\nMatrix Execution Succeeded: ${totalTuplesAcrossRuntimes} tuples verified across ${targets.map((target) => target.label).join(" and ")}.`);
   } finally {
     console.log('Disposing workspace and verifying cleanup...');
     disposeWorkspace(workspace, { ledger });
@@ -903,7 +994,8 @@ Options:
         'Refusing to overwrite session claim with results report',
       );
       mkdirSync(path.dirname(resultsDest), { recursive: true });
-      writeFileSync(resultsDest, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+      assert.equal(existsSync(resultsDest), false, 'results destination already exists');
+      writeFileSync(resultsDest, `${JSON.stringify(report, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
       console.log(`Evidence report written to: ${resultsDest}`);
     }
   }

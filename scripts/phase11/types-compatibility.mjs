@@ -1719,6 +1719,23 @@ function copyInstalledPackage(source, destination) {
 }
 
 function applyMutation(installedRoot, mutation) {
+  if (mutation.type === 'move-augmentation') {
+    const canonical = path.join(installedRoot, 'dist', 'cjs', 'adapters', `${mutation.provider}.d.cts`);
+    const facade = path.join(installedRoot, 'dist', 'node', 'adapters', `${mutation.provider}.d.ts`);
+    const before = readFileSync(canonical, 'utf8');
+    const start = before.indexOf('declare module ');
+    const end = before.indexOf('\n}', start) + 2;
+
+    if (start < 0 || end < start) throw new GateError('augmentation control cannot find its declared module');
+
+    const augmentation = before.slice(start, end);
+
+    writeFileSync(canonical, before.slice(0, start) + before.slice(end));
+    writeFileSync(facade, `${readFileSync(facade, 'utf8')}\nimport type { VerificationSuccess } from '../../cjs/types.cjs';\n${augmentation}\n`);
+
+    return { type: mutation.type, provider: mutation.provider, movedTo: 'esm-facade-only' };
+  }
+
   if (mutation.type === 'delete-file') {
     const target = path.join(installedRoot, mutation.file);
 
@@ -1812,6 +1829,11 @@ async function runControls(baseEnvironment, tempRoot) {
       copyInstalledPackage(baseEnvironment.installedRoot, installedRoot);
 
       const mutation = applyMutation(installedRoot, control.mutation);
+      const definition = ENVIRONMENTS[caseDefinition.environment];
+
+      for (const link of definition.links) {
+        createLink(path.join(REPO_ROOT, link.target), path.join(envDir, 'node_modules', link.name), tempRoot);
+      }
 
       const result = await compileControlCase(
         caseDefinition, envDir, ENVIRONMENTS[caseDefinition.environment],
@@ -1822,6 +1844,15 @@ async function runControls(baseEnvironment, tempRoot) {
       detected = control.expect === 'infrastructure'
         ? result.status === 'infrastructure'
         : (result.status === 'fail' && result.failureKind === control.expect);
+
+      if (control.expectedDiagnostic !== undefined) {
+        const line = caseDefinition.source.split('\n').findIndex((text) => text.includes(control.lineText)) + 1;
+
+        detected = line > 0 && result.status === 'fail' && result.outside.length === 0
+          && result.diagnostics.some((diagnostic) => diagnostic.code === control.expectedDiagnostic
+            && diagnostic.line === line && diagnostic.file === caseDefinition.fileName);
+      }
+
       detail = {
         mutation,
         resolution: result.resolution,
@@ -2184,7 +2215,21 @@ async function runMatrix(artifact, tempRoot, toolchain, peers) {
       writeFileSync(path.join(environment.envDir, caseDefinition.fileName), caseDefinition.source, 'utf8');
     }
 
-    const compiled = await compileEnvironment(environment, caseDefinitions);
+    // Ordinary peer cases must NEVER share a program with another format or
+    // an intentional mixed-format case: ambient augmentation would mask gaps.
+    const batches = definition.id.endsWith('-express') || definition.id.endsWith('-hono')
+      ? caseDefinitions.map((caseDefinition) => [caseDefinition])
+      : [caseDefinitions];
+
+    const compiled = { diagnostics: [], probes: [] };
+
+    for (const batch of batches) {
+      const result = await compileEnvironment(environment, batch);
+
+      compiled.diagnostics.push(...result.diagnostics);
+      compiled.probes.push(...result.probes);
+    }
+
 
     compiledByEnvironment.set(definition.id, compiled);
     console.log(`[phase11] compiled ${definition.id}: ${caseDefinitions.length} cases, ${compiled.diagnostics.length} diagnostics`);
