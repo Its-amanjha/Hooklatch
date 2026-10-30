@@ -4,7 +4,7 @@
  *
  * Validates docs/verification-evidence.json and docs/verification-evidence.md against
  * the frozen Phase 12 release preparation contract:
- *  - Exact 21 provider inventory and built registry order.
+ *  - Exact 21 provider inventory against the current built registry order.
  *  - Algorithm policy and enum consistency across all providers.
  *  - Strict separation of evidence classes:
  *      * 4 pinned vendor SDK comparisons (49 cases = 41 agreements + 8 divergences)
@@ -13,7 +13,7 @@
  *      * Historical totals: 57 cases, 41 agreements, 8 divergences, 8 docs probes, 0 mismatches
  *      * Sandbox delivery status must be 'not-run' for all 21 providers
  *  - Required provenance: base SHA, live GitHub CI run 40650684406, and 5 historical receipt hashes.
- *  - Rejection of historical-as-current claims (testedHead !== baseSha).
+ *  - Rejection of historical-as-current claims; measurement date/runtimes retained.
  *  - Full agreement between public Markdown table and JSON data.
  *
  * Exit codes:
@@ -24,6 +24,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { readBuiltRegistry } from '../phase10/docs-contract.mjs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -72,6 +73,8 @@ export const REGISTRY_PROVIDERS = Object.freeze([
   'vercel',
   'fal',
 ]);
+
+export const FIXTURE_COUNTS = Object.freeze({"stripe":{"total":19,"reference":0,"local":19},"github":{"total":9,"reference":1,"local":8},"shopify":{"total":7,"reference":0,"local":7},"standard-webhooks":{"total":17,"reference":2,"local":15},"clerk":{"total":16,"reference":1,"local":15},"svix":{"total":24,"reference":2,"local":22},"razorpay":{"total":20,"reference":0,"local":20},"paddle":{"total":33,"reference":2,"local":31},"lemon-squeezy":{"total":15,"reference":0,"local":15},"dodo-payments":{"total":31,"reference":0,"local":31},"gitlab":{"total":34,"reference":0,"local":34},"replicate":{"total":31,"reference":0,"local":31},"workos":{"total":58,"reference":0,"local":58},"sentry":{"total":24,"reference":0,"local":24},"doppler":{"total":24,"reference":0,"local":24},"sanity":{"total":58,"reference":0,"local":58},"grafana":{"total":50,"reference":0,"local":50},"polar":{"total":40,"reference":0,"local":40},"linear":{"total":31,"reference":0,"local":31},"vercel":{"total":33,"reference":0,"local":33},"fal":{"total":72,"reference":0,"local":72}});
 
 /** Frozen provider algorithm policies. */
 export const ALGORITHM_POLICY = Object.freeze({
@@ -193,12 +196,16 @@ export function parseMarkdownEvidenceTable(markdownContent) {
   return tableRows;
 }
 
+function isEvidenceText(value) {
+  return Object.prototype.toString.call(value) === '[object String]';
+}
+
 function isPlainObject(value) {
   return value !== null && Object.prototype.toString.call(value) === '[object Object]';
 }
 
 /** Validate evidence document against contract invariants. */
-export function validateEvidence(evidence, markdownContent) {
+export function validateEvidence(evidence, markdownContent, registry = REGISTRY_PROVIDERS, fixtureCounts = FIXTURE_COUNTS) {
   const findings = [];
 
   if (!isPlainObject(evidence)) {
@@ -217,6 +224,10 @@ export function validateEvidence(evidence, markdownContent) {
       rule: 'base-sha-mismatch',
       message: `Expected baseSha ${FROZEN_BASE_SHA}, found ${evidence.baseSha}`,
     });
+  }
+
+  if (JSON.stringify(registry) !== JSON.stringify(REGISTRY_PROVIDERS)) {
+    findings.push({ rule: 'built-registry-mismatch', message: 'Current built registry differs from the measured 21-provider inventory' });
   }
 
   const ci = evidence.provenance?.ci;
@@ -254,6 +265,10 @@ export function validateEvidence(evidence, markdownContent) {
       message: 'Missing provenance.historicalSdkEvaluation block',
     });
   } else {
+    if (histSdk.testedDate !== '2026-10-24' || JSON.stringify(histSdk.testedRuntimes) !== JSON.stringify(['v22.23.4', 'v24.15.0'])) {
+      findings.push({ rule: 'historical-measurement-provenance', message: 'Recorded SDK date and runtimes must match the measured receipts' });
+    }
+
     if (histSdk.testedHead !== HISTORICAL_SDK_TESTED_HEAD) {
       findings.push({
         rule: 'historical-tested-head-mismatch',
@@ -325,6 +340,12 @@ export function validateEvidence(evidence, markdownContent) {
 
   for (let index = 0; index < providers.length; index++) {
     const p = providers[index];
+
+    if (!isPlainObject(p)) {
+      findings.push({ rule: 'provider-row-invalid', message: 'Each provider row must be an object' });
+      continue;
+    }
+
     const expectedId = REGISTRY_PROVIDERS[index];
 
     if (p.provider !== expectedId) {
@@ -364,7 +385,16 @@ export function validateEvidence(evidence, markdownContent) {
       });
     }
 
+    if (p.runtimeQualification?.workerdQualified !== true || p.runtimeQualification?.nodeQualified !== true || p.runtimeQualification?.frameworkQualified !== true) {
+      findings.push({ rule: 'runtime-dimensions-invalid', message: `Missing measured offline qualification dimensions for ${p.provider}` });
+    }
+
     const fixture = p.fixtureCases;
+    const expectedFixture = fixtureCounts[p.provider];
+
+    if (JSON.stringify(fixture) !== JSON.stringify(expectedFixture)) {
+      findings.push({ rule: 'fixture-counts-mismatch', message: `Fixture classification differs from checked fixture corpus for ${p.provider}` });
+    }
 
     if (!fixture || fixture.total !== fixture.reference + fixture.local) {
       findings.push({
@@ -374,6 +404,15 @@ export function validateEvidence(evidence, markdownContent) {
     }
 
     const sdk = p.sdkComparison;
+
+    if (!isPlainObject(sdk)) {
+      findings.push({ rule: 'sdk-row-invalid', message: `Missing SDK evidence object for ${p.provider}` });
+      continue;
+    }
+
+    if (sdk.status !== 'not-compared' && (sdk.testedDate !== '2026-10-24' || sdk.testedHead !== HISTORICAL_SDK_TESTED_HEAD || JSON.stringify(sdk.testedRuntimes) !== JSON.stringify(['v22.23.4', 'v24.15.0']))) {
+      findings.push({ rule: 'sdk-measurement-provenance', message: `Missing recorded SDK/probe measurement date, head or runtimes for ${p.provider}` });
+    }
 
     if (PINNED_SDK_POLICIES[p.provider]) {
       const policy = PINNED_SDK_POLICIES[p.provider];
@@ -448,7 +487,7 @@ export function validateEvidence(evidence, markdownContent) {
         });
       }
 
-      if (sdk?.package !== null || sdk?.version !== null || sdk?.casesCount !== null) {
+      if (['package', 'version', 'casesCount', 'testedDate', 'testedHead', 'testedRuntimes', 'agreements', 'divergences', 'docsProbes', 'unexpectedMismatches'].some((field) => sdk[field] !== null) || !Array.isArray(sdk.divergenceDetails) || sdk.divergenceDetails.length !== 0) {
         findings.push({
           rule: 'uncompared-sdk-fields-present',
           message: `Provider ${p.provider} is not-compared but carries package/version/caseCounts`,
@@ -471,7 +510,9 @@ export function validateEvidence(evidence, markdownContent) {
     });
   }
 
-  if (markdownContent) {
+  if (!isEvidenceText(markdownContent)) {
+    findings.push({ rule: 'markdown-required', message: 'Readable evidence Markdown is required' });
+  } else {
     const mdRows = parseMarkdownEvidenceTable(markdownContent);
 
     if (mdRows.length !== 21) {
@@ -506,6 +547,15 @@ export function validateEvidence(evidence, markdownContent) {
         });
       }
 
+      const sdk = jsonRow.sdkComparison;
+      const fixture = jsonRow.fixtureCases;
+      const sdkLabel = sdk.status === 'compared' ? `compared (\`${sdk.package}\` v${sdk.version})` : sdk.status === 'docs-only' ? 'docs-only probe' : 'not-compared';
+      const countLabel = sdk.status === 'compared' ? `${sdk.agreements} agree, ${sdk.divergences} diverge` : sdk.status === 'docs-only' ? `${sdk.docsProbes} docs probes` : '—';
+
+      if (mdRow.fixtures !== `${fixture.total} (${fixture.reference} ref, ${fixture.local} local)` || mdRow.sdkComparison !== sdkLabel || mdRow.caseCounts !== countLabel || mdRow.runtimeQualification !== jsonRow.runtimeQualification.status) {
+        findings.push({ rule: 'markdown-json-disagreement', message: `Provider ${jsonRow.provider} evidence cells differ from JSON` });
+      }
+
       if (jsonRow.sdkComparison.status === 'not-compared' && !mdRow.sdkComparison.includes('not-compared')) {
         findings.push({
           rule: 'markdown-json-disagreement',
@@ -521,6 +571,16 @@ export function validateEvidence(evidence, markdownContent) {
 /** Execute internal negative controls to verify that mutant inputs are rejected. */
 export function runSelfTest(baseEvidence, baseMarkdown) {
   const tests = [
+    { name: 'empty-markdown', expectedRule: 'markdown-row-count-mismatch', mutate: (_data, md) => md.slice(0, 0) },
+    { name: 'uncompared-false-measurement', expectedRule: 'uncompared-sdk-fields-present', mutate: (data) => { data.providers[0].sdkComparison.testedHead = data.baseSha; data.providers[0].sdkComparison.agreements = 999; } },
+
+    { name: 'missing-measured-date', expectedRule: 'historical-measurement-provenance', mutate: (data) => { delete data.provenance.historicalSdkEvaluation.testedDate; } },
+    { name: 'missing-sdk-runtimes', expectedRule: 'sdk-measurement-provenance', mutate: (data) => { delete data.providers[3].sdkComparison.testedRuntimes; } },
+    { name: 'coherent-false-fixture-count', expectedRule: 'fixture-counts-mismatch', mutate: (data) => { data.providers[0].fixtureCases = { total: 999, reference: 999, local: 0 }; } },
+    { name: 'wrong-markdown-sdk-counts', expectedRule: 'markdown-json-disagreement', mutate: (_data, md) => md.replace('14 agree, 2 diverge', '999 agree, 0 diverge') },
+    { name: 'wrong-markdown-sdk-status', expectedRule: 'markdown-json-disagreement', mutate: (_data, md) => md.replace('compared (`standardwebhooks` v1.1.1)', 'live-certified') },
+    { name: 'wrong-markdown-runtime', expectedRule: 'markdown-json-disagreement', mutate: (_data, md) => md.replace('| qualified-offline |', '| live-certified |') },
+
     {
       name: 'deliberate-wrong-count',
       expectedRule: 'provider-count-mismatch',
@@ -619,6 +679,10 @@ export function runSelfTest(baseEvidence, baseMarkdown) {
     });
   }
 
+  const registryFindings = validateEvidence(baseEvidence, baseMarkdown, REGISTRY_PROVIDERS.slice(0, 20));
+
+  results.push({ test: 'changed-built-registry', passed: registryFindings.some((f) => f.rule === 'built-registry-mismatch'), expectedRule: 'built-registry-mismatch' });
+
   const allPassed = results.every((r) => r.passed);
 
   return {
@@ -649,8 +713,14 @@ function resolveWorkspacePaths() {
   };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const args = argv;
+
+  if (args.length > 1 || (args.length === 1 && !['--help', '-h', '--self-test', '--check'].includes(args[0]))) {
+    process.stderr.write('USAGE: Expected one of --help, --self-test or --check.\n');
+
+    return EXIT.USAGE;
+  }
 
   if (args.includes('--help') || args.includes('-h')) {
     printUsage();
@@ -658,7 +728,7 @@ export function main(argv = process.argv.slice(2)) {
     return EXIT.PASS;
   }
 
-  const { jsonPath, mdPath } = resolveWorkspacePaths();
+  const { rootDir, jsonPath, mdPath } = resolveWorkspacePaths();
 
   if (!existsSync(jsonPath) || !existsSync(mdPath)) {
     process.stderr.write(
@@ -694,7 +764,31 @@ export function main(argv = process.argv.slice(2)) {
     return EXIT.USAGE;
   }
 
-  const findings = validateEvidence(evidence, markdown);
+  let registry;
+  const fixtureCounts = {};
+
+  try {
+    registry = await readBuiltRegistry(rootDir);
+
+    if (!registry) {
+      process.stderr.write('BLOCKED: Build the provider registry first.\n');
+
+      return EXIT.BLOCKED;
+    }
+
+    for (const provider of REGISTRY_PROVIDERS) {
+      const fixture = JSON.parse(readFileSync(path.join(rootDir, 'tests', 'fixtures', `${provider}.json`), 'utf8'));
+      const reference = fixture.cases.filter((row) => row.provenance?.class === 'reference').length;
+
+      fixtureCounts[provider] = { total: fixture.cases.length, reference, local: fixture.cases.length - reference };
+    }
+  } catch (err) {
+    process.stderr.write(`RED: Cannot read built registry or fixture evidence: ${err.message}\n`);
+
+    return EXIT.RED;
+  }
+
+  const findings = validateEvidence(evidence, markdown, registry, fixtureCounts);
 
   if (findings.length > 0) {
     process.stdout.write(
@@ -733,7 +827,7 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const exitCode = main(process.argv.slice(2));
+  const exitCode = await main(process.argv.slice(2));
 
   process.exit(exitCode);
 }

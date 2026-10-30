@@ -4,15 +4,15 @@ Hooklatch maintains an explicit, verifiable qualification matrix covering all 21
 
 ## Evidence classification
 
-To ensure absolute transparency and technical integrity, Hooklatch categorizes verification evidence into distinct classes:
+The matrix separates these evidence classes:
 
 1. **Published reference vectors**: External test vectors published by vendors in their official documentation or reference test suites. These vectors provide fixed inputs, secrets, timestamps, and expected signatures without Hooklatch synthesis.
 2. **Local synthetic fixtures**: Deterministic test fixtures generated locally with `node:crypto`. These exercise edge cases, secret rotation, timestamp expiry, header whitespace variations, malformed parameters, and body tampering across all 21 providers without live network calls.
-3. **Pinned vendor SDK comparison (historical offline qualification)**: Differential evaluation against four official vendor SDK packages executed under frozen offline qualification at historical commit `1747694b73b1c61254d99ad3217768650654d410` (tested 2026-10-27 on Node.js v22.23.4 and v24.15.0).
+3. **Pinned vendor SDK comparison (historical offline qualification)**: Differential evaluation against four official vendor SDK packages executed under frozen offline qualification at historical commit `1747694b73b1c61254d99ad3217768650654d410` (recorded execution 2026-10-24 on Node.js v22.23.4 and v24.15.0).
    > [!IMPORTANT]
    > Historical SDK qualification results represent frozen historical inputs and are **not** a fresh rerun on the current commit (`baa8a7427fbed42404f97d3b66c68c160ff1555f`). Hooklatch core maintains zero runtime dependencies and does not install vendor SDKs in production or CI environments.
 4. **Documentation-only probes**: For providers that do not distribute a standalone Node.js verification SDK (Vercel and fal), verification recipes are probed against published vendor technical specifications.
-5. **Local runtime and framework qualification**: Offline execution across supported runtime engines (Node.js >= 22.0.0, Cloudflare Workers `workerd`), full framework adapters (Next.js, Express, Fastify, Hono), dual module formats (ESM and CommonJS), and TypeScript type definitions.
+5. **Local runtime and framework qualification**: Offline execution across supported runtime engines (Node.js >= 22.0.0, Cloudflare Workers `workerd`), full framework adapters (Next.js, Express, Cloudflare, Hono), dual module formats (ESM and CommonJS), and TypeScript type definitions.
 6. **Sandbox delivery status**: **`not-run` for all 21 providers**. Hooklatch executes no live network calls and does not solicit live vendor credentials in automated test suites. Local qualification is never presented as proof of live vendor interoperability.
 
 ---
@@ -55,14 +55,14 @@ During Phase 10 qualification at commit `1747694b73b1c61254d99ad3217768650654d41
 - **8 documentation-only probes**
 - **0 unexpected mismatches**
 
-All 8 documented divergences reflect intentional, documented architectural decisions in Hooklatch designed to enforce strict security boundaries, exact raw-byte preservation, and robust parsing:
+The eight observed differences reflect receiver policies or API scope; they do not establish that one implementation is universally safer:
 
 ### 1. `standardwebhooks` (v1.1.1) — 16 cases (14 agreements, 2 divergences)
-- **`std-divergence-auth-before-freshness`**: Hooklatch verifies cryptographic signatures before timestamp freshness (`invalid-signature`), preventing unauthenticated requests from probing server clock state or error branches. The vendor SDK checks timestamp freshness first, throwing `WebhookVerificationError: Message timestamp too old`.
-- **`std-divergence-weak-key`**: Hooklatch enforces `MIN_KEY_BYTES = 24` on symmetric secrets to guard against weak symmetric keys (`invalid-secret`). The vendor SDK permits arbitrary secret lengths.
+- **`std-divergence-auth-before-freshness`**: Hooklatch verifies cryptographic signatures before timestamp freshness (`invalid-signature`), so the reported reason for a bad MAC does not depend on freshness. The vendor SDK checks timestamp freshness first, throwing `WebhookVerificationError: Message timestamp too old`.
+- **`std-divergence-weak-key`**: Hooklatch enforces `MIN_KEY_BYTES = 24` on symmetric secrets as a Hooklatch receiver policy (length alone does not establish entropy) (`invalid-secret`). The vendor SDK permits arbitrary secret lengths.
 
 ### 2. `@paddle/paddle-node-sdk` (v3.10.0) — 14 cases (11 agreements, 3 divergences)
-- **`paddle-divergence-whitespace-segment`**: Hooklatch trims segment whitespace around semicolons per header robustness standards, accepting valid signatures even when headers contain formatted spacing (`ts=...; h1=...`). The Paddle Node SDK splits on `;` without trimming, producing key `" h1"` which fails parameter lookup and rejects the delivery.
+- **`paddle-divergence-whitespace-segment`**: Hooklatch trims segment whitespace around semicolons as a Hooklatch receiver policy, accepting valid signatures even when headers contain formatted spacing (`ts=...; h1=...`). The Paddle Node SDK splits on `;` without trimming, producing key `" h1"` which fails parameter lookup and rejects the delivery.
 - **`paddle-divergence-rotation-first-valid`**: Hooklatch treats repeated `h1` signatures as an accept-set for key rotation, validating successfully if any signature matches. The Paddle Node SDK loops and overwrites `h1`, evaluating only the final value.
 - **`paddle-divergence-auth-before-freshness`**: Hooklatch verifies cryptographic authentication before timestamp freshness (`invalid-signature`). The vendor SDK checks timestamps first.
 
@@ -77,10 +77,10 @@ All 8 documented divergences reflect intentional, documented architectural decis
 
 ## Documentation-only probes
 
-For providers that do not ship a dedicated Node.js signature verification library, Hooklatch validates against official documentation recipes across 8 probes (4 cases each):
+The historical corpus includes eight synthetic documentation-recipe probes (four cases each); these are not SDK comparisons:
 
 1. **`vercel` (HMAC-SHA1)**: Verified against [Vercel Webhooks API documentation](https://vercel.com/docs/webhooks/webhooks-api). Requires single 40-character hexadecimal SHA-1 HMAC digest over the raw request body.
-2. **`fal` (Ed25519)**: Verified against [fal.ai Webhooks documentation](https://fal.ai/docs/documentation/model-apis/inference/webhooks). Requires asymmetric Ed25519 signature over canonical LF-separated headers (`requestId\nuserId\ntimestamp\nsha256Hex(body)`), static 32-byte public keys (1..16), and required `expectedUserId` account binding.
+2. **`fal` (Ed25519)**: Verified against [fal.ai Webhooks documentation](https://fal.ai/docs/documentation/model-apis/inference/webhooks). The documented recipe uses Ed25519 over LF-separated identifiers, timestamp and body digest (`requestId\nuserId\ntimestamp\nsha256Hex(body)`). Hooklatch separately requires 1–16 caller-trusted raw 32-byte public keys and `expectedUserId` account binding as receiver configuration.
 
 ---
 
@@ -100,7 +100,7 @@ Hooklatch anchors its qualification claims in cryptographic receipts and immutab
 
 - **Base commit**: `baa8a7427fbed42404f97d3b66c68c160ff1555f`
 - **GitHub Actions CI verification**: [Run 40650684406](https://github.com/Its-amanjha/Hooklatch/actions/runs/40650684406) (completed `success` on 2026-10-29; all jobs passed: `verify (22)`, `verify (24)`, `node-floor (22.0.0)`)
-- **Production release tarball**: SHA-256 `6cf9be1540f498c992f80e3035e3bd3427cd2de3c90f5f911bb52c69e6ede9b8` (123,522 bytes)
+- **Historical qualification tarball**: SHA-256 `6cf9be1540f498c992f80e3035e3bd3427cd2de3c90f5f911bb52c69e6ede9b8` (123,522 bytes)
 - **Frozen historical receipts (SHA-256)**:
   - `coordinator-conformance-acceptance.json`: `453b51cabba98a82def7db0bc25474b6a605917843484c3a37066dc217ef8c16`
   - `coordinator-conformance-node22-results.json`: `24ce3d5cf50448146927a1437ddba40f86bd17b17dc538005e143c9364a138d3`
@@ -118,4 +118,4 @@ Future contributions proposing live sandbox delivery evidence must satisfy this 
 2. **Secret redaction and credential hygiene**: Production secrets, personal API tokens, authorization headers, and customer PII must be completely excluded or sanitized. Live sandbox signing secrets used for capture must be rotated immediately after capture.
 3. **Account consent and authorization**: Captured webhooks must originate exclusively from dedicated test accounts owned and authorized by the contributor. No third-party or production accounts may be targeted.
 4. **Immutable provenance**: Every captured delivery must document its capture timestamp, provider API version, delivery headers, and raw body SHA-256 digest alongside the source endpoint documentation.
-5. **Deterministic offline execution**: Captured deliveries must be integrated as frozen offline JSON fixtures in `tests/fixtures/`. Verification test suites and CI pipelines must remain 100% offline with zero external network calls.
+5. **Deterministic offline execution**: Captured deliveries must be integrated as frozen offline JSON fixtures in `tests/fixtures/`. Verification test suites and fixture verification must run offline; dependency installation and other CI setup may require network access.

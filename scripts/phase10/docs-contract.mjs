@@ -36,7 +36,7 @@
  *  - Slugger: GitHub-style ASCII approximation. Unicode letters and exotic
  *    punctuation are stripped rather than percent-encoded, so anchors for such
  *    headings may diverge from github.com rendering.
- *  - Link targets must stay inside the fixed nine-file tracked Markdown scope;
+ *  - Link targets must stay inside the fixed tracked Markdown scope;
  *    other Markdown targets are reported as drift, not silently passed.
  *
  * Exit codes:
@@ -103,7 +103,7 @@ const GLOBAL_CLAIM_PATTERNS = [
   { pattern: /all\s+signatures?\s+(?:are|use)\s+HMAC-SHA256/gi, kind: 'all-signatures-HMAC-SHA256' },
 ];
 
-export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md', 'docs/api-stability.md', 'docs/credential-recipes.md', 'CHANGELOG.md', 'docs/compatibility.md'];
+export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md', 'docs/api-stability.md', 'docs/credential-recipes.md', 'CHANGELOG.md', 'docs/compatibility.md', 'docs/verification-evidence.md', 'docs/release-checklist.md'];
 
 const REGISTRY_RELATIVE = 'dist/providers/index.js';
 

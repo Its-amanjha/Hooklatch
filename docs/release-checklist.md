@@ -109,10 +109,12 @@ distribution channel. Then, in order:
 
 1. Move the `Unreleased` changelog content into a dated release section using the
    actual release date.
-2. Commit the release metadata change and create the annotated tag.
-3. Push the commit and tag. Treat a pushed tag as public.
-4. Publish to npm with the reviewed tarball and the configured provenance
-   settings.
+2. Commit and verify the final release metadata. Push the release commit only
+   when authorized, then wait for exact-SHA CI to succeed on that final commit.
+3. Pack and review that final commit, record its artifact hash, and obtain final
+   authorization for that exact version and artifact. Create and push the
+   annotated tag for the same commit. Treat a pushed tag as public.
+4. Publish the reviewed tarball to npm with the configured provenance settings.
 5. Create the GitHub release with the same notes.
 
 `npm publish` and tag pushes are effectively irreversible. npm unpublish is
@@ -138,7 +140,7 @@ stop before publishing rather than relying on cleanup afterwards.
 - **Description:** Portable webhook signature verification with a zero-dependency
   core.
 - **Homepage:** `https://github.com/Its-amanjha/Hooklatch#readme`, matching the
-  current manifest. There is no separate documentation site.
+  prepared package metadata. There is no separate documentation site.
 - **Topics:** `webhooks`, `webhook-security`, `signature-verification`, `hmac`,
   `ed25519`, `typescript`, `express`, `hono`, `nextjs`, `cloudflare-workers`,
   `nodejs`.
@@ -163,4 +165,4 @@ stop before publishing rather than relying on cleanup afterwards.
 | Pushed branch or pull request | Visible to others; do not force-rewrite shared history |
 | Pushed Git tag | Public; treat as irreversible |
 | `npm publish` | Public and effectively irreversible |
-| GitHub release or repository setting change | Public; treat as irreversible |
+| GitHub release or repository setting change | Editable, but notifications and prior public exposure may persist |

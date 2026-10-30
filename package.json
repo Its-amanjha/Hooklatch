@@ -142,7 +142,9 @@
     "test:compat-package": "node scripts/phase11/package-contract.mjs --self-test && node scripts/phase11/package-contract.mjs",
     "test:compat-types": "node scripts/phase11/types-compatibility.mjs --self-test && node scripts/phase11/types-compatibility.mjs",
     "test:compat-runtime": "node scripts/phase11/mixed-format-runtime.mjs --self-test && node scripts/phase11/mixed-format-runtime.mjs --current",
-    "test:compat-frameworks": "node scripts/phase11/workers-compatibility.mjs --self-test"
+    "test:compat-frameworks": "node scripts/phase11/workers-compatibility.mjs --self-test",
+    "test:evidence": "node scripts/phase12/evidence-contract.mjs --self-test && node scripts/phase12/evidence-contract.mjs",
+    "test:release-readiness": "node scripts/phase12/release-readiness-controls.mjs && node scripts/phase12/release-readiness.mjs"
   },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",
@@ -184,6 +186,7 @@
   },
   "keywords": [
     "webhooks",
+    "webhook-security",
     "signature-verification",
     "hmac",
     "ed25519",
@@ -191,6 +194,7 @@
     "express",
     "hono",
     "nextjs",
-    "cloudflare-workers"
+    "cloudflare-workers",
+    "nodejs"
   ]
 }

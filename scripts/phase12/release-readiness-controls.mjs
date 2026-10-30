@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, symlinkSync, unlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -31,7 +31,7 @@ const TEMP_PREFIX = 'hooklatch-phase12-readiness-';
 const CHECKER_URL = pathToFileURL(CHECKER_PATH).href;
 
 const {
-  EXIT, EXPECTED_PROVIDERS, PUBLIC_ENTRIES, REGISTRY_RELATIVE, baseManifest, expectedTargets,
+  EXIT, EXPECTED_PROVIDERS, PUBLIC_ENTRIES, REGISTRY_RELATIVE, baseManifest, expectedTargets, runBoundedChild,
 } = await import(CHECKER_URL);
 
 const FIXTURE_DOCS = Object.freeze({
@@ -442,6 +442,104 @@ recordControl('cwd-independent-execution', () => {
   };
 });
 
+for (const variant of ['default-first', 'extra-condition', 'partial-build', 'registry-directory', 'missing-readme', 'readme-directory', 'absent-build-invalid-export']) {
+  recordControl(variant, () => {
+    const root = createScratch(variant);
+    const manifest = baseManifest();
+
+    if (variant === 'default-first') {
+      const entry = manifest.exports['.'];
+
+      manifest.exports['.'] = { default: entry.default, node: entry.node, types: entry.types, import: entry.import };
+    }
+
+    if (variant === 'extra-condition') {
+      manifest.exports['.'] = { browser: './dist/index.js', ...manifest.exports['.'] };
+    }
+
+    if (variant === 'absent-build-invalid-export') delete manifest.exports['./hono'];
+
+    writeFixture(root, manifest, { skipBuild: variant === 'absent-build-invalid-export' });
+
+    if (variant === 'partial-build' || variant === 'registry-directory') {
+      rmSync(path.join(root, REGISTRY_RELATIVE));
+
+      if (variant === 'registry-directory') mkdirSync(path.join(root, REGISTRY_RELATIVE));
+    }
+
+    if (variant === 'missing-readme' || variant === 'readme-directory') {
+      rmSync(path.join(root, 'README.md'));
+
+      if (variant === 'readme-directory') mkdirSync(path.join(root, 'README.md'));
+    }
+
+    const report = assertRun(runChecker(['--root', root], REPO_ROOT), EXIT.DEFECT, 'defect');
+
+    const expected = variant.includes('condition') || variant === 'default-first' ? 'export-condition-order'
+      : variant.includes('readme') ? 'missing-doc'
+      : variant === 'absent-build-invalid-export' ? 'exports-sync' : 'registry-missing-or-linked';
+
+    assert(findingsOf(report).some((finding) => finding.kind === expected), `missing intended ${expected} finding`);
+
+    return { exit: report.exit, expected };
+  });
+}
+
+recordControl('ancestor-junction-rejected', () => {
+  const root = createScratch('junction');
+  const target = createScratch('junction-target');
+
+  writeFixture(root, baseManifest(), { skipBuild: true });
+  writeFixture(target, baseManifest());
+
+  const link = path.join(root, 'dist');
+  const before = snapshotTree(target);
+
+  symlinkSync(path.join(target, 'dist'), link, process.platform === 'win32' ? 'junction' : 'dir');
+
+  try {
+    const report = assertRun(runChecker(['--root', root], REPO_ROOT), EXIT.DEFECT, 'defect');
+
+    assert(findingsOf(report).some((finding) => finding.kind === 'registry-missing-or-linked'));
+    assert.deepEqual(snapshotTree(target), before, 'linked target changed');
+
+    return { exit: report.exit, targetUnchanged: true };
+  } finally {
+    unlinkSync(link);
+  }
+});
+
+for (const variant of ['nonzero', 'malformed-output']) {
+  recordControl(`registry-${variant}`, () => {
+    const root = createScratch(variant);
+
+    writeFixture(root, baseManifest());
+    writeFixtureFile(root, REGISTRY_RELATIVE, variant === 'nonzero' ? 'process.exit(9);' : 'console.log("not-json"); export const SUPPORTED_PROVIDERS = [];');
+
+    const report = assertRun(runChecker(['--root', root], REPO_ROOT), EXIT.DEFECT, 'defect');
+    const finding = findingsOf(report).find((item) => item.kind === 'registry-probe');
+
+    assert(finding, 'expected registry-probe rejection');
+    assert.equal(finding.evidence.closeConfirmed, true);
+
+    return { exit: report.exit, probe: finding.evidence };
+  });
+}
+
+for (const variant of ['timeout', 'overflow']) {
+  try {
+    const payload = variant === 'timeout' ? 'setInterval(() => {}, 1000);' : 'setInterval(() => process.stdout.write("x".repeat(65536)), 1);';
+    const result = await runBoundedChild(['-e', payload], REPO_ROOT, variant === 'timeout' ? 250 : 5000);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.closeConfirmed, true);
+    assert.equal(variant === 'timeout' ? result.timedOut : result.outputLimitExceeded, true);
+    controls.push({ name: `child-${variant}`, passed: true, detail: { closeConfirmed: true } });
+  } catch (error) {
+    controls.push({ name: `child-${variant}`, passed: false, detail: messageOf(error) });
+  }
+}
+
 recordControl('checkout-unmodified', () => {
   const foreign = createScratch('no-write');
   const before = snapshotCheckout();
@@ -452,6 +550,8 @@ recordControl('checkout-unmodified', () => {
   assert.equal(run.signal, null);
   assert.equal(run.exitCode, run.report.exit, 'report exit must equal the observed process exit');
   assert.equal(run.report.rootSource, 'script-location');
+  assert.equal(run.exitCode, EXIT.READY, 'integrity control requires a real built checkout');
+  assert.equal(run.report.localReadiness.checks.find((check) => check.id === 'built-registry')?.status, 'passed');
   assert.equal(after.tracked.count, before.tracked.count, 'tracked file count changed');
   assert.equal(after.tracked.digest, before.tracked.digest, 'tracked file bytes changed');
   assert.deepEqual(after.dist, before.dist, 'built dist/ changed');

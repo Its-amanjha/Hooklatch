@@ -190,9 +190,10 @@ limits are collected in [verification evidence](docs/verification-evidence.md).
 
 `npm run test:conformance` is a separate opt-in check. It requires a reviewed,
 checksummed local SDK cache, exits BLOCKED when prerequisites are absent, and
-never fetches packages implicitly. It replays a frozen, cache-bound historical
-comparison of four pinned SDKs only. It is not a rerun on the current commit, not
-21-provider SDK coverage and not live-provider interoperability. Vercel and fal
+never fetches packages implicitly. It compares a frozen corpus against four
+pinned SDKs using the current built package. Published results on the evidence
+page describe historical runs, not a fresh rerun on the current commit. Neither
+is 21-provider SDK coverage or live-provider interoperability. Vercel and fal
 cases in that corpus are docs-only recipes, and every sandbox delivery status
 remains not run. Fresh cache acquisition is currently BLOCKED. The verification
 evidence page records its measured scope, provenance and receipt references.

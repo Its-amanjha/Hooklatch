@@ -238,6 +238,8 @@ function buildBaselineFiles(options) {
     'docs/credential-recipes.md': '# Credential recipes',
     'CHANGELOG.md': '# Changelog',
     'docs/compatibility.md': '# Node.js module compatibility',
+    'docs/verification-evidence.md': '# Verification and conformance evidence',
+    'docs/release-checklist.md': '# First release checklist',
     'docs/providers.md': providersDocument(buildRows(guideRow, settings.guideAlgorithmOverrides), settings.guideExtraLink),
     'docs/diagnostics.md': settings.withMigrationAnchor === false ? DIAGNOSTICS_PLAIN : DIAGNOSTICS_WITH_ANCHOR,
     'docs/cli.md': settings.cliDocument ?? CLI_PLAIN,

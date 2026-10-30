@@ -142,6 +142,7 @@ export const NOT_RUN_HERE = Object.freeze([
 ]);
 
 export const LIMITATIONS = Object.freeze([
+  'Inspect only trusted local builds: the bounded registry child executes that build. This is not a sandbox for untrusted package code.',
   'Structure and presence only: this is not behavioural, type-compatibility, performance or version-support evidence.',
   'The built registry is imported by a separate bounded child; this checker never packs, installs or runs package code in its own process.',
   'No network, registry, npm authentication, 2FA, account or environment query is performed or represented.',
@@ -218,9 +219,34 @@ function boundedText(value) {
   return text.length > FIELD_LIMIT ? `${text.slice(0, FIELD_LIMIT)}...` : text;
 }
 
-function isRegularFile(file) {
+function safeEntry(repoRoot, relative, directory = false) {
+  const parts = relative.split('/');
+  let current = repoRoot;
+
   try {
-    return lstatSync(file).isFile();
+    for (let index = 0; index < parts.length; index++) {
+      current = path.join(current, parts[index]);
+      const entry = lstatSync(current);
+      const last = index === parts.length - 1;
+
+      if (entry.isSymbolicLink()) return false;
+
+      if ((!last || directory) && !entry.isDirectory()) return false;
+
+      if (last && !directory && !entry.isFile()) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function entryExists(file) {
+  try {
+    lstatSync(file);
+
+    return true;
   } catch {
     return false;
   }
@@ -327,6 +353,19 @@ export function validateExportMap(manifest) {
     if (!isRecord(entryMap)) {
       findings.push({ kind: 'export-entry', subpath: entry.subpath, detail: 'missing or not a JSON object' });
       continue;
+    }
+
+    const orderedArms = [
+      { value: entryMap, keys: ['node', 'types', 'import', 'default'] },
+      { value: entryMap.node, keys: ['import', 'require'] },
+      { value: entryMap.node?.import, keys: ['types', 'default'] },
+      { value: entryMap.node?.require, keys: ['types', 'default'] },
+    ];
+
+    for (const arm of orderedArms) {
+      if (!isRecord(arm.value) || !sameStrings(Object.keys(arm.value), arm.keys)) {
+        findings.push({ kind: 'export-condition-order', subpath: entry.subpath, expected: arm.keys });
+      }
     }
 
     for (const expected of expectedTargets(entry)) {
@@ -478,6 +517,10 @@ export function validateDocs(files) {
   const findings = [];
   const changelog = files['CHANGELOG.md'];
 
+  if (!isText(files['README.md'])) {
+    findings.push({ kind: 'missing-doc', file: 'README.md' });
+  }
+
   if (!isText(changelog)) {
     findings.push({ kind: 'missing-doc', file: 'CHANGELOG.md' });
   } else if (!/^##\s+Unreleased\s*$/m.test(changelog)) {
@@ -514,13 +557,13 @@ export function externalEvidence() {
   }));
 }
 
-/** Local verdict: manifest defect wins, then a missing build, then check failures. */
+/** Definite local defects win; only a defect-free absent build is blocked. */
 export function resolveVerdict(manifestFindingCount, buildPresent, failedCheckCount) {
-  if (manifestFindingCount > 0) return EXIT.DEFECT;
+  if (manifestFindingCount > 0 || failedCheckCount > 0) return EXIT.DEFECT;
 
   if (!buildPresent) return EXIT.BLOCKED;
 
-  return failedCheckCount > 0 ? EXIT.DEFECT : EXIT.READY;
+  return EXIT.READY;
 }
 
 function statusFor(exit) {
@@ -680,9 +723,7 @@ function readDocs(repoRoot) {
   const files = {};
 
   for (const name of ['README.md', 'CHANGELOG.md']) {
-    const file = path.join(repoRoot, name);
-
-    if (isRegularFile(file)) files[name] = readFileSync(file, 'utf8');
+    if (safeEntry(repoRoot, name)) files[name] = readFileSync(path.join(repoRoot, name), 'utf8');
   }
 
   return files;
@@ -703,9 +744,13 @@ export async function runReadiness(repoRoot, options) {
   const rootSource = settings.rootSource === 'explicit' ? 'explicit' : 'script-location';
   const timeoutMs = Number.isInteger(settings.probeTimeoutMs) ? settings.probeTimeoutMs : PROBE_TIMEOUT_MS;
 
-  const manifestRead = readJson(path.join(repoRoot, 'package.json'));
+  const manifestRead = safeEntry(repoRoot, 'package.json')
+    ? readJson(path.join(repoRoot, 'package.json'))
+    : { ok: false, reason: 'missing, nonregular or linked package manifest' };
+
   const docsFiles = readDocs(repoRoot);
-  const buildPresent = isRegularFile(path.join(repoRoot, REGISTRY_RELATIVE));
+  const buildPresent = entryExists(path.join(repoRoot, 'dist'));
+  const registryPresent = safeEntry(repoRoot, REGISTRY_RELATIVE);
   const checks = [];
 
   const manifestFindings = manifestRead.ok
@@ -727,7 +772,7 @@ export async function runReadiness(repoRoot, options) {
       layoutFindings.length === 0 ? 'six entries retain neutral ESM, node ESM facade and node CJS arms; main/types/bin inside dist/' : `${layoutFindings.length} layout finding(s)`));
 
     if (buildPresent) {
-      const targetReport = checkDeclaredTargets(manifestRead.value, (relative) => isRegularFile(path.join(repoRoot, relative)));
+      const targetReport = checkDeclaredTargets(manifestRead.value, (relative) => safeEntry(repoRoot, relative));
 
       checks.push(makeCheck('targets-present', targetReport.findings.length === 0 ? 'passed' : 'failed', targetReport.findings,
         targetReport.findings.length === 0 ? `${targetReport.resolved.length} declared target(s) present in the built tree` : `${targetReport.findings.length} missing or escaping target(s)`));
@@ -741,6 +786,8 @@ export async function runReadiness(repoRoot, options) {
 
   if (!buildPresent) {
     checks.push(makeCheck('built-registry', 'blocked', [], `not evaluated: ${REGISTRY_RELATIVE} is absent; run \`npm run build\` first`));
+  } else if (!registryPresent) {
+    checks.push(makeCheck('built-registry', 'failed', [{ kind: 'registry-missing-or-linked', detail: 'Existing dist has a missing, nonregular or linked registry path' }], 'built tree is incomplete or linked'));
   } else {
     const probe = await probeRegistry(repoRoot, timeoutMs);
     const registryFindings = probe.finding === null ? compareProviders(probe.providers) : [probe.finding];
@@ -960,7 +1007,7 @@ export function runSelfTest() {
       'CHANGELOG.md': '# Changelog\n\n## Unreleased\n',
     });
 
-    const noHeading = validateDocs({ 'CHANGELOG.md': '# Changelog\n\n## 1.0.0\n' });
+    const noHeading = validateDocs({ 'README.md': 'Publication is pending.', 'CHANGELOG.md': '# Changelog\n\n## 1.0.0\n' });
 
     return {
       passed: unreleased.length === 0
