@@ -2,6 +2,8 @@
 
 **Verify webhooks. Preserve every byte.**
 
+[![CI](https://github.com/Its-amanjha/Hooklatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Its-amanjha/Hooklatch/actions/workflows/ci.yml)
+
 Portable webhook signature verification with a zero-dependency core.
 
 Hooklatch checks incoming webhook signatures over the exact request bytes
@@ -15,14 +17,16 @@ with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Requirements
 
-- **Node.js >= 22** (ESM and CommonJS; [module compatibility](docs/compatibility.md))
+- **Node.js >= 22** (ESM and CommonJS; the 22.0.0 floor, later 22.x and 24.x
+  were qualified — see [module compatibility](docs/compatibility.md))
 - Zero runtime dependencies in the core
 - Optional peers: `express`, `hono` (only needed for those adapters)
 
 ## Installation
 
-Publication to npm is pending. Build this checkout with `npm ci` and
-`npm run build` before packing it. For a published release:
+Publication to npm is pending, so `npm install hooklatch` is not yet supported.
+Build this checkout with `npm ci` and `npm run build` before packing it. A
+future published release is intended to install as:
 
 ```bash
 npm install hooklatch
@@ -116,15 +120,27 @@ Use endpoint-specific secrets. Providers sharing a signing protocol can accept
 the same signed request when configured with the same key. The `provider`
 option selects verification rules; it does not add cryptographic vendor binding.
 
-> **Implementation status (2026-10-24):** The core, twenty-one provider descriptors,
-> four adapters, CLI and diagnostics helper are implemented. Tests use reference vectors and
-> synthetic signatures; no live provider/account testing has been performed.
-> Run `npm run verify` for the full local checks. See `CONTRIBUTING.md` for
-> the implemented layout. The package has not been published by this workflow.
+> **Implementation status (documentation reviewed 2026-10-30):** The core,
+> twenty-one provider descriptors, four adapters, CLI and diagnostics helper are
+> implemented. The last measured acceptance was commit `baa8a74` on 2026-10-28:
+> a clean local `npm run verify` passed 87 suites / 4,161 tests plus the
+> package, type and runtime gates, and exact-SHA CI run
+> [40650684406](https://github.com/Its-amanjha/Hooklatch/actions/runs/40650684406)
+> completed successfully (verify on Node.js 22 and 24; node-floor on Node.js
+> 22.0.0; checked 2026-10-29). Tests use reference vectors and synthetic
+> signatures; no live provider or delivery testing has been performed. This
+> documentation review is dated 2026-10-30 and does not re-run or extend that
+> qualification.
+> Run `npm run verify` for the full local checks. See
+> [verification evidence](docs/verification-evidence.md) for the measured scope,
+> provenance and receipt references, and [CONTRIBUTING.md](CONTRIBUTING.md) for
+> the implemented layout. The package is unpublished: no npm release or Git tag
+> exists.
 
 ## Local scaffolding
 
-With Hooklatch installed, preview one TypeScript handler without writing files:
+With a built copy of Hooklatch installed, preview one TypeScript handler
+without writing files:
 
 ```sh
 npx --no-install hooklatch init webhook --provider clerk --framework nextjs --dry-run

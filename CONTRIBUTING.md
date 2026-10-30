@@ -19,7 +19,7 @@ npm install
 | Command | Purpose |
 |---------|---------|
 | `npm run verify` | Run all local release gates in order; stop on first failure |
-| `npm run build` | Compile portable SDK and Node-only CLI to `dist/` |
+| `npm run build` | Compile the neutral SDK and CLI, then add the Node CommonJS graph and ESM facades under `dist/` |
 | `npm run dev` | Watch the portable compiler project; rebuild CLI with `npm run build` |
 | `npm run typecheck` | Type-check without emitting |
 | `npm run typecheck:workers` | Type-check the real-workerd test Worker |
@@ -114,7 +114,10 @@ Before advertising provider support:
 ## Code style
 
 - TypeScript strict mode; no `any` without justification.
-- ESM only — `.js` extensions in relative imports.
+- Source is authored as ESM TypeScript; use `.js` extensions in relative
+  imports. The build adds the Node CommonJS graph and Node ESM facades described
+  in [module compatibility](docs/compatibility.md); the neutral/Workers output
+  and the CLI stay ESM.
 - No runtime dependencies in the core.
 - Match existing formatting and naming conventions.
 
@@ -132,13 +135,14 @@ See `SECURITY.md`.
 
 ## Preparing a release
 
-Run `npm ci` and `npm run verify` before inspecting `npm pack --dry-run`.
-Packing alone does not build the package or guarantee that `dist/` exists.
-Check that every exported entry point and the CLI are included, and that local
-notes, credentials, tests, and development tools are excluded. Confirm a private
-security-reporting channel and the supported-version policy before publishing.
-Publication, registry access, and provenance configuration are separate maintainer
-operations; passing CI does not publish a release.
+Follow the [first release checklist](docs/release-checklist.md) before any
+publication. At minimum, run `npm ci` and `npm run verify` before inspecting
+`npm pack --dry-run`. Packing alone does not build the package or guarantee that
+`dist/` exists. Check that every exported entry point and the CLI are included,
+and that local notes, credentials, tests, and development tools are excluded.
+Confirm a private security-reporting channel and the supported-version policy
+before publishing. Publication, registry access, and provenance configuration
+are separate maintainer operations; passing CI does not publish a release.
 
 Run `npm audit --omit=dev` and `npm audit` separately. The first checks the
 production dependency tree; the second also covers development tooling. Record
@@ -173,24 +177,37 @@ some original commit positions and messages remain despite empty changes.
 
 ## Adoption and release checks
 
-`npm run verify` includes the documentation contract, packed TypeScript API
-consumers and generated handlers running through all four framework surfaces on
-the current Node 22 or 24 runtime. The CI matrix runs this command on both.
-The API migration examples are in [API stability](docs/api-stability.md); portable
-setup helpers are in [credential recipes](docs/credential-recipes.md).
+`npm run verify` includes the documentation contract
+(`npm run test:docs-contract`), packed TypeScript API consumers and generated
+handlers running through all four framework surfaces on the current Node 22 or
+24 runtime. The CI matrix runs this command on both. The documentation contract
+validates the provider overview markers, registry order, algorithm cells and
+relative links inside a fixed tracked Markdown scope; adding another checked
+document is a change to that gate itself. The API migration examples are in
+[API stability](docs/api-stability.md); portable setup helpers are in
+[credential recipes](docs/credential-recipes.md). Measured scope, provenance and
+limits are collected in [verification evidence](docs/verification-evidence.md).
 
 `npm run test:conformance` is a separate opt-in check. It requires a reviewed,
 checksummed local SDK cache, exits BLOCKED when prerequisites are absent, and
-never fetches packages implicitly. Its four pinned SDK comparisons distinguish
-receiver-policy differences from agreement. Vercel and fal checks in that
-corpus are docs-only recipes. Fresh cache acquisition is currently BLOCKED.
-These checks do not establish live-provider interoperability.
+never fetches packages implicitly. It replays a frozen, cache-bound historical
+comparison of four pinned SDKs only. It is not a rerun on the current commit, not
+21-provider SDK coverage and not live-provider interoperability. Vercel and fal
+cases in that corpus are docs-only recipes, and every sandbox delivery status
+remains not run. Fresh cache acquisition is currently BLOCKED. The verification
+evidence page records its measured scope, provenance and receipt references.
 
-`npm run test:cjs-prototype` exercises disposable packaging candidates. It does
-not change the shipped ESM-only package or establish support for older runtimes.
-For two installed Node versions, run the generated-handler harness with
-`--runtime both` and set `PHASE10_NODE22` and `PHASE10_NODE24` to their executables.
+The additive Node ESM+CommonJS distribution is qualified by
+`npm run test:node-distribution`, `npm run test:compat-package`,
+`npm run test:compat-types`, `npm run test:compat-runtime` and
+`npm run test:compat-frameworks`, which are all part of `npm run verify`.
+`npm run test:cjs-prototype` remains a legacy disposable packaging experiment;
+it is neither the shipped layout nor evidence for Node.js 18 or 20. For two
+installed Node versions, run the generated-handler harness with `--runtime both`
+and set `PHASE10_NODE22` and `PHASE10_NODE24` to their executables.
 
-The [changelog](CHANGELOG.md) describes unreleased work. Publication, release
-tags, security reporting channels and any Code of Conduct enforcement contact
-require explicit maintainer decisions. Do not infer them from local checks.
+Follow the release checklist linked above before any publication. The
+[changelog](CHANGELOG.md) describes unreleased work.
+Publication, release tags, security reporting channels and any Code of Conduct
+enforcement contact require explicit maintainer decisions. Do not infer them
+from local checks.
