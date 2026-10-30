@@ -1,0 +1,809 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-30",
+  "baseSha": "baa8a7427fbed42404f97d3b66c68c160ff1555f",
+  "provenance": {
+    "ci": {
+      "runId": 40650684406,
+      "head": "baa8a7427fbed42404f97d3b66c68c160ff1555f",
+      "checkedDate": "2026-10-29",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Its-amanjha/Hooklatch/actions/runs/40650684406",
+      "jobs": {
+        "verify (22)": "success",
+        "verify (24)": "success",
+        "node-floor": "success"
+      }
+    },
+    "historicalEvaluationReceipts": {
+      "receipts": {
+        "coordinator-conformance-acceptance.json": "453b51cabba98a82def7db0bc25474b6a605917843484c3a37066dc217ef8c16",
+        "coordinator-conformance-node22-results.json": "24ce3d5cf50448146927a1437ddba40f86bd17b17dc538005e143c9364a138d3",
+        "coordinator-conformance-node24-results.json": "9e2ac4bb4c3a348e27023ecfb94ea608ce632c0e56466d7f2fedb57df794ca04",
+        "compatibility-acceptance-baa8a74.json": "7222e09211d0e0cf9f7f096082105d5bbc77c101fe1b1b28f614a3fe9670ac64",
+        "ci-success-2026-10-29.json": "bb2b31d15bd214c8374ac9610420233fb2265a2a2151034a2f7e1f6d2d5aec8d"
+      }
+    },
+    "historicalSdkEvaluation": {
+      "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+      "testedDate": "2026-10-27",
+      "testedRuntimes": [
+        "v22.23.4",
+        "v24.15.0"
+      ],
+      "totalCases": 57,
+      "agreements": 41,
+      "divergences": 8,
+      "docsProbes": 8,
+      "unexpectedMismatches": 0,
+      "controlsPassed": true,
+      "scope": "Four pinned vendor SDKs (@paddle/paddle-node-sdk, @sanity/webhook, @linear/sdk, standardwebhooks) and two docs-only probes (vercel, fal); 15 providers not-compared"
+    },
+    "qualificationTotals": {
+      "providersCount": 21,
+      "jestSuites": 87,
+      "jestTests": 4161,
+      "workersProviderCases": 725,
+      "nodeFrameworkRequests": 72,
+      "frameworkWorkerdMatrices": 2,
+      "frameworkControls": 7,
+      "packedTypeCases": 142,
+      "packedCompilerControls": 9,
+      "packageContractChecks": 23,
+      "builderTests": 20,
+      "productionArtifactSha256": "6cf9be1540f498c992f80e3035e3bd3427cd2de3c90f5f911bb52c69e6ede9b8",
+      "productionArtifactBytes": 123522
+    }
+  },
+  "providers": [
+    {
+      "provider": "stripe",
+      "registryOrder": 1,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 19,
+        "reference": 0,
+        "local": 19
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "github",
+      "registryOrder": 2,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 9,
+        "reference": 1,
+        "local": 8
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "shopify",
+      "registryOrder": 3,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 7,
+        "reference": 0,
+        "local": 7
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "standard-webhooks",
+      "registryOrder": 4,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 17,
+        "reference": 2,
+        "local": 15
+      },
+      "sdkComparison": {
+        "status": "compared",
+        "package": "standardwebhooks",
+        "version": "1.1.1",
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 16,
+        "agreements": 14,
+        "divergences": 2,
+        "docsProbes": 0,
+        "unexpectedMismatches": 0,
+        "divergenceDetails": [
+          "std-divergence-auth-before-freshness: Hooklatch evaluates cryptographic authentication prior to timestamp freshness (invalid-signature), whereas Standard Webhooks SDK evaluates timestamp freshness first (WebhookVerificationError: Message timestamp too old).",
+          "std-divergence-weak-key: Hooklatch enforces strict MIN_KEY_BYTES = 24 bound on secrets to protect against weak symmetric keys (invalid-secret), whereas vendor SDK permits arbitrary key lengths."
+        ]
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "clerk",
+      "registryOrder": 5,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 16,
+        "reference": 1,
+        "local": 15
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "svix",
+      "registryOrder": 6,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 24,
+        "reference": 2,
+        "local": 22
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "razorpay",
+      "registryOrder": 7,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 20,
+        "reference": 0,
+        "local": 20
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "paddle",
+      "registryOrder": 8,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 33,
+        "reference": 2,
+        "local": 31
+      },
+      "sdkComparison": {
+        "status": "compared",
+        "package": "@paddle/paddle-node-sdk",
+        "version": "3.10.0",
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 14,
+        "agreements": 11,
+        "divergences": 3,
+        "docsProbes": 0,
+        "unexpectedMismatches": 0,
+        "divergenceDetails": [
+          "paddle-divergence-whitespace-segment: Hooklatch trims segment whitespace around semicolons per header robustness; @paddle/paddle-node-sdk splits on ';' without trimming, failing parameter matching.",
+          "paddle-divergence-rotation-first-valid: Hooklatch evaluates repeated h1 fields as a secret rotation accept-set; @paddle/paddle-node-sdk overwrites 'h1' and checks only the final value.",
+          "paddle-divergence-auth-before-freshness: Hooklatch evaluates cryptographic authentication prior to timestamp freshness (invalid-signature), whereas @paddle/paddle-node-sdk evaluates timestamp freshness first."
+        ]
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "lemon-squeezy",
+      "registryOrder": 9,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 15,
+        "reference": 0,
+        "local": 15
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "dodo-payments",
+      "registryOrder": 10,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 31,
+        "reference": 0,
+        "local": 31
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "gitlab",
+      "registryOrder": 11,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 34,
+        "reference": 0,
+        "local": 34
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "replicate",
+      "registryOrder": 12,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 31,
+        "reference": 0,
+        "local": 31
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "workos",
+      "registryOrder": 13,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 58,
+        "reference": 0,
+        "local": 58
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "sentry",
+      "registryOrder": 14,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 24,
+        "reference": 0,
+        "local": 24
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "doppler",
+      "registryOrder": 15,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 24,
+        "reference": 0,
+        "local": 24
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "sanity",
+      "registryOrder": 16,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 58,
+        "reference": 0,
+        "local": 58
+      },
+      "sdkComparison": {
+        "status": "compared",
+        "package": "@sanity/webhook",
+        "version": "4.0.4",
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 9,
+        "agreements": 7,
+        "divergences": 2,
+        "docsProbes": 0,
+        "unexpectedMismatches": 0,
+        "divergenceDetails": [
+          "sanity-reject-default-tolerance-stale: Hooklatch core enforces standard timestamp freshness (300s default); @sanity/webhook assertValidSignature does not expire timestamps and only checks MINIMUM_TIMESTAMP bound.",
+          "sanity-divergence-empty-body: Hooklatch authenticates exact request bytes including empty string payloads; @sanity/webhook assertValidSignature explicitly throws WebhookSignatureFormatError disallowing empty body verification."
+        ]
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "grafana",
+      "registryOrder": 17,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 50,
+        "reference": 0,
+        "local": 50
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "polar",
+      "registryOrder": 18,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 40,
+        "reference": 0,
+        "local": 40
+      },
+      "sdkComparison": {
+        "status": "not-compared",
+        "package": null,
+        "version": null,
+        "testedDate": null,
+        "testedHead": null,
+        "testedRuntimes": null,
+        "casesCount": null,
+        "agreements": null,
+        "divergences": null,
+        "docsProbes": null,
+        "unexpectedMismatches": null,
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "linear",
+      "registryOrder": 19,
+      "algorithm": "HMAC-SHA256",
+      "fixtureCases": {
+        "total": 31,
+        "reference": 0,
+        "local": 31
+      },
+      "sdkComparison": {
+        "status": "compared",
+        "package": "@linear/sdk",
+        "version": "99.0.0",
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 10,
+        "agreements": 9,
+        "divergences": 1,
+        "docsProbes": 0,
+        "unexpectedMismatches": 0,
+        "divergenceDetails": [
+          "linear-divergence-stale-body-timestamp: Hooklatch core verifies exact visible request bytes without parsing JSON or extracting payload schema timestamps; @linear/sdk parses JSON and requires webhookTimestamp to be within 60 seconds of Date.now()."
+        ]
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "vercel",
+      "registryOrder": 20,
+      "algorithm": "HMAC-SHA1",
+      "fixtureCases": {
+        "total": 33,
+        "reference": 0,
+        "local": 33
+      },
+      "sdkComparison": {
+        "status": "docs-only",
+        "package": null,
+        "version": null,
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 4,
+        "agreements": 0,
+        "divergences": 0,
+        "docsProbes": 4,
+        "unexpectedMismatches": 0,
+        "recipe": "HMAC-SHA1 hex 40-character digest over raw request body",
+        "documentationUrl": "https://vercel.com/docs/webhooks/webhooks-api",
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    },
+    {
+      "provider": "fal",
+      "registryOrder": 21,
+      "algorithm": "Ed25519",
+      "fixtureCases": {
+        "total": 72,
+        "reference": 0,
+        "local": 72
+      },
+      "sdkComparison": {
+        "status": "docs-only",
+        "package": null,
+        "version": null,
+        "testedDate": "2026-10-27",
+        "testedHead": "1747694b73b1c61254d99ad3217768650654d410",
+        "testedRuntimes": [
+          "v22.23.4",
+          "v24.15.0"
+        ],
+        "casesCount": 4,
+        "agreements": 0,
+        "divergences": 0,
+        "docsProbes": 4,
+        "unexpectedMismatches": 0,
+        "recipe": "Ed25519 signature over requestId LF userId LF timestamp LF sha256Hex(body)",
+        "documentationUrl": "https://fal.ai/docs/documentation/model-apis/inference/webhooks",
+        "divergenceDetails": []
+      },
+      "runtimeQualification": {
+        "status": "qualified-offline",
+        "workerdQualified": true,
+        "nodeQualified": true,
+        "frameworkQualified": true
+      },
+      "sandboxDelivery": {
+        "status": "not-run",
+        "notes": "No live sandbox delivery trials run; live credential access and remote network calls are blocked by design"
+      }
+    }
+  ]
+}
