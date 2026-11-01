@@ -24,9 +24,7 @@ with optional framework adapters, diagnostics and a local scaffolding CLI.
 
 ## Installation
 
-Publication to npm is pending, so `npm install hooklatch` is not yet supported.
-Build this checkout with `npm ci` and `npm run build` before packing it. A
-future published release is intended to install as:
+Install from npm:
 
 ```bash
 npm install hooklatch
@@ -134,8 +132,7 @@ option selects verification rules; it does not add cryptographic vendor binding.
 > Run `npm run verify` for the full local checks. See
 > [verification evidence](docs/verification-evidence.md) for the measured scope,
 > provenance and receipt references, and [CONTRIBUTING.md](CONTRIBUTING.md) for
-> the implemented layout. The package is unpublished: no npm release or Git tag
-> exists.
+> the implemented layout.
 
 ## Local scaffolding
 

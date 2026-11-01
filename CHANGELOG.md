@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-This entry describes the development tree. No npm release or Git tag is recorded.
+No changes yet.
+
+## 1.0.0 - 2026-11-02
+
+First release.
 
 ### Added
 
@@ -35,4 +39,4 @@ comparisons and local runtime tests do not establish live-provider
 interoperability.
 
 Queues, retries, business idempotency, JWKS retrieval and Relay are outside the
-implemented core. Publication requires a separate maintainer decision.
+implemented core.

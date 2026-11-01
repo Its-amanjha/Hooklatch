@@ -1,11 +1,5 @@
 # Getting started
 
-> **Unpublished development package.** Hooklatch is not published to npm, and no
-> Git tag or GitHub release exists. The package name may not resolve in a
-> registry. Install a locally reviewed tarball until a maintainer announces a
-> release. Nothing on this page promises a publication date or registry
-> availability.
-
 ## Requirements
 
 - **Node.js 22 or later.** The 22.0.0 floor was measured on Windows and Linux;
@@ -22,23 +16,14 @@
 - **Workers-compatible runtimes** keep the original neutral ESM graph. This is
   not a universal bundler, browser, Deno or Bun guarantee.
 
-## Install the reviewed tarball
-
-Because npm publication is pending, install the exact tarball that a maintainer
-reviewed. The path below is a placeholder, not a real download location:
+## Install
 
 ```bash
-npm install /path/to/reviewed/hooklatch-1.0.0.tgz
+npm install hooklatch
 ```
 
-Replace the placeholder with your local path to the reviewed tarball. Confirm
-its SHA-256 against the maintainer's receipt before installing. Do not run
-`npm install hooklatch` or `npx hooklatch` from a registry until a publication is
-announced; a registry lookup is not proof that the name is owned, reserved or
-available.
-
-If you are working from a checkout instead of a tarball, build and pack it
-first:
+If you are working from a checkout instead, build and pack it first, then
+install the resulting tarball:
 
 ```bash
 npm ci
@@ -196,9 +181,8 @@ conformance claim:
 
 ### `Cannot find module 'hooklatch'` or a registry 404
 
-The package is unpublished. Install the reviewed tarball as shown above. A
-registry 404 is not proof of ownership, reservation or availability, and no
-registry installation is supported until publication is announced.
+Check that `hooklatch` is listed in your `package.json` dependencies and that
+`npm install` completed. Hooklatch requires Node.js 22 or later.
 
 ### The package resolves but `dist/...` is missing
 
