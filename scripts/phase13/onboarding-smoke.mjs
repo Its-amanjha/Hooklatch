@@ -1444,6 +1444,8 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (options.results !== null) {
     try {
+      if (/session\.json$/i.test(options.results)) throw new UsageError('--results must not target a claim/session file');
+
       validateResultsDestination(path.resolve(options.results), REPO_ROOT);
     } catch (error) {
       if (!(error instanceof UsageError)) throw error;
