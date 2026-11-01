@@ -16,11 +16,12 @@ report it responsibly.
 
 **Do not** open a public issue for security vulnerabilities.
 
-No dedicated reporting address or private advisory channel is configured in this
-workspace. Before publishing, maintainers should configure and document one.
-Use the repository's private vulnerability-reporting flow when it is available.
-Otherwise ask the maintainers for a private contact without posting exploit
-details. A public discussion is not a private reporting channel.
+Report vulnerabilities privately through GitHub's private vulnerability
+reporting: open the repository's **Security** tab and choose **Report a
+vulnerability**, or go directly to
+<https://github.com/Its-amanjha/Hooklatch/security/advisories/new>.
+The report is visible only to you and the maintainers. A public issue or
+discussion is not a private reporting channel.
 
 Please include:
 
