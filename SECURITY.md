@@ -4,10 +4,12 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.0.0 development (unreleased) | Fixes tracked in this workspace |
+| Latest 1.x release | Yes |
+| Older releases | No |
 
-This workspace does not establish that any version has been published. Maintainers
-must define the supported release policy when publishing the first release.
+Security fixes are released only for the newest published version. To receive a
+fix, upgrade to the latest release. No version has been published yet; this
+policy applies from the first release.
 
 ## Reporting a Vulnerability
 
