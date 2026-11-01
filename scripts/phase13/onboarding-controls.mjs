@@ -430,7 +430,7 @@ async function runControls() {
     });
 
     await recordAsync('results-cannot-overwrite-frozen-input', async () => {
-      const input = path.join(REPO_ROOT, 'tasks', 'phase-13', 'onboarding-examples.json');
+      const input = path.join(REPO_ROOT, 'scripts', 'phase13', 'onboarding-examples.json');
       const hashBefore = sha256File(input);
       const run = await runSmoke(['--tarball', notATarball, '--results', input], ledger);
       const unchanged = sha256File(input) === hashBefore;

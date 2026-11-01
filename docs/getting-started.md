@@ -209,10 +209,12 @@ then pack and install the tarball. Do not deep-import `dist` files or rely on
 
 ### An optional peer is missing
 
-`express` and `hono` are needed only by their adapter subpaths. Install the peer
-in the application that imports that adapter. The core and diagnostics entries
-do not load either peer. The Next.js and Cloudflare adapters do not require a
-framework peer. See [adapters and optional peers](compatibility.md#adapters-and-optional-peers).
+`express` and `hono` are needed only by applications that use those frameworks.
+The `hooklatch/express` and `hooklatch/hono` adapters import the peer for types
+only, so loading the adapter itself does not fail when the peer is absent; your
+application supplies its own `express` or `hono` installation. The core and
+diagnostics entries do not load either peer. The Next.js and Cloudflare adapters
+do not require a framework peer. See [adapters and optional peers](compatibility.md#adapters-and-optional-peers).
 
 ### A broad `Provider` value does not type-check
 

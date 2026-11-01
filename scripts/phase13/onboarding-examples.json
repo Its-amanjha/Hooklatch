@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "status": "prepublication examples; frozen exact fences for both writer and runner",
+  "examples": [
+    {
+      "id": "core-esm",
+      "language": "js",
+      "code": "import { createHmac } from 'node:crypto';\nimport { verify } from 'hooklatch';\n\nconst rawBody = new TextEncoder().encode('hooklatch onboarding');\nconst secret = 'hooklatch-synthetic-onboarding';\nconst signature = createHmac('sha256', secret).update(rawBody).digest('hex');\nconst result = await verify(\n  { rawBody, headers: { 'x-hub-signature-256': `sha256=${signature}` } },\n  { provider: 'github', secrets: [secret] },\n);\n\nif (!result.ok) throw new Error('Verification failed.');\nconsole.log('verified');"
+    },
+    {
+      "id": "core-commonjs",
+      "language": "js",
+      "code": "const { createHmac } = require('node:crypto');\nconst { verify } = require('hooklatch');\n\nasync function main() {\n  const rawBody = new TextEncoder().encode('hooklatch onboarding');\n  const secret = 'hooklatch-synthetic-onboarding';\n  const signature = createHmac('sha256', secret).update(rawBody).digest('hex');\n  const result = await verify(\n    { rawBody, headers: { 'x-hub-signature-256': `sha256=${signature}` } },\n    { provider: 'github', secrets: [secret] },\n  );\n\n  if (!result.ok) throw new Error('Verification failed.');\n  console.log('verified');\n}\n\nmain().catch(() => {\n  console.error('Verification failed.');\n  process.exitCode = 1;\n});"
+    },
+    {
+      "id": "cli-help",
+      "language": "bash",
+      "code": "npx --no-install hooklatch --help"
+    },
+    {
+      "id": "cli-dry-run",
+      "language": "bash",
+      "code": "npx --no-install hooklatch init webhook --provider github --framework express --dry-run"
+    }
+  ]
+}

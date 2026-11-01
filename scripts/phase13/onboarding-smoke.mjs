@@ -7,7 +7,7 @@
  *
  *   1. the explicit artifact is hashed before use; a missing, non-regular or
  *      non-gzip file is BLOCKED before any temporary directory exists;
- *   2. `tasks/phase-13/onboarding-examples.json` must equal the frozen literals
+ *   2. `scripts/phase13/onboarding-examples.json` must equal the frozen literals
  *      in this module (4 ids, exact language + code), so a rewritten example is
  *      reported as a defect instead of being "fixed up";
  *   3. with `--guide`, every `<-- hooklatch:example:ID -->` marker must be
@@ -60,7 +60,7 @@ import {
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
-export const EXAMPLES_RELATIVE = 'tasks/phase-13/onboarding-examples.json';
+export const EXAMPLES_RELATIVE = 'scripts/phase13/onboarding-examples.json';
 
 const TEMP_PREFIX = 'hooklatch-phase13-onboarding-';
 const OUTPUT_LIMIT = 256 * 1024;
@@ -73,7 +73,7 @@ export const SYNTHETIC_SECRET = 'hooklatch-synthetic-onboarding';
 export const SYNTHETIC_BODY = 'hooklatch onboarding';
 
 /**
- * Frozen literal examples. `tasks/phase-13/onboarding-examples.json` must match
+ * Frozen literal examples. `scripts/phase13/onboarding-examples.json` must match
  * these exactly; the runner never edits an example to make a guide pass.
  */
 export const FROZEN_EXAMPLES = Object.freeze([
@@ -196,7 +196,7 @@ export const USAGE = [
   '',
   'Options:',
   '  --guide FILE      Onboarding guide whose four example markers and fences must',
-  '                    match tasks/phase-13/onboarding-examples.json exactly.',
+  '                    match scripts/phase13/onboarding-examples.json exactly.',
   '  --results FILE    Write the JSON evidence report to a new file only.',
   '  --self-test       Run harness-only controls; no install, no temporary project.',
   '  --help, -h        Show this help.',
@@ -789,7 +789,7 @@ async function runOnboarding(settings) {
   const examples = loadExamplesFile();
 
   recordCheck(checks, 'examples-frozen-match', examples.ok ? 'passed' : 'failed', examples.ok
-    ? 'tasks/phase-13/onboarding-examples.json matches the four frozen literals'
+    ? 'scripts/phase13/onboarding-examples.json matches the four frozen literals'
     : examples.problems.join(','));
 
   if (!examples.ok) return finish('failed', EXIT.FAILED);

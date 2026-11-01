@@ -207,8 +207,10 @@ The six public entries keep their current boundaries: root, `diagnostics`,
 `express`, `nextjs`, `cloudflare` and `hono`. Express and Hono remain optional
 peer dependencies; the core and diagnostics entries do not load either peer.
 CommonJS support does not install a peer, convert a peer to a required
-dependency, or add a Node shim to the Workers adapters. A CommonJS adapter
-import still needs its peer installed and supported by the application.
+dependency, or add a Node shim to the Workers adapters. The Express and Hono
+adapters reference their peer for types only, so loading an adapter in either
+format does not import the peer at runtime; the application provides a
+supported `express` or `hono` installation.
 
 ## Providers and credentials are unchanged
 

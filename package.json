@@ -144,7 +144,9 @@
     "test:compat-runtime": "node scripts/phase11/mixed-format-runtime.mjs --self-test && node scripts/phase11/mixed-format-runtime.mjs --current",
     "test:compat-frameworks": "node scripts/phase11/workers-compatibility.mjs --self-test",
     "test:evidence": "node scripts/phase12/evidence-contract.mjs --self-test && node scripts/phase12/evidence-contract.mjs",
-    "test:release-readiness": "node scripts/phase12/release-readiness-controls.mjs && node scripts/phase12/release-readiness.mjs"
+    "test:release-readiness": "node scripts/phase12/release-readiness-controls.mjs && node scripts/phase12/release-readiness.mjs",
+    "test:release-candidate-controls": "node scripts/phase13/release-candidate.mjs --self-test && node scripts/phase13/release-candidate-controls.mjs",
+    "test:onboarding-controls": "node scripts/phase13/onboarding-smoke.mjs --self-test && node scripts/phase13/onboarding-controls.mjs"
   },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",

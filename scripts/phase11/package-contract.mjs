@@ -1364,9 +1364,16 @@ function runCapture(command, args, options) {
   });
 }
 
+/**
+ * GNU tar reads an archive name containing a colon (a Windows drive letter
+ * such as `D:\...`) as `host:path`; `--force-local` disables that. Set once
+ * from the `tar --version` prerequisite probe; bsdtar needs no flag.
+ */
+const tarFlags = [];
+
 /** Run one tar operation; returns the captured result. */
 function runTar(args, label) {
-  return runCapture('tar', args, { cwd: process.cwd(), timeout: TAR_TIMEOUT_MS, label });
+  return runCapture('tar', [...tarFlags, ...args], { cwd: process.cwd(), timeout: TAR_TIMEOUT_MS, label });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1932,7 +1939,8 @@ function parseFlags(argv) {
         return parsed;
       }
 
-      parsed.tarball = value;
+      // npm install runs in the temp consumer, so a relative path must be resolved here.
+      parsed.tarball = path.resolve(value);
       index += 1;
       continue;
     }
@@ -2700,7 +2708,9 @@ async function main() {
   }
 
   try {
-    await runCapture('tar', ['--version'], { cwd: repoRoot, timeout: TAR_TIMEOUT_MS, label: 'tar --version (prerequisite)' });
+    const version = await runCapture('tar', ['--version'], { cwd: repoRoot, timeout: TAR_TIMEOUT_MS, label: 'tar --version (prerequisite)' });
+
+    if (/GNU tar/.test(version.stdout)) tarFlags.push('--force-local');
   } catch (error) {
     blockedReasons.push(`system tar is unavailable: ${boundedText(error instanceof Error ? error.message : error)}`);
   }

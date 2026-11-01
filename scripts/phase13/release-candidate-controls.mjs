@@ -102,7 +102,7 @@ async function cliControls(workspace, ledger, control) {
   const host = process.execPath;
   const textFile = path.join(workspace.root, 'not-an-archive.tgz');
   const gzipFile = path.join(workspace.root, 'synthetic.tgz');
-  const runsDir = path.join(REPO_ROOT, 'notes', 'phase-13', 'claude', 'control-results');
+  const runsDir = path.join(REPO_ROOT, 'notes', `.rc-controls-${randomUUID()}`);
 
   writeFileSync(textFile, 'plain text, not gzip');
   writeFileSync(gzipFile, gzipSync(Buffer.from('synthetic')));
@@ -132,10 +132,16 @@ async function cliControls(workspace, ledger, control) {
   await control('cli/self-test-incompatible', () => expectNoSideEffects(['--self-test', '--tarball', gzipFile], EXIT.USAGE, /standalone/));
   await control('cli/wrong-artifact-before-gates', () => expectNoSideEffects(
     ['--tarball', textFile, '--node22-floor', host, '--node22', host, '--node24', host], EXIT.FAILED, /wrong-artifact/));
+  // The one host executable is passed for every role: the floor role and the
+  // role for the other Node line must both be rejected before any gate runs.
+  const otherLine = process.versions.node.startsWith('22.') ? '--node24' : '--node22';
+  const hostVersion = process.version.split('.').join('\\.');
+
   await control('cli/wrong-floor-runtime-before-gates', () => expectNoSideEffects(
-    ['--tarball', gzipFile, '--node22-floor', host, '--node22', host, '--node24', host], EXIT.FAILED, /--node22-floor reports v24\..*expected exactly v22\.0\.0/));
-  await control('cli/host-substituted-for-node22', () => expectNoSideEffects(
-    ['--tarball', gzipFile, '--node22-floor', host, '--node22', host, '--node24', host], EXIT.FAILED, /--node22 reports v24\./));
+    ['--tarball', gzipFile, '--node22-floor', host, '--node22', host, '--node24', host], EXIT.FAILED,
+    new RegExp(`--node22-floor reports ${hostVersion}, expected exactly v22\\.0\\.0`)));
+  await control('cli/host-substituted-for-other-line', () => expectNoSideEffects(
+    ['--tarball', gzipFile, '--node22-floor', host, '--node22', host, '--node24', host], EXIT.FAILED, new RegExp(`${otherLine} reports ${hostVersion}`)));
 
   const resultsGuard = (id, target, pattern) => control(`cli/results-guard/${id}`, async () => {
     const existedBefore = existsSync(target);

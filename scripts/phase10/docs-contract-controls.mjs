@@ -240,6 +240,8 @@ function buildBaselineFiles(options) {
     'docs/compatibility.md': '# Node.js module compatibility',
     'docs/verification-evidence.md': '# Verification and conformance evidence',
     'docs/release-checklist.md': '# First release checklist',
+    'docs/getting-started.md': '# Getting started',
+    'docs/release-notes-1.0.0-draft.md': '# Hooklatch 1.0.0 release notes — DRAFT, UNRELEASED',
     'docs/providers.md': providersDocument(buildRows(guideRow, settings.guideAlgorithmOverrides), settings.guideExtraLink),
     'docs/diagnostics.md': settings.withMigrationAnchor === false ? DIAGNOSTICS_PLAIN : DIAGNOSTICS_WITH_ANCHOR,
     'docs/cli.md': settings.cliDocument ?? CLI_PLAIN,

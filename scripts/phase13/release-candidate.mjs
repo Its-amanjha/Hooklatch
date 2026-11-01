@@ -14,7 +14,7 @@
  *
  * This script is an orchestrator, not a gate: it never extracts, installs or
  * imports the candidate itself. Each gate runs as a bounded child on the host
- * Node 24 toolchain (the gates dispatch the target runtimes themselves). A
+ * Node toolchain, 22 or 24 (the gates dispatch the target runtimes themselves). A
  * stage is accepted only when the child closed cleanly with exit 0 AND wrote a
  * fresh structured report in this run whose status, exact inventory, artifact
  * SHA-256, target runtime versions/hashes, cleanup and integrity fields match.
@@ -629,7 +629,7 @@ export async function validateInputs(options) {
 
   const hostMajor = process.versions.node.split('.')[0];
 
-  if (hostMajor !== '24') return { kind: 'blocked', reason: `host toolchain must be the pinned Node 24 line; observed ${process.version}` };
+  if (hostMajor !== '22' && hostMajor !== '24') return { kind: 'blocked', reason: `host toolchain must be Node 22 or 24; observed ${process.version}` };
 
   const absent = ['tarball', 'node22Floor', 'node22', 'node24'].filter((key) => {
     const target = path.resolve(options[key]);
@@ -679,22 +679,12 @@ export async function validateInputs(options) {
   return { kind: 'ok', tarball, runtimes, tar: tar.version };
 }
 
-/**
- * package-contract lists the archive with the `tar` found on PATH and an
- * absolute --tarball. GNU tar (e.g. Git Bash's) reads `D:\...` as a remote
- * host, so on Windows it is a missing prerequisite, not a candidate defect.
- */
+/** package-contract lists the archive with the `tar` found on PATH; record which one. */
 async function probeTar() {
   const run = await runChild('tar', ['--version'], { timeoutMs: PROBE_TIMEOUT_MS });
   const version = run.ok ? run.stdout.split(/\r?\n/)[0].trim() : null;
 
-  if (version === null) return { version, problem: 'system tar is unavailable on PATH (required by package-contract)' };
-
-  if (process.platform === 'win32' && /GNU tar/i.test(version)) {
-    return { version, problem: `tar on PATH is ${version}, which misreads drive-letter archive paths; run where tar resolves to the Windows bsdtar` };
-  }
-
-  return { version, problem: null };
+  return { version, problem: version === null ? 'system tar is unavailable on PATH (required by package-contract)' : null };
 }
 
 export function validateResults(raw, tarballPath) {

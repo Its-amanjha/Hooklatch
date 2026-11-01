@@ -103,7 +103,7 @@ const GLOBAL_CLAIM_PATTERNS = [
   { pattern: /all\s+signatures?\s+(?:are|use)\s+HMAC-SHA256/gi, kind: 'all-signatures-HMAC-SHA256' },
 ];
 
-export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md', 'docs/api-stability.md', 'docs/credential-recipes.md', 'CHANGELOG.md', 'docs/compatibility.md', 'docs/verification-evidence.md', 'docs/release-checklist.md'];
+export const DOC_SCOPE = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'docs/providers.md', 'docs/diagnostics.md', 'docs/cli.md', 'docs/api-stability.md', 'docs/credential-recipes.md', 'CHANGELOG.md', 'docs/compatibility.md', 'docs/verification-evidence.md', 'docs/release-checklist.md', 'docs/getting-started.md', 'docs/release-notes-1.0.0-draft.md'];
 
 const REGISTRY_RELATIVE = 'dist/providers/index.js';
 
